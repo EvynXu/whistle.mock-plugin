@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Project Rule
+
+## 目录结构
+
+- ./whistle.mock-plugin/ 创建的项目代码
+- ./whistle.vase/ 参考的 github 上的源码
+- ./原型/ 创建的项目原型
+- [README.md](mdc:README.md) 项目设计

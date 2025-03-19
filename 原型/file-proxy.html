@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件代理配置 - Whistle 插件</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f0f2f5;
+            color: #000000d9;
+            font-size: 14px;
+            line-height: 1.5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 顶部导航栏 */
+        .header {
+            background-color: #fff;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+            height: 48px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 100;
+        }
+        
+        .logo {
+            font-weight: bold;
+            font-size: 18px;
+            color: #1890ff;
+            margin-right: 24px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo-icon {
+            margin-right: 8px;
+            width: 24px;
+            height: 24px;
+            background-color: #1890ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        /* 编辑器界面 */
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            flex: 1;
+            background-color: white;
+            margin: 16px;
+            border-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .editor-header {
+            padding: 16px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+        
+        .editor-form {
+            padding: 16px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+        }
+        
+        .form-group select {
+            height: 36px;
+        }
+        
+        .form-description {
+            margin-top: 4px;
+            font-size: 12px;
+            color: #8c8c8c;
+        }
+        
+        .editor-footer {
+            padding: 16px;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        
+        .editor-footer button {
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #d9d9d9;
+            background-color: white;
+        }
+        
+        .editor-footer button.primary {
+            background-color: #1890ff;
+            color: white;
+            border-color: #1890ff;
+        }
+        
+        .file-selector {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .file-selector input[type="text"] {
+            flex: 1;
+            margin-right: 8px;
+        }
+        
+        .file-selector button {
+            padding: 8px 16px;
+            border: 1px solid #d9d9d9;
+            background-color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .file-preview {
+            margin-top: 16px;
+            padding: 16px;
+            border: 1px solid #f0f0f0;
+            border-radius: 4px;
+        }
+        
+        .file-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .file-preview-title {
+            font-weight: 500;
+        }
+        
+        .file-content {
+            border: 1px solid #f0f0f0;
+            border-radius: 4px;
+            height: 200px;
+            overflow: auto;
+            padding: 8px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 13px;
+            background-color: #f9f9f9;
+        }
+        
+        .file-content pre {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            margin-right: 8px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: #1890ff;
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #f0f0f0;
+            margin-bottom: 16px;
+        }
+        
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        
+        .tab.active {
+            border-bottom: 2px solid #1890ff;
+            color: #1890ff;
+        }
+        
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #f0f0f0;
+            border-radius: 4px;
+        }
+        
+        .file-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .file-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .file-item.active {
+            background-color: #e6f7ff;
+        }
+        
+        .file-item-icon {
+            margin-right: 8px;
+            color: #8c8c8c;
+        }
+        
+        .file-item-name {
+            flex: 1;
+        }
+        
+        .file-item-type {
+            color: #8c8c8c;
+            font-size: 12px;
+            padding: 2px 6px;
+            background-color: #f5f5f5;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">W</div>
+            Whistle 接口代理
+        </div>
+    </header>
+    
+    <!-- 文件代理编辑器 -->
+    <div class="editor-container">
+        <div class="editor-header">
+            <button onclick="window.location.href='index.html'" style="background: none; border: none; color: #1890ff; cursor: pointer; margin-right: 8px;">← 返回</button>
+            编辑接口: <span style="margin-left: 8px;">/api/payment/refund</span>
+        </div>
+        
+        <div class="editor-form">
+            <div class="form-group">
+                <label>URL匹配规则:</label>
+                <input type="text" value="/api/payment/refund">
+                <div class="form-description">设置需要代理的URL路径，支持通配符 * 和正则表达式</div>
+            </div>
+            
+            <div class="form-group">
+                <label>请求方法:</label>
+                <select>
+                    <option>GET</option>
+                    <option selected>POST</option>
+                    <option>PUT</option>
+                    <option>DELETE</option>
+                    <option>PATCH</option>
+                    <option>OPTIONS</option>
+                    <option>HEAD</option>
+                    <option>ANY</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>代理类型:</label>
+                <select>
+                    <option>URL重定向</option>
+                    <option>数据模板</option>
+                    <option selected>文件代理</option>
+                    <option>动态数据生成</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>文件代理配置:</label>
+                <div class="tabs">
+                    <div class="tab active">本地文件</div>
+                    <div class="tab">新建文件</div>
+                    <div class="tab">最近文件</div>
+                </div>
+                
+                <div>
+                    <!-- 本地文件选择 -->
+                    <div class="file-selector">
+                        <input type="text" value="/Users/weixu/mock-data/refund-success.json" readonly>
+                        <button>浏览...</button>
+                    </div>
+                    
+                    <!-- 最近使用文件列表 -->
+                    <div class="file-list" style="display: none;">
+                        <div class="file-item active">
+                            <div class="file-item-icon">📄</div>
+                            <div class="file-item-name">/Users/weixu/mock-data/refund-success.json</div>
+                            <div class="file-item-type">JSON</div>
+                        </div>
+                        <div class="file-item">
+                            <div class="file-item-icon">📄</div>
+                            <div class="file-item-name">/Users/weixu/mock-data/refund-failed.json</div>
+                            <div class="file-item-type">JSON</div>
+                        </div>
+                        <div class="file-item">
+                            <div class="file-item-icon">📄</div>
+                            <div class="file-item-name">/Users/weixu/mock-data/payment-response.xml</div>
+                            <div class="file-item-type">XML</div>
+                        </div>
+                        <div class="file-item">
+                            <div class="file-item-icon">📄</div>
+                            <div class="file-item-name">/Users/weixu/mock-data/auth-token.json</div>
+                            <div class="file-item-type">JSON</div>
+                        </div>
+                    </div>
+                    
+                    <div class="file-preview">
+                        <div class="file-preview-header">
+                            <div class="file-preview-title">文件预览</div>
+                            <div style="display: flex; align-items: center;">
+                                <div style="margin-right: 8px; font-size: 12px; color: #8c8c8c;">自动刷新</div>
+                                <label class="toggle-switch" style="margin: 0;">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="file-content">
+                            <pre>{
+  "success": true,
+  "transaction": {
+    "refundId": "rf_9876543210",
+    "originalPaymentId": "pay_1234567890",
+    "amount": 500,
+    "currency": "USD",
+    "status": "completed",
+    "createdAt": "2023-09-15T14:32:17Z"
+  },
+  "meta": {
+    "processingTime": "120ms"
+  }
+}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>高级设置</label>
+                <div style="border: 1px solid #f0f0f0; border-radius: 4px; padding: 16px; margin-top: 8px;">
+                    <div class="form-group">
+                        <label>状态码:</label>
+                        <select>
+                            <option selected>200</option>
+                            <option>201</option>
+                            <option>204</option>
+                            <option>400</option>
+                            <option>401</option>
+                            <option>403</option>
+                            <option>404</option>
+                            <option>500</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>延迟时间(ms):</label>
+                        <input type="number" value="0" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>自定义响应头:</label>
+                        <textarea style="width: 100%; padding: 8px; height: 80px; border: 1px solid #d9d9d9; border-radius: 4px; font-family: monospace;">Content-Type: application/json
+x-mock: true
+x-source: file</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                            <label style="margin-bottom: 0; margin-right: 8px;">启用条件匹配:</label>
+                            <label class="toggle-switch" style="margin: 0;">
+                                <input type="checkbox">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-description">根据请求参数或请求头匹配不同的响应文件</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="editor-footer">
+            <button onclick="window.location.href='index.html'">取消</button>
+            <button>测试</button>
+            <button class="primary" onclick="window.location.href='index.html'">保存</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 标签页切换
+            const tabs = document.querySelectorAll('.tab');
+            const fileList = document.querySelector('.file-list');
+            const fileSelector = document.querySelector('.file-selector');
+            
+            tabs.forEach(function(tab, index) {
+                tab.addEventListener('click', function() {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    if (index === 0) { // 本地文件
+                        fileSelector.style.display = 'flex';
+                        fileList.style.display = 'none';
+                    } else if (index === 2) { // 最近文件
+                        fileSelector.style.display = 'none';
+                        fileList.style.display = 'block';
+                    } else { // 新建文件
+                        fileSelector.style.display = 'flex';
+                        fileList.style.display = 'none';
+                    }
+                });
+            });
+            
+            // 文件项点击
+            const fileItems = document.querySelectorAll('.file-item');
+            fileItems.forEach(function(item) {
+                item.addEventListener('click', function() {
+                    fileItems.forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // 更新文件路径显示
+                    const fileName = this.querySelector('.file-item-name').textContent;
+                    document.querySelector('.file-selector input').value = fileName;
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

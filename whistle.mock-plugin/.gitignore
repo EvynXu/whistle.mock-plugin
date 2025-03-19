@@ -1,0 +1,27 @@
+# 依赖
+/node_modules
+/whistle.mock-plugin/node_modules
+
+# 打包文件
+*.tgz
+
+# 日志
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 其他
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 编辑器配置
+.idea
+.vscode
+*.swp
+*.swo
