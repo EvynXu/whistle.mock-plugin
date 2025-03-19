@@ -1,212 +1,189 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
+import { Form, Input, Button, Switch, Card, message, Divider, Typography, Space, Alert, InputNumber } from 'antd';
+import { SaveOutlined, UndoOutlined } from '@ant-design/icons';
 import '../styles/settings.css';
 
+const { Title, Text } = Typography;
+
 const Settings = () => {
-  const [settings, setSettings] = useState({
-    mockEnabled: true,
-    defaultResponseDelay: 500,
-    logRequests: true,
-    preserveQueryParams: true,
-    enableCors: true,
-    notificationEnabled: true
-  });
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState(null);
 
-  const [savedSettings, setSavedSettings] = useState({
-    mockEnabled: true,
-    defaultResponseDelay: 500,
-    logRequests: true,
-    preserveQueryParams: true,
-    enableCors: true,
-    notificationEnabled: true
-  });
+  // 获取当前设置
+  useEffect(() => {
+    fetchSettings();
+  }, []);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setSettings({
-      ...settings,
-      [name]: type === 'checkbox' ? checked : value
-    });
-  };
-
-  const handleNumberChange = (e) => {
-    const { name, value } = e.target;
-    const numValue = parseInt(value, 10);
-    if (!isNaN(numValue) && numValue >= 0) {
-      setSettings({
-        ...settings,
-        [name]: numValue
-      });
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      // 这里假设有一个获取设置的接口
+      // 为了示例，我们使用默认设置
+      const defaultSettings = {
+        logRetention: 7,
+        enableLogging: true,
+        enableAutoRefresh: false,
+        maxLogEntries: 10000,
+        notificationEnabled: true,
+        mockjsEnabled: true,
+        responseDelay: 0
+      };
+      
+      setSettings(defaultSettings);
+      form.setFieldsValue(defaultSettings);
+    } catch (error) {
+      console.error('获取设置失败:', error);
+      message.error('获取设置失败');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSave = () => {
-    // 保存设置
-    setSavedSettings({ ...settings });
-    alert('设置已保存');
+  const handleSave = async (values) => {
+    try {
+      setLoading(true);
+      // 这里假设有一个保存设置的接口
+      // 现在只是模拟保存成功
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setSettings(values);
+      message.success('设置已保存');
+    } catch (error) {
+      console.error('保存设置失败:', error);
+      message.error('保存设置失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReset = () => {
-    // 重置为保存的设置
-    setSettings({ ...savedSettings });
-  };
-
-  const isFormChanged = () => {
-    return JSON.stringify(settings) !== JSON.stringify(savedSettings);
+    if (settings) {
+      form.setFieldsValue(settings);
+    }
   };
 
   return (
     <AppLayout>
-      <div className="settings-container">
-        <div className="page-header">
-          <h1>系统设置</h1>
+      <div className="page-container">
+        <div className="page-title-bar">
+          <div>
+            <h1 className="page-title">系统设置</h1>
+            <div className="page-description">
+              配置插件的全局设置项，这些设置将影响所有功能模块
+            </div>
+          </div>
         </div>
+
+        <Alert
+          message="设置功能正在开发中"
+          description="目前部分设置可能不生效，我们正在努力完善此功能"
+          type="info"
+          showIcon
+          style={{ marginBottom: 20 }}
+        />
         
-        <div className="settings-card">
-          <div className="settings-section">
-            <h2>基本设置</h2>
-            <div className="setting-item">
-              <div className="setting-label">
-                <span>启用模拟数据</span>
-                <span className="setting-description">开启后，将根据配置返回模拟数据</span>
-              </div>
-              <div className="setting-control">
-                <label className="switch">
-                  <input 
-                    type="checkbox" 
-                    name="mockEnabled" 
-                    checked={settings.mockEnabled} 
-                    onChange={handleChange}
-                  />
-                  <span className="slider"></span>
-                </label>
-              </div>
-            </div>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSave}
+          initialValues={settings || {}}
+        >
+          <Card title="日志设置" className="settings-card">
+            <Form.Item
+              name="enableLogging"
+              label="启用请求日志记录"
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
             
-            <div className="setting-item">
-              <div className="setting-label">
-                <span>默认响应延迟 (ms)</span>
-                <span className="setting-description">设置接口返回数据的默认延迟时间</span>
-              </div>
-              <div className="setting-control">
-                <input 
-                  type="number" 
-                  name="defaultResponseDelay" 
-                  value={settings.defaultResponseDelay} 
-                  onChange={handleNumberChange}
-                  min="0"
-                />
-              </div>
-            </div>
+            <Form.Item
+              name="logRetention"
+              label="日志保留天数"
+              rules={[{ required: true, message: '请输入日志保留天数' }]}
+              tooltip="超过设定天数的日志将被自动清理"
+            >
+              <InputNumber min={1} max={90} />
+            </Form.Item>
             
-            <div className="setting-item">
-              <div className="setting-label">
-                <span>记录请求日志</span>
-                <span className="setting-description">开启后，将记录所有请求的详细信息</span>
-              </div>
-              <div className="setting-control">
-                <label className="switch">
-                  <input 
-                    type="checkbox" 
-                    name="logRequests" 
-                    checked={settings.logRequests} 
-                    onChange={handleChange}
-                  />
-                  <span className="slider"></span>
-                </label>
-              </div>
-            </div>
-          </div>
+            <Form.Item
+              name="maxLogEntries"
+              label="最大日志条数"
+              rules={[{ required: true, message: '请输入最大日志条数' }]}
+              tooltip="超过设定条数的日志将被清理"
+            >
+              <InputNumber min={1000} max={100000} step={1000} />
+            </Form.Item>
+          </Card>
           
-          <div className="settings-section">
-            <h2>高级设置</h2>
-            <div className="setting-item">
-              <div className="setting-label">
-                <span>保留查询参数</span>
-                <span className="setting-description">开启后，模拟数据的URL匹配将忽略查询参数</span>
-              </div>
-              <div className="setting-control">
-                <label className="switch">
-                  <input 
-                    type="checkbox" 
-                    name="preserveQueryParams" 
-                    checked={settings.preserveQueryParams} 
-                    onChange={handleChange}
-                  />
-                  <span className="slider"></span>
-                </label>
-              </div>
-            </div>
+          <Card title="接口模拟设置" className="settings-card">
+            <Form.Item
+              name="mockjsEnabled"
+              label="启用 Mock.js 数据模拟"
+              valuePropName="checked"
+              tooltip="使用 Mock.js 生成随机数据"
+            >
+              <Switch />
+            </Form.Item>
             
-            <div className="setting-item">
-              <div className="setting-label">
-                <span>启用CORS支持</span>
-                <span className="setting-description">开启后，将自动为响应添加CORS相关的头信息</span>
-              </div>
-              <div className="setting-control">
-                <label className="switch">
-                  <input 
-                    type="checkbox" 
-                    name="enableCors" 
-                    checked={settings.enableCors} 
-                    onChange={handleChange}
-                  />
-                  <span className="slider"></span>
-                </label>
-              </div>
-            </div>
+            <Form.Item
+              name="responseDelay"
+              label="全局响应延迟（毫秒）"
+              tooltip="所有接口默认的响应延迟时间"
+            >
+              <InputNumber min={0} max={10000} />
+            </Form.Item>
             
-            <div className="setting-item">
-              <div className="setting-label">
-                <span>启用通知提醒</span>
-                <span className="setting-description">开启后，当请求被拦截时会显示通知</span>
-              </div>
-              <div className="setting-control">
-                <label className="switch">
-                  <input 
-                    type="checkbox" 
-                    name="notificationEnabled" 
-                    checked={settings.notificationEnabled} 
-                    onChange={handleChange}
-                  />
-                  <span className="slider"></span>
-                </label>
-              </div>
-            </div>
-          </div>
+            <Form.Item
+              name="notificationEnabled"
+              label="启用请求匹配通知"
+              valuePropName="checked"
+              tooltip="接口匹配成功时显示通知"
+            >
+              <Switch />
+            </Form.Item>
+          </Card>
+          
+          <Card title="界面设置" className="settings-card">
+            <Form.Item
+              name="enableAutoRefresh"
+              label="启用页面自动刷新"
+              valuePropName="checked"
+              tooltip="启用后，页面数据将定期自动刷新"
+            >
+              <Switch />
+            </Form.Item>
+            
+            <Form.Item
+              name="theme"
+              label="界面主题"
+            >
+              <Input disabled placeholder="暂不支持自定义主题" />
+            </Form.Item>
+          </Card>
           
           <div className="settings-actions">
-            <button 
-              className="reset-button" 
-              onClick={handleReset}
-              disabled={!isFormChanged()}
-            >
-              取消
-            </button>
-            <button 
-              className="save-button" 
-              onClick={handleSave}
-              disabled={!isFormChanged()}
-            >
-              保存
-            </button>
+            <Space>
+              <Button 
+                type="default" 
+                icon={<UndoOutlined />} 
+                onClick={handleReset}
+              >
+                重置
+              </Button>
+              <Button 
+                type="primary" 
+                icon={<SaveOutlined />} 
+                htmlType="submit" 
+                loading={loading}
+              >
+                保存设置
+              </Button>
+            </Space>
           </div>
-        </div>
-        
-        <div className="settings-card about-section">
-          <h2>关于</h2>
-          <div className="about-content">
-            <div className="plugin-info">
-              <p><strong>Whistle Mock数据工厂</strong></p>
-              <p>版本: 0.2.0</p>
-              <p>作者: Your Name</p>
-            </div>
-            <div className="plugin-description">
-              <p>这是一个用于Whistle的mock数据插件，可以帮助前端开发者快速创建和管理模拟数据，提高开发效率。</p>
-              <p>支持功能分组、多种响应类型、文件代理和URL重定向等功能。</p>
-            </div>
-          </div>
-        </div>
+        </Form>
       </div>
     </AppLayout>
   );

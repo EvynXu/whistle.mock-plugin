@@ -190,4 +190,148 @@ body {
     flex: 1;
     padding: 16px;
     overflow-y: auto;
+}
+
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  position: fixed;
+  z-index: 100;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  height: 64px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  margin-right: 24px;
+}
+
+.logo-icon {
+  font-size: 24px;
+  color: #1890ff;
+  margin-right: 12px;
+}
+
+.logo-text {
+  color: #1890ff;
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.collapse-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.app-sider {
+  overflow: auto;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 64px;
+  bottom: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  z-index: 99;
+  transition: all 0.2s;
+}
+
+.app-content-wrapper {
+  margin-top: 64px;
+  margin-left: 220px;
+  padding: 0 24px 24px;
+  transition: all 0.2s;
+}
+
+.app-content {
+  padding: 24px;
+  overflow: initial;
+  min-height: calc(100vh - 64px - 48px - 32px);
+  transition: all 0.3s;
+}
+
+.page-header {
+  margin-bottom: 16px;
+}
+
+.app-breadcrumb {
+  font-size: 14px;
+}
+
+/* 当侧边栏折叠时的样式调整 */
+.app-sider.ant-layout-sider-collapsed + .app-content-wrapper {
+  margin-left: 80px;
+}
+
+/* 菜单项样式定制 */
+.ant-menu-item {
+  border-radius: 4px;
+  margin: 4px 0 !important;
+}
+
+.ant-menu-item-selected {
+  font-weight: 500;
+}
+
+.ant-menu-inline .ant-menu-item::after {
+  display: none;
+}
+
+/* 移动端响应式调整 */
+@media (max-width: 768px) {
+  .app-sider {
+    position: absolute;
+    z-index: 100;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  .app-content-wrapper {
+    margin-left: 0 !important;
+    padding: 0 16px 16px;
+  }
+  
+  .app-content {
+    padding: 16px;
+  }
+  
+  .logo-text {
+    display: none;
+  }
+  
+  .app-header {
+    padding: 0 16px;
+  }
+}
+
+/* 暗色主题适配 */
+.dark-theme .app-header,
+.dark-theme .app-sider {
+  background-color: #141414 !important;
+  border-color: #303030 !important;
+}
+
+.dark-theme .logo-text,
+.dark-theme .logo-icon {
+  color: #177ddc;
 } 

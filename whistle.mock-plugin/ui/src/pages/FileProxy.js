@@ -97,11 +97,18 @@ const FileProxy = () => {
   return (
     <AppLayout>
       <div className="file-proxy-container">
-        <div className="page-header">
-          <h1>文件代理配置</h1>
-          <button className="add-button" onClick={() => openModal()}>
-            添加文件代理
-          </button>
+        <div className="page-title-bar">
+          <div>
+            <h1 className="page-title">文件代理配置</h1>
+            <div className="page-description">
+              配置文件代理规则，支持本地文件和远程文件
+            </div>
+          </div>
+          <div className="page-actions">
+            <button className="add-button" onClick={() => openModal()}>
+              添加文件代理
+            </button>
+          </div>
         </div>
         
         <div className="proxy-list-container">

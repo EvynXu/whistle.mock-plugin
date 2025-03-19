@@ -90,11 +90,18 @@ const UrlRedirect = () => {
   return (
     <AppLayout>
       <div className="url-redirect-container">
-        <div className="page-header">
-          <h1>URL重定向配置</h1>
-          <button className="add-button" onClick={() => openModal()}>
-            添加URL重定向
-          </button>
+        <div className="page-title-bar">
+          <div>
+            <h1 className="page-title">URL重定向配置</h1>
+            <div className="page-description">
+              配置URL重定向规则，支持路径和查询参数匹配
+            </div>
+          </div>
+          <div className="page-actions">
+            <button className="add-button" onClick={() => openModal()}>
+              添加URL重定向
+            </button>
+          </div>
         </div>
         
         <div className="redirect-list-container">

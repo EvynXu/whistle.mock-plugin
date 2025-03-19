@@ -200,6 +200,74 @@ module.exports = function(req, res) {
       });
     }
     
+    // 处理PATCH请求 - 部分更新功能模块
+    if (req.method === 'PATCH') {
+      const { id } = req.query;
+      const updateData = req.body;
+      
+      if (!id) {
+        return res.status(400).json({
+          code: 400,
+          message: '功能ID不能为空',
+          data: null
+        });
+      }
+      
+      let featuresData;
+      try {
+        featuresData = fs.readJsonSync(featuresFile);
+        if (!featuresData.features) {
+          featuresData = { features: [] };
+        }
+      } catch (err) {
+        console.error('读取功能列表错误:', err);
+        return res.status(500).json({
+          code: 500,
+          message: '读取功能列表失败',
+          data: null
+        });
+      }
+      
+      const index = featuresData.features.findIndex(item => item.id === id);
+      
+      if (index === -1) {
+        return res.status(404).json({
+          code: 404,
+          message: '功能模块不存在',
+          data: null
+        });
+      }
+      
+      // 更新部分字段
+      const updatedFeature = {
+        ...featuresData.features[index]
+      };
+      
+      // 只更新提供的字段
+      if (updateData.name !== undefined) {
+        updatedFeature.name = updateData.name;
+      }
+      
+      if (updateData.description !== undefined) {
+        updatedFeature.description = updateData.description;
+      }
+      
+      if (updateData.active !== undefined) {
+        updatedFeature.active = updateData.active;
+      }
+      
+      updatedFeature.updatedAt = new Date().toISOString();
+      
+      featuresData.features[index] = updatedFeature;
+      fs.writeJsonSync(featuresFile, featuresData, { spaces: 2 });
+      
+      return res.json({
+        code: 0,
+        message: '功能模块更新成功',
+        data: updatedFeature
+      });
+    }
+    
     // 其他请求方法
     return res.status(405).json({
       code: 405,

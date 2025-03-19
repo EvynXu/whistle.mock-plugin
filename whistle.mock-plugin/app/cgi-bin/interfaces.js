@@ -258,6 +258,73 @@ module.exports = function(req, res) {
       });
     }
     
+    // 处理 PUT 请求 - 更新接口
+    if (req.method === 'PUT') {
+      const { id } = req.query;
+      const interfaceData = req.body;
+      
+      if (!id) {
+        return res.status(400).json({
+          code: 400,
+          message: '接口ID不能为空',
+          data: null
+        });
+      }
+      
+      // 读取接口数据
+      let interfacesData;
+      try {
+        interfacesData = fs.readJsonSync(interfacesFile);
+        if (!interfacesData || !interfacesData.interfaces) {
+          interfacesData = { interfaces: [] };
+        }
+      } catch (err) {
+        console.error('读取接口列表错误:', err);
+        return res.status(500).json({
+          code: 500, 
+          message: '读取接口数据失败',
+          data: null
+        });
+      }
+      
+      // 查找并更新接口
+      const index = interfacesData.interfaces.findIndex(item => item.id === id);
+      
+      if (index === -1) {
+        return res.status(404).json({
+          code: 404,
+          message: '接口不存在',
+          data: null
+        });
+      }
+      
+      // 更新接口数据
+      const updatedInterface = {
+        ...interfacesData.interfaces[index],
+        name: interfaceData.name || interfacesData.interfaces[index].name,
+        urlPattern: interfaceData.urlPattern || interfacesData.interfaces[index].urlPattern,
+        proxyType: interfaceData.proxyType || interfacesData.interfaces[index].proxyType,
+        responseContent: interfaceData.responseContent !== undefined ? interfaceData.responseContent : interfacesData.interfaces[index].responseContent,
+        targetUrl: interfaceData.targetUrl !== undefined ? interfaceData.targetUrl : interfacesData.interfaces[index].targetUrl,
+        filePath: interfaceData.filePath !== undefined ? interfaceData.filePath : interfacesData.interfaces[index].filePath,
+        httpStatus: interfaceData.httpStatus || interfacesData.interfaces[index].httpStatus,
+        responseDelay: interfaceData.responseDelay !== undefined ? interfaceData.responseDelay : interfacesData.interfaces[index].responseDelay,
+        httpMethod: interfaceData.httpMethod || interfacesData.interfaces[index].httpMethod,
+        active: interfaceData.active !== undefined ? interfaceData.active : interfacesData.interfaces[index].active,
+        contentType: interfaceData.contentType || interfacesData.interfaces[index].contentType,
+        updatedAt: new Date().toISOString()
+      };
+      
+      interfacesData.interfaces[index] = updatedInterface;
+      fs.writeJsonSync(interfacesFile, interfacesData, { spaces: 2 });
+      
+      return res.json({
+        code: 0,
+        message: '接口更新成功',
+        data: updatedInterface
+      });
+    }
+    
     // 其他请求方法
     return res.status(405).json({
       code: 405,

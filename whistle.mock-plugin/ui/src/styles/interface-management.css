@@ -1,14 +1,130 @@
 .interface-management-container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.feature-selector {
+  display: flex;
+  align-items: center;
+}
+
+.feature-selector span {
+  margin-right: 8px;
+  font-weight: 500;
+}
+
+.interface-list-container {
+  margin-top: 16px;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: space-around;
+}
+
+.test-interface-container {
+  padding: 16px 0;
+}
+
+.test-result {
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+  border: 1px solid #f0f0f0;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.result-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.status {
+  font-size: 14px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.status.success {
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #52c41a;
+}
+
+.status.error {
+  background-color: #fff2f0;
+  border: 1px solid #ffccc7;
+  color: #ff4d4f;
+}
+
+.result-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+}
+
+.result-item .label {
+  font-weight: 500;
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.result-item .value {
+  word-break: break-all;
+}
+
+.result-body {
+  margin-top: 12px;
+}
+
+.result-body .label {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.result-body pre {
+  margin: 0;
+  padding: 8px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  max-height: 300px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: monospace;
+}
+
+.result-error {
+  color: #ff4d4f;
+  padding: 8px;
+  background-color: #fff2f0;
+  border-radius: 4px;
 }
 
 .breadcrumb {
@@ -100,14 +216,6 @@
   margin: 0;
 }
 
-.interface-list-container {
-  background-color: white;
-  border-radius: 4px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  flex: 1;
-}
-
 .interface-table {
   width: 100%;
   border-collapse: collapse;
@@ -139,11 +247,6 @@
 .url-pattern {
   font-family: monospace;
   word-break: break-all;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
 }
 
 .test-button,

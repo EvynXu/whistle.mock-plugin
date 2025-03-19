@@ -39,7 +39,7 @@ const logMessage = (message) => {
   }
 };
 
-// 记录请求日志，同时输出到控制台
+// 记录请求日志，并写入到日志文件
 const logRequest = (req, message = '') => {
   try {
     const url = req.url || '';
@@ -49,27 +49,73 @@ const logRequest = (req, message = '') => {
     let headers = '';
     try {
       headers = JSON.stringify(req.headers);
-    } catch (e) {
-      headers = '无法序列化请求头';
+    } catch (err) {
+      console.error('Error stringifying headers:', err.message);
+      headers = '[无法解析的请求头]';
     }
     
-    const logEntry = [
-      `[${new Date().toISOString()}] ${method} ${url} from ${ip}`,
-      `Headers: ${headers}`,
-      message ? `Message: ${message}` : '',
-      '-----------------------------------'
-    ].filter(Boolean).join('\n') + '\n';
-    
-    console.log(logEntry.trim());
-    
-    // 确保日志目录存在
-    if (!fs.existsSync(LOG_DIR)) {
-      fs.ensureDirSync(LOG_DIR);
+    const logText = `${method} ${url} - IP: ${ip} - Headers: ${headers} ${message ? '- ' + message : ''}`;
+    logMessage(logText);
+
+    // 添加到 logs.json
+    try {
+      addToJsonLog({
+        eventType: 'request',
+        status: 'received',
+        method,
+        url,
+        ip,
+        headers: req.headers,
+        message: message || '收到请求'
+      });
+    } catch (err) {
+      console.error('Error adding request to JSON log:', err.message);
     }
-    
-    fs.appendFileSync(LOG_FILE, logEntry);
   } catch (err) {
-    console.error('Error logging request:', err.message);
+    console.error('Error in logRequest:', err.message);
+  }
+};
+
+// 记录日志到 logs.json 文件
+const addToJsonLog = (logData) => {
+  try {
+    const logsFile = path.join(DATA_DIR, 'logs.json');
+    
+    // 确保日志文件存在
+    if (!fs.existsSync(logsFile)) {
+      fs.writeJsonSync(logsFile, { logs: [] }, { spaces: 2 });
+    }
+    
+    // 读取现有日志
+    let logsData;
+    try {
+      logsData = fs.readJsonSync(logsFile);
+      if (!logsData.logs) {
+        logsData = { logs: [] };
+      }
+    } catch (err) {
+      console.error('读取日志文件错误:', err);
+      logsData = { logs: [] };
+    }
+    
+    // 添加时间戳和ID
+    const newLog = {
+      ...logData,
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString()
+    };
+    
+    // 添加新日志
+    logsData.logs.unshift(newLog);
+    
+    // 限制日志数量，最多保留10000条
+    if (logsData.logs.length > 10000) {
+      logsData.logs = logsData.logs.slice(0, 10000);
+    }
+    
+    fs.writeJsonSync(logsFile, logsData, { spaces: 2 });
+  } catch (err) {
+    console.error('记录日志到JSON文件失败:', err);
   }
 };
 
@@ -487,57 +533,160 @@ const handleLegacyRequest = (req, res) => {
 
 // 处理响应
 const handleResponse = (interfaceItem, req, res) => {
-  const statusCode = interfaceItem.httpStatus || 200;
+  // 记录匹配信息
+  addToJsonLog({
+    eventType: 'match',
+    status: 'matched',
+    method: req.method,
+    url: req.url,
+    pattern: interfaceItem.urlPattern,
+    interfaceId: interfaceItem.id,
+    interfaceName: interfaceItem.name,
+    featureId: interfaceItem.featureId,
+    httpMethod: interfaceItem.httpMethod,
+    message: `请求匹配到接口: ${interfaceItem.name}`
+  });
+
+  logMessage(`匹配到接口: ${interfaceItem.name}, ID: ${interfaceItem.id}`);
+  logMessage(`URL匹配规则: ${interfaceItem.urlPattern}`);
   
-  logMessage(`开始处理响应，代理类型: ${interfaceItem.proxyType}，状态码: ${statusCode}`);
-  logMessage(`匹配的接口: ${JSON.stringify({
-    id: interfaceItem.id,
-    name: interfaceItem.name,
-    urlPattern: interfaceItem.urlPattern,
-    proxyType: interfaceItem.proxyType
-  })}`);
+  // 记录请求详情
+  logMessage(`请求方法: ${req.method}`);
+  logMessage(`原始URL: ${req.url}`);
   
-  // 根据代理类型处理
-  switch (interfaceItem.proxyType) {
-    case 'response':
-      try {
-        // 尝试解析JSON
-        let responseBody = interfaceItem.responseContent;
-        logMessage(`响应内容(前50字符): ${responseBody.substring(0, 50)}...`);
-        
+  // 设置响应状态码
+  const statusCode = parseInt(interfaceItem.httpStatus, 10) || 200;
+  
+  // 模拟延迟
+  const delay = interfaceItem.responseDelay || 0;
+  if (delay > 0) {
+    logMessage(`模拟延迟处理: ${delay}ms`);
+    setTimeout(() => processResponse(), delay);
+  } else {
+    processResponse();
+  }
+  
+  function processResponse() {
+    // 根据代理类型处理
+    switch (interfaceItem.proxyType) {
+      case 'response':
         try {
-          // 如果是JSON字符串，先解析为对象
-          const jsonData = JSON.parse(responseBody);
-          logMessage(`成功解析为JSON对象`);
-          
-          // 使用Mock.js处理模板
-          const mockedData = Mock.mock(jsonData);
-          logMessage(`Mock.js处理完成`);
-          
           // 设置响应头
-          res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          // 添加额外的调试头信息
+          if (interfaceItem.contentType) {
+            res.setHeader('Content-Type', interfaceItem.contentType);
+          } else {
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          }
+          
+          // 添加调试头信息
           res.setHeader('X-Mock-Plugin', 'whistle.mock-plugin');
           res.setHeader('X-Mock-Interface', interfaceItem.name);
+          res.setHeader('X-Mock-Interface-Id', interfaceItem.id);
+          res.setHeader('X-Mock-Feature-Id', interfaceItem.featureId);
           
-          // 返回处理后的JSON
-          res.status(statusCode).json(mockedData);
-          logMessage(`响应JSON数据(状态码: ${statusCode}): ${JSON.stringify(mockedData).substr(0, 200)}...`);
-        } catch (e) {
-          // 不是JSON，直接返回文本
-          logMessage(`非JSON格式，作为文本返回: ${e.message}`);
-          res.status(statusCode).send(responseBody);
-          logMessage(`响应文本数据(状态码: ${statusCode}): ${responseBody.substr(0, 200)}...`);
+          // 尝试解析JSON
+          let responseBody = interfaceItem.responseContent;
+          logMessage(`响应内容(前50字符): ${responseBody.substring(0, 50)}...`);
+          
+          try {
+            // 检查内容类型，如果是JSON则应用Mock.js
+            if (interfaceItem.contentType && interfaceItem.contentType.includes('json')) {
+              // 如果是JSON字符串，先解析为对象
+              const jsonData = JSON.parse(responseBody);
+              logMessage(`成功解析为JSON对象`);
+              
+              // 使用Mock.js处理模板
+              const mockedData = Mock.mock(jsonData);
+              logMessage(`Mock.js处理完成`);
+              
+              // 返回处理后的JSON
+              res.status(statusCode).json(mockedData);
+              logMessage(`响应JSON数据(状态码: ${statusCode}): ${JSON.stringify(mockedData).substr(0, 200)}...`);
+              
+              // 记录响应日志
+              addToJsonLog({
+                eventType: 'response',
+                status: 'success',
+                method: req.method,
+                url: req.url,
+                pattern: interfaceItem.urlPattern,
+                interfaceId: interfaceItem.id,
+                interfaceName: interfaceItem.name,
+                featureId: interfaceItem.featureId,
+                httpMethod: interfaceItem.httpMethod,
+                statusCode: statusCode,
+                contentType: interfaceItem.contentType,
+                message: '成功返回JSON响应',
+                responsePreview: JSON.stringify(mockedData).substr(0, 200)
+              });
+            } else {
+              // 不是JSON，直接返回文本
+              res.status(statusCode).send(responseBody);
+              logMessage(`响应文本数据(状态码: ${statusCode}): ${responseBody.substr(0, 200)}...`);
+              
+              // 记录响应日志
+              addToJsonLog({
+                eventType: 'response',
+                status: 'success',
+                method: req.method,
+                url: req.url,
+                pattern: interfaceItem.urlPattern,
+                interfaceId: interfaceItem.id,
+                interfaceName: interfaceItem.name,
+                featureId: interfaceItem.featureId,
+                httpMethod: interfaceItem.httpMethod,
+                statusCode: statusCode,
+                contentType: interfaceItem.contentType,
+                message: '成功返回文本响应',
+                responsePreview: responseBody.substr(0, 200)
+              });
+            }
+          } catch (e) {
+            // JSON解析出错，直接返回原始内容
+            logMessage(`JSON解析错误，作为文本返回: ${e.message}`);
+            res.status(statusCode).send(responseBody);
+            
+            // 记录响应日志
+            addToJsonLog({
+              eventType: 'response',
+              status: 'warning',
+              method: req.method,
+              url: req.url,
+              pattern: interfaceItem.urlPattern,
+              interfaceId: interfaceItem.id,
+              interfaceName: interfaceItem.name,
+              featureId: interfaceItem.featureId,
+              httpMethod: interfaceItem.httpMethod,
+              statusCode: statusCode,
+              contentType: interfaceItem.contentType,
+              message: `JSON解析错误，作为文本返回: ${e.message}`,
+              responsePreview: responseBody.substr(0, 200)
+            });
+          }
+        } catch (err) {
+          logMessage('处理响应内容错误: ' + err.message);
+          res.status(500).json({
+            code: 500,
+            message: '处理响应内容错误: ' + err.message,
+            data: null
+          });
+          
+          // 记录错误日志
+          addToJsonLog({
+            eventType: 'error',
+            status: 'error',
+            method: req.method,
+            url: req.url,
+            pattern: interfaceItem.urlPattern,
+            interfaceId: interfaceItem.id,
+            interfaceName: interfaceItem.name,
+            featureId: interfaceItem.featureId,
+            httpMethod: interfaceItem.httpMethod,
+            message: '处理响应内容错误: ' + err.message,
+            errorType: 'RESPONSE_PROCESSING_ERROR'
+          });
         }
-      } catch (err) {
-        logMessage('处理响应内容错误: ' + err.message);
-        res.status(500).json({
-          code: 500,
-          message: '处理响应内容错误: ' + err.message,
-          data: null
-        });
-      }
-      break;
+        break;
       
     case 'url':
       // URL重定向 - 实际场景中这需要代理到目标URL
@@ -614,7 +763,8 @@ const handleResponse = (interfaceItem, req, res) => {
         message: '不支持的代理类型: ' + interfaceItem.proxyType,
         data: null
       });
-  }
+    }
+  } // 结束 processResponse 函数
 };
 
 // 启动服务器

@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
+import { Card, Row, Col, Button, Modal, Form, Input, message, Switch, Empty, Spin, Typography, Tooltip, Badge } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined, ExportOutlined, InfoCircleOutlined, CalendarOutlined } from '@ant-design/icons';
 import '../styles/mock-data.css';
+
+const { Text, Title, Paragraph } = Typography;
+const { TextArea } = Input;
 
 const MockData = () => {
   const history = useHistory();
@@ -14,6 +19,7 @@ const MockData = () => {
     active: true
   });
   const [loading, setLoading] = useState(true);
+  const [form] = Form.useForm();
 
   // 加载功能列表
   useEffect(() => {
@@ -31,9 +37,11 @@ const MockData = () => {
         setMockFeatures(result.data || []);
       } else {
         console.error('获取功能模块失败:', result.message);
+        message.error('获取功能模块失败: ' + result.message);
       }
     } catch (error) {
       console.error('获取功能模块错误:', error);
+      message.error('获取功能模块失败, 请检查网络连接');
     } finally {
       setLoading(false);
     }
@@ -42,16 +50,15 @@ const MockData = () => {
   const openModal = (feature = null) => {
     if (feature) {
       setCurrentFeature(feature);
-      setFormData({
+      form.setFieldsValue({
         name: feature.name,
         description: feature.description,
-        active: feature.active
+        active: feature.active !== false
       });
     } else {
       setCurrentFeature(null);
-      setFormData({
-        name: '',
-        description: '',
+      form.resetFields();
+      form.setFieldsValue({
         active: true
       });
     }
@@ -62,25 +69,10 @@ const MockData = () => {
     setShowModal(false);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.name.trim()) {
-      alert('请输入功能名称');
-      return;
-    }
-    
+  const handleSubmit = async (values) => {
     try {
       const featureData = {
-        ...formData
+        ...values
       };
       
       // 如果是编辑已有功能，添加ID
@@ -88,6 +80,7 @@ const MockData = () => {
         featureData.id = currentFeature.id;
       }
       
+      setLoading(true);
       const response = await fetch('/cgi-bin/features', {
         method: 'POST',
         headers: {
@@ -100,75 +93,80 @@ const MockData = () => {
       
       if (result.code === 0) {
         // 刷新功能列表
+        message.success(currentFeature ? '功能模块更新成功' : '功能模块创建成功');
         fetchFeatures();
         closeModal();
       } else {
-        alert('操作失败: ' + result.message);
+        message.error('操作失败: ' + result.message);
       }
     } catch (error) {
       console.error('保存功能模块错误:', error);
-      alert('保存失败: ' + error.message);
+      message.error('保存失败: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const toggleFeatureStatus = async (id) => {
+  const handleToggleActive = async (id, currentActive) => {
     try {
-      // 找到当前功能
-      const feature = mockFeatures.find(f => f.id === id);
-      if (!feature) return;
-      
-      // 创建更新请求
-      const updateData = {
-        id: feature.id,
-        name: feature.name,
-        description: feature.description,
-        active: !feature.active
-      };
-      
-      const response = await fetch('/cgi-bin/features', {
-        method: 'POST',
+      const response = await fetch(`/cgi-bin/features?id=${id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(updateData)
+        body: JSON.stringify({
+          active: !currentActive
+        })
       });
       
       const result = await response.json();
       
       if (result.code === 0) {
+        message.success(`${currentActive ? '禁用' : '启用'}功能模块成功`);
         // 更新本地状态
-        setMockFeatures(mockFeatures.map(f => 
-          f.id === id ? { ...f, active: !f.active } : f
+        setMockFeatures(mockFeatures.map(feature => 
+          feature.id === id ? { ...feature, active: !currentActive } : feature
         ));
       } else {
-        alert('更新状态失败: ' + result.message);
+        message.error(`${currentActive ? '禁用' : '启用'}功能模块失败: ${result.message}`);
       }
     } catch (error) {
-      console.error('更新功能状态错误:', error);
-      alert('操作失败: ' + error.message);
+      console.error(`${currentActive ? '禁用' : '启用'}功能模块错误:`, error);
+      message.error(`操作失败: ${error.message}`);
     }
   };
 
   const deleteFeature = async (id) => {
-    if (window.confirm('确定要删除此功能吗？这将删除所有相关的接口和模拟数据。')) {
-      try {
-        const response = await fetch(`/cgi-bin/features?id=${id}`, {
-          method: 'DELETE'
-        });
-        
-        const result = await response.json();
-        
-        if (result.code === 0) {
-          // 更新本地状态
-          setMockFeatures(mockFeatures.filter(f => f.id !== id));
-        } else {
-          alert('删除失败: ' + result.message);
+    Modal.confirm({
+      title: '确定要删除此功能吗？',
+      content: '这将删除所有相关的接口和模拟数据，此操作无法恢复。',
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          setLoading(true);
+          const response = await fetch(`/cgi-bin/features?id=${id}`, {
+            method: 'DELETE'
+          });
+          
+          const result = await response.json();
+          
+          if (result.code === 0) {
+            message.success('功能模块已成功删除');
+            // 更新本地状态
+            setMockFeatures(mockFeatures.filter(f => f.id !== id));
+          } else {
+            message.error('删除失败: ' + result.message);
+          }
+        } catch (error) {
+          console.error('删除功能错误:', error);
+          message.error('操作失败: ' + error.message);
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.error('删除功能错误:', error);
-        alert('操作失败: ' + error.message);
       }
-    }
+    });
   };
 
   const viewInterfaces = (feature) => {
@@ -197,9 +195,11 @@ const MockData = () => {
       linkElement.setAttribute('href', dataUri);
       linkElement.setAttribute('download', exportFileDefaultName);
       linkElement.click();
+      
+      message.success('配置导出成功');
     } catch (error) {
       console.error('导出配置错误:', error);
-      alert('导出失败: ' + error.message);
+      message.error('导出失败: ' + error.message);
     }
   };
 
@@ -219,7 +219,7 @@ const MockData = () => {
           
           // 验证导入的配置
           if (!config.name) {
-            alert('无效的配置文件: 缺少功能名称');
+            message.error('无效的配置文件: 缺少功能名称');
             return;
           }
           
@@ -246,33 +246,52 @@ const MockData = () => {
             
             // 导入接口配置
             if (Array.isArray(config.interfaces) && config.interfaces.length > 0) {
+              message.loading({ content: '正在导入接口配置...', key: 'importInfo' });
+              
+              let successCount = 0;
+              let errorCount = 0;
+              
               for (const interfaceItem of config.interfaces) {
-                // 创建接口，使用新功能ID
-                const interfaceData = {
-                  ...interfaceItem,
-                  featureId: newFeature.id,
-                  id: undefined // 不使用原接口ID
-                };
-                
-                await fetch('/cgi-bin/interfaces', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify(interfaceData)
-                });
+                try {
+                  // 创建接口，使用新功能ID
+                  const interfaceData = {
+                    ...interfaceItem,
+                    featureId: newFeature.id,
+                    id: undefined // 不使用原接口ID
+                  };
+                  
+                  await fetch('/cgi-bin/interfaces', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(interfaceData)
+                  });
+                  
+                  successCount++;
+                } catch (error) {
+                  console.error('导入接口配置失败:', error);
+                  errorCount++;
+                }
               }
+              
+              if (errorCount > 0) {
+                message.info({ content: `导入完成，成功 ${successCount} 个接口，失败 ${errorCount} 个接口`, key: 'importInfo', duration: 3 });
+              } else {
+                message.success({ content: `成功导入 ${successCount} 个接口`, key: 'importInfo', duration: 2 });
+              }
+            } else {
+              message.success('功能导入成功（无接口配置）');
             }
             
             // 刷新功能列表
             fetchFeatures();
-            alert(`功能"${newFeature.name}"已成功导入`);
           } else {
-            alert('导入功能失败: ' + featureResult.message);
+            message.error('导入功能失败: ' + featureResult.message);
           }
         } catch (error) {
           console.error('导入配置错误:', error);
-          alert('导入失败: ' + error.message);
+          message.error('导入失败: ' + error.message);
         }
       };
       
@@ -282,85 +301,109 @@ const MockData = () => {
     input.click();
   };
 
+  // 渲染功能模块卡片
+  const renderFeatureCard = (feature) => {
+    const formattedDate = feature.createdAt 
+      ? new Date(feature.createdAt).toLocaleDateString()
+      : '未知日期';
+    
+    return (
+      <Col xs={24} sm={12} md={8} lg={6} key={feature.id} style={{ marginBottom: 16 }}>
+        <Badge.Ribbon 
+          text={feature.active ? '已启用' : '已禁用'} 
+          color={feature.active ? '#52c41a' : '#f5222d'}
+          style={{ display: 'block' }}
+        >
+          <Card
+            hoverable
+            className={`feature-card ${!feature.active ? 'inactive-feature' : ''}`}
+            actions={[
+              <Tooltip title="管理接口">
+                <ApiOutlined key="interfaces" onClick={() => viewInterfaces(feature)} />
+              </Tooltip>,
+              <Tooltip title="编辑功能">
+                <EditOutlined key="edit" onClick={() => openModal(feature)} />
+              </Tooltip>,
+              <Tooltip title="删除功能">
+                <DeleteOutlined key="delete" onClick={() => deleteFeature(feature.id)} />
+              </Tooltip>,
+              <Tooltip title="导出配置">
+                <ExportOutlined key="export" onClick={() => exportFeatureConfig(feature)} />
+              </Tooltip>
+            ]}
+            extra={
+              <Switch
+                checked={feature.active}
+                onChange={() => handleToggleActive(feature.id, feature.active)}
+                size="small"
+              />
+            }
+          >
+            <div className="feature-card-content">
+              <div className="feature-name">
+                <Title level={4} ellipsis={{ tooltip: feature.name }}>
+                  {feature.name}
+                </Title>
+              </div>
+              
+              <Paragraph className="feature-description" ellipsis={{ rows: 2, expandable: false, tooltip: feature.description }}>
+                {feature.description || '无描述'}
+              </Paragraph>
+              
+              <div className="feature-stat">
+                <span>
+                  <InfoCircleOutlined /> {feature.interfaceCount || 0} 个接口
+                </span>
+                <span className="feature-date">
+                  <CalendarOutlined /> {formattedDate}
+                </span>
+              </div>
+            </div>
+          </Card>
+        </Badge.Ribbon>
+      </Col>
+    );
+  };
+
   return (
     <AppLayout>
-      <div className="mock-data-container">
-        <div className="page-header">
-          <h1>功能管理</h1>
-          <div className="header-actions">
-            <button className="import-button" onClick={importFeatureConfig}>
-              导入功能
-            </button>
-            <button className="add-button" onClick={() => openModal()}>
+      <div className="page-container">
+        <div className="page-title-bar">
+          <div>
+            <h1 className="page-title">功能模块管理</h1>
+            <div className="page-description">
+              创建和管理功能模块，为每个功能配置独立的接口
+            </div>
+          </div>
+          <div className="page-actions">
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />}
+              onClick={() => openModal()}
+            >
               新建功能
-            </button>
+            </Button>
+            <Button 
+              type="primary" 
+              icon={<ExportOutlined />}
+              onClick={importFeatureConfig}
+              style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+            >
+              导入功能
+            </Button>
           </div>
         </div>
         
         <div className="feature-list-container">
           {loading ? (
-            <div className="loading">加载中...</div>
+            <div className="loading">
+              <div className="loading-spinner"></div>
+              <div>正在加载功能模块...</div>
+            </div>
           ) : mockFeatures.length > 0 ? (
-            <table className="feature-table">
-              <thead>
-                <tr>
-                  <th width="80">状态</th>
-                  <th width="200">功能名称</th>
-                  <th>功能描述</th>
-                  <th width="100">接口数量</th>
-                  <th width="120">创建日期</th>
-                  <th width="240">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockFeatures.map(feature => (
-                  <tr key={feature.id} className={feature.active ? '' : 'inactive'}>
-                    <td>
-                      <label className="switch">
-                        <input 
-                          type="checkbox" 
-                          checked={feature.active} 
-                          onChange={() => toggleFeatureStatus(feature.id)}
-                        />
-                        <span className="slider"></span>
-                      </label>
-                    </td>
-                    <td>{feature.name}</td>
-                    <td>{feature.description || '无描述'}</td>
-                    <td>{feature.interfaceCount || 0}</td>
-                    <td>{feature.createdAt}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button 
-                          className="interface-button"
-                          onClick={() => viewInterfaces(feature)}
-                        >
-                          接口管理
-                        </button>
-                        <button
-                          className="export-button"
-                          onClick={() => exportFeatureConfig(feature)}
-                        >
-                          导出
-                        </button>
-                        <button 
-                          className="edit-button"
-                          onClick={() => openModal(feature)}
-                        >
-                          编辑
-                        </button>
-                        <button 
-                          className="delete-button"
-                          onClick={() => deleteFeature(feature.id)}
-                        >
-                          删除
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Row gutter={[16, 16]}>
+              {mockFeatures.map(feature => renderFeatureCard(feature))}
+            </Row>
           ) : (
             <div className="empty-data">
               <div className="empty-icon">📂</div>
@@ -377,60 +420,60 @@ const MockData = () => {
           )}
         </div>
       </div>
-
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h2>{currentFeature ? '编辑功能' : '新建功能'}</h2>
-              <button className="close-button" onClick={closeModal}>&times;</button>
-            </div>
-            <form className="feature-form" onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label htmlFor="name">功能名称</label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="请输入功能名称"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="description">功能描述</label>
-                <input
-                  type="text"
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="请输入功能描述"
-                />
-              </div>
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    name="active"
-                    checked={formData.active}
-                    onChange={handleInputChange}
-                  />
-                  启用此功能
-                </label>
-              </div>
-              <div className="form-actions">
-                <button type="button" className="cancel-button" onClick={closeModal}>
-                  取消
-                </button>
-                <button type="submit" className="submit-button">
-                  确定
-                </button>
-              </div>
-            </form>
+      
+      <Modal
+        title={currentFeature ? '编辑功能' : '新建功能'}
+        open={showModal}
+        onCancel={closeModal}
+        footer={null}
+        destroyOnClose
+        width={500}
+      >
+        <Form 
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          initialValues={{
+            name: '',
+            description: '',
+            active: true
+          }}
+        >
+          <Form.Item
+            name="name"
+            label="功能名称"
+            rules={[{ required: true, message: '请输入功能名称' }]}
+          >
+            <Input placeholder="请输入功能名称" />
+          </Form.Item>
+          
+          <Form.Item
+            name="description"
+            label="功能描述"
+          >
+            <TextArea 
+              placeholder="请输入功能描述（可选）" 
+              autoSize={{ minRows: 3, maxRows: 6 }}
+            />
+          </Form.Item>
+          
+          <Form.Item
+            name="active"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="启用" unCheckedChildren="禁用" /> 启用此功能模块
+          </Form.Item>
+          
+          <div className="form-actions">
+            <Button onClick={closeModal}>
+              取消
+            </Button>
+            <Button type="primary" htmlType="submit" loading={loading}>
+              确定
+            </Button>
           </div>
-        </div>
-      )}
+        </Form>
+      </Modal>
     </AppLayout>
   );
 };
