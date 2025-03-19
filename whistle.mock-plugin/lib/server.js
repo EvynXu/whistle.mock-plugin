@@ -2,11 +2,6 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs-extra');
 const Mock = require('mockjs');
-const os = require('os');
-const Koa = require('koa');
-const bodyParser = require('koa-bodyparser');
-const cors = require('@koa/cors');
-const router = require('koa-router')();
 const storage = require('./storage');
 
 // 数据存储目录
@@ -37,6 +32,8 @@ const logMessage = (message) => {
     const logEntry = `[${timestamp}] ${message}\n`;
     
     fs.appendFileSync(LOG_FILE, logEntry);
+    // 同时将日志输出到控制台，方便调试
+    console.log(`[mock-plugin] ${message}`);
   } catch (err) {
     console.error('Error writing to log file:', err.message);
   }
@@ -236,6 +233,9 @@ const parseOriginalUrl = (req) => {
     // 从请求头中获取原始URL
     let originalUrl = '';
     
+    logMessage(`开始解析原始URL，请求URL: ${req.url}`);
+    logMessage(`请求方法: ${req.method}`);
+    
     // 尝试从 x-whistle-real-url 头获取
     const whistleRealUrl = req.headers['x-whistle-real-url'];
     if (whistleRealUrl) {
@@ -282,10 +282,14 @@ const parseOriginalUrl = (req) => {
           const path = match[2] || '/';
           logMessage(`从规则值解析出域名 ${host} 和路径 ${path}`);
           return path; // 返回路径部分
+        } else {
+          logMessage(`规则值 ${ruleValue} 不符合 http(s)://host/path 格式`);
         }
       } catch (e) {
         logMessage(`解析规则值出错: ${e.message}`);
       }
+    } else {
+      logMessage(`请求头中没有x-whistle-rule-value`);
     }
     
     // 如果没有找到原始URL，使用请求URL
@@ -300,10 +304,11 @@ const parseOriginalUrl = (req) => {
 // 获取所有请求头信息并记录
 const logAllHeaders = (req) => {
   try {
-    logMessage('请求头信息:');
+    logMessage('===== 请求头信息 =====');
     Object.keys(req.headers).forEach(headerName => {
       logMessage(`  ${headerName}: ${req.headers[headerName]}`);
     });
+    logMessage('=====================');
   } catch (err) {
     logMessage(`记录请求头失败: ${err.message}`);
   }
@@ -322,8 +327,75 @@ app.use((req, res, next) => {
   }
 });
 
+// 加载规则管理器和数据管理器
+const dataManager = require('./dataManager');
+const ruleManager = require('./ruleManager');
+
+// 初始化
+const initPlugin = () => {
+  try {
+    // 初始化数据管理器
+    dataManager.init({
+      baseDir: DATA_DIR,
+      log: logMessage
+    });
+    
+    // 初始化规则管理器
+    ruleManager.init({
+      baseDir: DATA_DIR,
+      dataManager: dataManager,
+      log: logMessage
+    });
+    
+    logMessage('插件初始化完成');
+  } catch (err) {
+    logMessage('插件初始化失败: ' + err.message);
+    console.error('插件初始化失败:', err);
+  }
+};
+
+// 执行初始化
+initPlugin();
+
 // 处理请求
-app.use((req, res) => {
+app.use(async (req, res) => {
+  try {
+    logMessage(`----- 新请求开始 -----`);
+    logMessage(`收到请求: ${req.method} ${req.url}`);
+    
+    // 记录请求头
+    logAllHeaders(req);
+    
+    // 获取规则值
+    const ruleValue = req.headers['x-whistle-rule-value'];
+    logMessage(`规则值: ${ruleValue || '无'}`);
+    
+    // 使用规则管理器处理请求
+    const result = await ruleManager.handleRequest(req, res, ruleValue);
+    
+    if (result && result.handled) {
+      logMessage(`规则管理器成功处理了请求`);
+      return; // 请求已处理，无需继续
+    }
+    
+    // 如果规则管理器未处理，使用旧的处理方式
+    logMessage(`规则管理器未处理请求，使用旧的处理方式`);
+    handleLegacyRequest(req, res);
+  } catch (err) {
+    logMessage(`请求处理过程中发生错误: ${err.message}`);
+    console.error('请求处理错误:', err);
+    
+    // 返回500错误
+    res.status(500).json({
+      code: 500,
+      message: '内部服务器错误: ' + err.message,
+      data: null
+    });
+  }
+});
+
+// 旧的请求处理方式，保持向后兼容
+const handleLegacyRequest = (req, res) => {
   try {
     // 获取查询URL和方法
     const requestUrl = req.url;
@@ -411,11 +483,19 @@ app.use((req, res) => {
       data: null
     });
   }
-});
+};
 
 // 处理响应
 const handleResponse = (interfaceItem, req, res) => {
   const statusCode = interfaceItem.httpStatus || 200;
+  
+  logMessage(`开始处理响应，代理类型: ${interfaceItem.proxyType}，状态码: ${statusCode}`);
+  logMessage(`匹配的接口: ${JSON.stringify({
+    id: interfaceItem.id,
+    name: interfaceItem.name,
+    urlPattern: interfaceItem.urlPattern,
+    proxyType: interfaceItem.proxyType
+  })}`);
   
   // 根据代理类型处理
   switch (interfaceItem.proxyType) {
@@ -423,11 +503,16 @@ const handleResponse = (interfaceItem, req, res) => {
       try {
         // 尝试解析JSON
         let responseBody = interfaceItem.responseContent;
+        logMessage(`响应内容(前50字符): ${responseBody.substring(0, 50)}...`);
+        
         try {
           // 如果是JSON字符串，先解析为对象
           const jsonData = JSON.parse(responseBody);
+          logMessage(`成功解析为JSON对象`);
+          
           // 使用Mock.js处理模板
           const mockedData = Mock.mock(jsonData);
+          logMessage(`Mock.js处理完成`);
           
           // 设置响应头
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -440,6 +525,7 @@ const handleResponse = (interfaceItem, req, res) => {
           logMessage(`响应JSON数据(状态码: ${statusCode}): ${JSON.stringify(mockedData).substr(0, 200)}...`);
         } catch (e) {
           // 不是JSON，直接返回文本
+          logMessage(`非JSON格式，作为文本返回: ${e.message}`);
           res.status(statusCode).send(responseBody);
           logMessage(`响应文本数据(状态码: ${statusCode}): ${responseBody.substr(0, 200)}...`);
         }
@@ -542,6 +628,23 @@ module.exports = function startServer(server, options) {
     logMessage('启动 whistle.mock-plugin 服务器...');
     logMessage('数据目录: ' + DATA_DIR);
     logMessage('日志文件: ' + LOG_FILE);
+    
+    // 加载并初始化规则管理器
+    try {
+      const ruleManager = require('./ruleManager');
+      ruleManager.init({
+        server: server,
+        config: {
+          baseDir: DATA_DIR
+        },
+        dataManager: require('./dataManager'),
+        log: logMessage // 传递日志函数
+      });
+      logMessage('规则管理器初始化完成');
+    } catch (err) {
+      logMessage('规则管理器初始化失败: ' + err.message);
+      console.error('规则管理器初始化失败:', err);
+    }
     
     // 输出插件版本
     try {

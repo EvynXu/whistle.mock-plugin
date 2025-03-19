@@ -2,10 +2,10 @@ const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const os = require('os');
+const storage = require('../storage');
 
-// 使用用户主目录下的数据存储目录
-const DATA_DIR = path.join(os.homedir(), '.whistle-mock-plugin', 'data');
+// 使用存储模块定义的数据目录
+const DATA_DIR = storage.DATA_DIR;
 const FEATURES_FILE = path.join(DATA_DIR, 'features.json');
 
 // 确保数据目录存在

@@ -3,7 +3,7 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const app = express();
 const fs = require('fs-extra');
-const os = require('os');
+const storage = require('./storage');
 
 // 引入工具函数
 const util = require('../app/util');
@@ -15,7 +15,7 @@ const APP_CGI_ROOT = util.formatPath(path.join(APP_ROOT, 'cgi-bin'));
 const CGI_MODULES = util.loadModulesSync(APP_CGI_ROOT);
 
 // 数据存储目录
-const DATA_DIR = path.join(os.homedir(), '.whistle-mock-plugin', 'data');
+const DATA_DIR = storage.DATA_DIR;
 
 // 确保数据目录存在
 fs.ensureDirSync(DATA_DIR);

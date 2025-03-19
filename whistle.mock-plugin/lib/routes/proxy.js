@@ -2,13 +2,13 @@ const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
 const Mock = require('mockjs');
-const os = require('os');
+const storage = require('../storage');
 
 /**
  * 代理路由处理程序
  * 负责处理文件和 Mock 数据相关的 API 请求
  */
-const FILES_DIR = path.join(os.homedir(), '.whistle-mock-plugin', 'files');
+const FILES_DIR = storage.FILES_DIR;
 
 // 确保文件目录存在
 fs.ensureDirSync(FILES_DIR);

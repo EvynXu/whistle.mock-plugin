@@ -20,10 +20,15 @@ const ruleManager = {
     this.dataManager = options.dataManager;
     this.baseDir = options.config.baseDir;
     
+    // 设置日志函数
+    this.log = options.log || console.log;
+    this.log('规则管理器初始化完成, baseDir: ' + this.baseDir);
+    
     // 确保 mock 数据目录存在
     this.mockDataDir = path.join(this.baseDir, 'mock-data');
     if (!fs.existsSync(this.mockDataDir)) {
       fs.mkdirSync(this.mockDataDir, { recursive: true });
+      this.log('创建mock数据目录: ' + this.mockDataDir);
     }
   },
 
@@ -35,24 +40,38 @@ const ruleManager = {
    * @returns {Promise<object>} 处理结果
    */
   async handleRequest(req, res, ruleValue) {
+    this.log(`[规则处理器] 收到请求处理: ${req.method} ${req.url}`);
+    this.log(`[规则处理器] 规则值: ${ruleValue || '无'}`);
+    
     // 获取所有启用的接口配置
     const enabledInterfaces = await this.dataManager.getEnabledInterfaces();
+    this.log(`[规则处理器] 启用的接口数量: ${enabledInterfaces ? enabledInterfaces.length : 0}`);
+    
     if (!enabledInterfaces || enabledInterfaces.length === 0) {
+      this.log('[规则处理器] 没有启用的接口可用');
       return { handled: false };
     }
 
     // 解析请求路径
     const parsedUrl = url.parse(req.url);
     const requestPath = parsedUrl.pathname;
+    this.log(`[规则处理器] 解析后的请求路径: ${requestPath}`);
     
     // 查找匹配的接口
     const matchedInterface = this.findMatchingInterface(enabledInterfaces, requestPath, req.method);
+    
     if (!matchedInterface) {
+      this.log(`[规则处理器] 未找到匹配的接口，请求: ${req.method} ${requestPath}`);
       return { handled: false };
     }
 
+    this.log(`[规则处理器] 找到匹配的接口: ${matchedInterface.name}, 代理类型: ${matchedInterface.proxyType}`);
+    
     // 根据接口类型处理请求
+    this.log(`[规则处理器] 开始处理请求...`);
     const result = await this.processRequest(matchedInterface, req, res);
+    this.log(`[规则处理器] 请求处理完成，结果: ${JSON.stringify(result)}`);
+    
     return { handled: true, result };
   },
 
@@ -64,35 +83,64 @@ const ruleManager = {
    * @returns {object|null} 匹配的接口对象，如果没有匹配则返回 null
    */
   findMatchingInterface(interfaces, requestPath, method) {
+    this.log(`[规则处理器] 尝试匹配接口，请求路径: ${requestPath}, 方法: ${method}`);
+    this.log(`[规则处理器] 可用接口数量: ${interfaces.length}`);
+    
     // 先尝试完全匹配
     let matchedInterface = interfaces.find(intf => {
       // 检查URL和方法是否匹配
       const urlMatches = intf.urlPattern === requestPath;
       const methodMatches = intf.method === 'ANY' || intf.method === method;
+      if (urlMatches) {
+        this.log(`[规则处理器] URL完全匹配: ${intf.urlPattern}`);
+      }
+      if (methodMatches) {
+        this.log(`[规则处理器] 方法匹配: ${intf.method}`);
+      }
       return urlMatches && methodMatches;
     });
 
     if (matchedInterface) {
+      this.log(`[规则处理器] 找到完全匹配的接口: ${matchedInterface.name}`);
       return matchedInterface;
     }
 
     // 如果没有完全匹配，尝试正则表达式匹配
-    return interfaces.find(intf => {
+    this.log(`[规则处理器] 未找到完全匹配，尝试正则表达式匹配...`);
+    
+    matchedInterface = interfaces.find(intf => {
       try {
         // 将通配符转换为正则表达式
         const pattern = this.convertPatternToRegex(intf.urlPattern);
         const regex = new RegExp(pattern);
         
+        this.log(`[规则处理器] 尝试匹配 "${requestPath}" 与模式 "${intf.urlPattern}" (转换为正则: ${pattern})`);
+        
         // 检查URL和方法是否匹配
         const urlMatches = regex.test(requestPath);
         const methodMatches = intf.method === 'ANY' || intf.method === method;
         
+        if (urlMatches) {
+          this.log(`[规则处理器] URL模式匹配成功: ${intf.urlPattern}`);
+        }
+        if (methodMatches) {
+          this.log(`[规则处理器] 方法匹配: ${intf.method}`);
+        }
+        
         return urlMatches && methodMatches;
       } catch (err) {
-        console.error('Invalid URL pattern:', intf.urlPattern, err);
+        this.log(`[规则处理器] 无效的URL模式: ${intf.urlPattern}, 错误: ${err.message}`);
         return false;
       }
     });
+    
+    if (matchedInterface) {
+      this.log(`[规则处理器] 找到模式匹配的接口: ${matchedInterface.name}`);
+    } else {
+      this.log(`[规则处理器] 未找到任何匹配的接口`);
+    }
+    
+    return matchedInterface;
   },
 
   /**
@@ -245,7 +293,10 @@ const ruleManager = {
     const { config } = interfaceObj;
     const { filePath } = config;
     
+    this.log(`[规则处理器] 处理文件代理，接口: ${interfaceObj.name}`);
+    
     if (!filePath) {
+      this.log(`[规则处理器] 错误: 未指定文件路径`);
       res.end(JSON.stringify({ error: 'No file path specified' }));
       return { error: 'No file path specified' };
     }
@@ -255,30 +306,43 @@ const ruleManager = {
       ? filePath 
       : path.join(this.mockDataDir, filePath);
     
+    this.log(`[规则处理器] 文件路径: ${filePath}`);
+    this.log(`[规则处理器] 绝对路径: ${absFilePath}`);
+    
     try {
       // 检查文件是否存在
       if (!fs.existsSync(absFilePath)) {
+        this.log(`[规则处理器] 错误: 文件不存在: ${absFilePath}`);
         res.statusCode = 404;
         res.end(JSON.stringify({ error: 'File not found', path: absFilePath }));
         return { error: 'File not found', path: absFilePath };
       }
       
+      this.log(`[规则处理器] 文件存在，准备读取内容`);
+      
       // 读取文件内容
       const fileContent = fs.readFileSync(absFilePath, 'utf8');
+      this.log(`[规则处理器] 成功读取文件，内容长度: ${fileContent.length}`);
       
       // 设置内容类型（根据文件扩展名）
       if (!res.getHeader('Content-Type')) {
         const ext = path.extname(absFilePath).toLowerCase();
         const contentType = this.getContentTypeByExt(ext);
         if (contentType) {
+          this.log(`[规则处理器] 设置内容类型: ${contentType}`);
           res.setHeader('Content-Type', contentType);
         }
       }
       
+      // 设置响应头，标识插件处理
+      res.setHeader('X-Handled-By', 'whistle.mock-plugin');
+      
       // 发送文件内容
+      this.log(`[规则处理器] 发送文件内容...`);
       res.end(fileContent);
-      return { fileContent };
+      return { fileContent: fileContent.substring(0, 100) + '...' }; // 只返回部分内容，避免日志过大
     } catch (err) {
+      this.log(`[规则处理器] 读取文件错误: ${err.message}`);
       res.end(JSON.stringify({ error: 'File reading error', message: err.message }));
       return { error: 'File reading error', message: err.message };
     }
