@@ -10,7 +10,6 @@ import './App.css';
 // 导入页面组件
 import MockData from './pages/MockData';
 import InterfaceManagement from './pages/InterfaceManagement';
-import LogsPage from './pages/LogsPage';
 import Settings from './pages/Settings';
 
 // 导入布局组件
@@ -24,7 +23,6 @@ const App = () => {
           <Route exact path="/" component={MockData} />
           <Route exact path="/interface" component={InterfaceManagement} />
           <Route path="/interface/:featureId" component={InterfaceManagement} />
-          <Route path="/logs" component={LogsPage} />
           <Route path="/settings" component={Settings} />
           <Redirect to="/" />
         </Switch>

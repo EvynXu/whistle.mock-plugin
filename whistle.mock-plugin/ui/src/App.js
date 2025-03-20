@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import MockData from './pages/MockData';
 import InterfaceManagement from './pages/InterfaceManagement';
-import LogsPage from './pages/LogsPage';
 import Settings from './pages/Settings';
 import './App.css';
 
@@ -14,7 +13,6 @@ function App() {
           <Route exact path="/" component={MockData} />
           <Route exact path="/interface" component={InterfaceManagement} />
           <Route path="/interface/:featureId" component={InterfaceManagement} />
-          <Route path="/logs" component={LogsPage} />
           <Route path="/settings" component={Settings} />
           <Redirect to="/" />
         </Switch>

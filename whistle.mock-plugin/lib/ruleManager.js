@@ -44,22 +44,6 @@ const ruleManager = {
     // 只记录请求开始和规则值
     this.log(`[规则处理器] 收到请求: ${req.method} ${req.url}, 规则值: ${ruleValue || '无'}`);
     
-    // 记录所有经过插件的请求
-    try {
-      if (this.dataManager && typeof this.dataManager.logRequest === 'function') {
-        this.dataManager.logRequest({
-          type: 'plugin_request',
-          method: req.method,
-          url: req.url,
-          ruleValue,
-          timestamp: new Date().toISOString()
-        });
-      }
-    } catch (err) {
-      // 错误日志需要保留
-      this.log(`[规则处理器] 记录请求日志失败: ${err.message}`);
-    }
-    
     // 获取所有启用的接口配置
     const enabledInterfaces = await this.dataManager.getEnabledInterfaces();
     
@@ -81,23 +65,6 @@ const ruleManager = {
     if (!matchedInterface) {
       this.log(`[规则处理器] 未找到匹配的接口，请求将透传: ${req.method} ${requestPath}`);
       
-      // 记录未匹配的情况
-      try {
-        if (this.dataManager && typeof this.dataManager.logRequest === 'function') {
-          this.dataManager.logRequest({
-            type: 'not_matched',
-            method: req.method,
-            url: req.url,
-            path: requestPath,
-            ruleValue,
-            timestamp: new Date().toISOString(),
-            message: '未找到匹配的接口配置，请求继续'
-          });
-        }
-      } catch (err) {
-        this.log(`[规则处理器] 记录未匹配日志失败: ${err.message}`);
-      }
-      
       // 从请求头获取原始完整URL
       const originalUrl = req.originalReq?.url || req.originalReq?.realUrl;
       
@@ -109,25 +76,6 @@ const ruleManager = {
       
       // 标记为未处理，将由下一个中间件处理
       return { handled: false };
-    }
-
-    // 记录匹配到接口的情况
-    try {
-      if (this.dataManager && typeof this.dataManager.logRequest === 'function') {
-        this.dataManager.logRequest({
-          type: 'matched',
-          method: req.method,
-          url: req.url,
-          path: requestPath,
-          ruleValue,
-          interfaceId: matchedInterface.id,
-          interfaceName: matchedInterface.name,
-          timestamp: new Date().toISOString(),
-          message: `请求匹配到接口: ${matchedInterface.name}`
-        });
-      }
-    } catch (err) {
-      this.log(`[规则处理器] 记录匹配日志失败: ${err.message}`);
     }
 
     this.log(`[规则处理器] 找到匹配的接口: ${matchedInterface.name}, 代理类型: ${matchedInterface.proxyType}`);
@@ -303,6 +251,31 @@ const ruleManager = {
     // 记录处理结果
     this.log(`[规则处理器] 请求处理完成，状态码: ${res.statusCode}`);
     
+    // 记录完整的命中规则日志
+    if (this.dataManager && typeof this.dataManager.logRequest === 'function') {
+      const parsedUrl = url.parse(req.url);
+      try {
+        this.dataManager.logRequest({
+          type: 'mock_hit',
+          eventType: 'mock_hit',
+          message: `命中接口规则: ${interfaceObj.name}`,
+          method: req.method,
+          url: req.url,
+          path: parsedUrl.pathname,
+          status: res.statusCode,
+          pattern: interfaceObj.urlPattern,
+          proxyType: proxyType,
+          interfaceName: interfaceObj.name,
+          interfaceId: interfaceObj.id,
+          responseData: result,
+          responseTime: new Date().toISOString(),
+          contentType: res.getHeader('Content-Type') || config.contentType
+        });
+      } catch (err) {
+        this.log(`[规则处理器] 记录命中规则日志失败: ${err.message}`);
+      }
+    }
+    
     return result;
   },
 
@@ -440,7 +413,7 @@ const ruleManager = {
       
       // 发送文件内容
       res.end(fileContent);
-      return { success: true };
+      return { filePath: absFilePath, fileName: path.basename(absFilePath) };
     } catch (err) {
       this.log(`[规则处理器] 读取文件错误: ${err.message}`);
       res.end(JSON.stringify({ error: 'File reading error', message: err.message }));

@@ -331,19 +331,18 @@ const MockData = () => {
                 <ExportOutlined key="export" onClick={() => exportFeatureConfig(feature)} />
               </Tooltip>
             ]}
-            extra={
-              <Switch
-                checked={feature.active}
-                onChange={() => handleToggleActive(feature.id, feature.active)}
-                size="small"
-              />
-            }
           >
             <div className="feature-card-content">
               <div className="feature-name">
                 <Title level={4} ellipsis={{ tooltip: feature.name }}>
                   {feature.name}
                 </Title>
+
+                <Switch
+                  checked={feature.active}
+                  onChange={() => handleToggleActive(feature.id, feature.active)}
+                  size="small"
+                />
               </div>
               
               <Paragraph className="feature-description" ellipsis={{ rows: 2, expandable: false, tooltip: feature.description }}>
@@ -456,14 +455,6 @@ const MockData = () => {
               autoSize={{ minRows: 3, maxRows: 6 }}
             />
           </Form.Item>
-          
-          <Form.Item
-            name="active"
-            valuePropName="checked"
-          >
-            <Switch checkedChildren="启用" unCheckedChildren="禁用" /> 启用此功能模块
-          </Form.Item>
-          
           <div className="form-actions">
             <Button onClick={closeModal}>
               取消

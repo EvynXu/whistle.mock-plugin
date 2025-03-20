@@ -27,10 +27,10 @@ const logMessage = (message) => {
     if (!fs.existsSync(LOG_DIR)) {
       fs.ensureDirSync(LOG_DIR);
     }
-    
+
     const timestamp = new Date().toISOString();
     const logEntry = `[${timestamp}] ${message}\n`;
-    
+
     fs.appendFileSync(LOG_FILE, logEntry);
     // 同时将日志输出到控制台，方便调试
     console.log(`[mock-plugin] ${message}`);
@@ -39,53 +39,17 @@ const logMessage = (message) => {
   }
 };
 
-// 记录请求日志，并写入到日志文件
-const logRequest = (req, message = '') => {
-  try {
-    const url = req.url || '';
-    const method = req.method || '';
-    const ip = req.ip || '';
-    
-    let headers = '';
-    try {
-      headers = JSON.stringify(req.headers);
-    } catch (err) {
-      console.error('Error stringifying headers:', err.message);
-      headers = '[无法解析的请求头]';
-    }
-    
-    const logText = `${method} ${url} - IP: ${ip} - Headers: ${headers} ${message ? '- ' + message : ''}`;
-    logMessage(logText);
-
-    // 添加到 logs.json
-    try {
-      addToJsonLog({
-        eventType: 'request',
-        status: 'received',
-        method,
-        url,
-        ip,
-        headers: req.headers,
-        message: message || '收到请求'
-      });
-    } catch (err) {
-      console.error('Error adding request to JSON log:', err.message);
-    }
-  } catch (err) {
-    console.error('Error in logRequest:', err.message);
-  }
-};
 
 // 记录日志到 logs.json 文件
 const addToJsonLog = (logData) => {
   try {
     const logsFile = path.join(DATA_DIR, 'logs.json');
-    
+
     // 确保日志文件存在
     if (!fs.existsSync(logsFile)) {
       fs.writeJsonSync(logsFile, { logs: [] }, { spaces: 2 });
     }
-    
+
     // 读取现有日志
     let logsData;
     try {
@@ -497,16 +461,6 @@ const handleLegacyRequest = (req, res, next) => {
     return;
   }
   
-  // 记录到日志
-  addToJsonLog({
-    eventType: 'pass',
-    status: 'not_matched',
-    method: req.method,
-    url: req.url,
-    originalUrl: originalUrl,
-    message: '未找到匹配的接口配置，转发到原始地址'
-  });
-  
   try {
     // 解析URL
     const urlObj = new URL(originalUrl);
@@ -550,17 +504,7 @@ const handleLegacyRequest = (req, res, next) => {
       
       // 传输响应体
       proxyRes.pipe(res);
-      
-      // 记录转发成功的日志
-      addToJsonLog({
-        eventType: 'response',
-        status: 'forwarded',
-        method: req.method,
-        url: req.url,
-        originalUrl: originalUrl,
-        statusCode: proxyRes.statusCode,
-        message: `请求已转发到原始地址，状态码: ${proxyRes.statusCode}`
-      });
+
     });
     
     // 错误处理
@@ -583,17 +527,6 @@ const handleLegacyRequest = (req, res, next) => {
           logMessage(`尝试结束已经部分发送的响应时出错: ${e.message}`);
         }
       }
-      
-      // 记录错误日志
-      addToJsonLog({
-        eventType: 'error',
-        status: 'forward_failed',
-        method: req.method,
-        url: req.url,
-        originalUrl: originalUrl,
-        error: error.message,
-        message: `转发请求到原始地址失败: ${error.message}`
-      });
     });
     
     // 处理超时
@@ -630,35 +563,11 @@ const handleLegacyRequest = (req, res, next) => {
       data: null
     }));
     
-    // 记录错误日志
-    addToJsonLog({
-      eventType: 'error',
-      status: 'internal_error',
-      method: req.method,
-      url: req.url,
-      originalUrl: originalUrl,
-      error: error.message,
-      message: `处理请求转发时发生内部错误: ${error.message}`
-    });
   }
 };
 
 // 处理响应
 const handleResponse = (interfaceItem, req, res) => {
-  // 记录匹配信息
-  addToJsonLog({
-    eventType: 'match',
-    status: 'matched',
-    method: req.method,
-    url: req.url,
-    pattern: interfaceItem.urlPattern,
-    interfaceId: interfaceItem.id,
-    interfaceName: interfaceItem.name,
-    featureId: interfaceItem.featureId,
-    httpMethod: interfaceItem.httpMethod,
-    message: `请求匹配到接口: ${interfaceItem.name}`
-  });
-
   logMessage(`匹配到接口: ${interfaceItem.name}, ID: ${interfaceItem.id}`);
   logMessage(`URL匹配规则: ${interfaceItem.urlPattern}`);
   
@@ -714,66 +623,15 @@ const handleResponse = (interfaceItem, req, res) => {
               // 返回处理后的JSON
               res.status(statusCode).json(mockedData);
               logMessage(`响应JSON数据(状态码: ${statusCode}): ${JSON.stringify(mockedData).substr(0, 200)}...`);
-              
-              // 记录响应日志
-              addToJsonLog({
-                eventType: 'response',
-                status: 'success',
-                method: req.method,
-                url: req.url,
-                pattern: interfaceItem.urlPattern,
-                interfaceId: interfaceItem.id,
-                interfaceName: interfaceItem.name,
-                featureId: interfaceItem.featureId,
-                httpMethod: interfaceItem.httpMethod,
-                statusCode: statusCode,
-                contentType: interfaceItem.contentType,
-                message: '成功返回JSON响应',
-                responsePreview: JSON.stringify(mockedData).substr(0, 200)
-              });
             } else {
               // 不是JSON，直接返回文本
               res.status(statusCode).send(responseBody);
               logMessage(`响应文本数据(状态码: ${statusCode}): ${responseBody.substr(0, 200)}...`);
-              
-              // 记录响应日志
-              addToJsonLog({
-                eventType: 'response',
-                status: 'success',
-                method: req.method,
-                url: req.url,
-                pattern: interfaceItem.urlPattern,
-                interfaceId: interfaceItem.id,
-                interfaceName: interfaceItem.name,
-                featureId: interfaceItem.featureId,
-                httpMethod: interfaceItem.httpMethod,
-                statusCode: statusCode,
-                contentType: interfaceItem.contentType,
-                message: '成功返回文本响应',
-                responsePreview: responseBody.substr(0, 200)
-              });
             }
           } catch (e) {
             // JSON解析出错，直接返回原始内容
             logMessage(`JSON解析错误，作为文本返回: ${e.message}`);
             res.status(statusCode).send(responseBody);
-            
-            // 记录响应日志
-            addToJsonLog({
-              eventType: 'response',
-              status: 'warning',
-              method: req.method,
-              url: req.url,
-              pattern: interfaceItem.urlPattern,
-              interfaceId: interfaceItem.id,
-              interfaceName: interfaceItem.name,
-              featureId: interfaceItem.featureId,
-              httpMethod: interfaceItem.httpMethod,
-              statusCode: statusCode,
-              contentType: interfaceItem.contentType,
-              message: `JSON解析错误，作为文本返回: ${e.message}`,
-              responsePreview: responseBody.substr(0, 200)
-            });
           }
         } catch (err) {
           logMessage('处理响应内容错误: ' + err.message);
@@ -781,21 +639,6 @@ const handleResponse = (interfaceItem, req, res) => {
             code: 500,
             message: '处理响应内容错误: ' + err.message,
             data: null
-          });
-          
-          // 记录错误日志
-          addToJsonLog({
-            eventType: 'error',
-            status: 'error',
-            method: req.method,
-            url: req.url,
-            pattern: interfaceItem.urlPattern,
-            interfaceId: interfaceItem.id,
-            interfaceName: interfaceItem.name,
-            featureId: interfaceItem.featureId,
-            httpMethod: interfaceItem.httpMethod,
-            message: '处理响应内容错误: ' + err.message,
-            errorType: 'RESPONSE_PROCESSING_ERROR'
           });
         }
         break;

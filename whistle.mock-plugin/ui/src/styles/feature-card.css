@@ -1,106 +1,172 @@
 .feature-card {
   background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   transition: all 0.3s ease;
   height: 100%;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .feature-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px);
+}
+
+.feature-card-color-bar {
+  height: 4px;
+  width: 100%;
 }
 
 .feature-card-header {
-  padding: 15px;
-  background-color: #f7f9fc;
-  border-bottom: 1px solid #eee;
+  padding: 16px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .feature-card-title {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #2c3e50;
+  color: #262626;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70%;
 }
 
-.feature-card-status {
+.feature-card-badge {
   font-size: 12px;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 12px;
   font-weight: 500;
-}
-
-.status-active {
-  background-color: #e6f7ff;
-  color: #1890ff;
-}
-
-.status-inactive {
-  background-color: #f5f5f5;
-  color: #999;
-}
-
-.feature-card-content {
-  padding: 15px;
-  flex: 1;
-}
-
-.feature-card-description {
-  color: #666;
-  font-size: 14px;
-  line-height: 1.5;
-  margin-bottom: 15px;
-  min-height: 60px;
-}
-
-.feature-card-footer {
-  padding: 15px;
-  border-top: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-}
-
-.card-action-btn {
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-.edit-feature-btn {
-  background-color: #f0f7ff;
-  color: #1890ff;
-}
-
-.edit-feature-btn:hover {
-  background-color: #e6f7ff;
-}
-
-.manage-interfaces-btn {
-  background-color: #f6ffed;
-  color: #52c41a;
-  display: flex;
+  display: inline-flex;
   align-items: center;
 }
 
-.manage-interfaces-btn:hover {
-  background-color: #eaffdc;
+.feature-card-badge.active {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
 }
 
-.interface-count {
-  margin-left: 5px;
+.feature-card-badge.inactive {
+  background-color: #f5f5f5;
+  color: #8c8c8c;
+  border: 1px solid #d9d9d9;
+}
+
+.feature-card-content {
+  padding: 16px 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.feature-card-description {
+  color: #595959;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 20px 0;
+  flex-grow: 1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.feature-card-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px dashed #f0f0f0;
+}
+
+.feature-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.feature-stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.feature-stat-label {
   font-size: 12px;
-  background-color: #52c41a;
-  color: white;
-  border-radius: 10px;
-  padding: 1px 6px;
+  color: #8c8c8c;
+  margin-top: 2px;
+}
+
+.feature-date {
+  font-size: 14px;
+}
+
+.feature-card-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.edit-btn {
+  background-color: #f7f7f7;
+  color: #595959;
+  border: 1px solid #d9d9d9;
+  flex: 1;
+}
+
+.edit-btn:hover {
+  background-color: #f0f0f0;
+  border-color: #bfbfbf;
+}
+
+.primary-btn {
+  background-color: transparent;
+  border: 1px solid;
+  flex: 1.5;
+}
+
+.primary-btn:hover {
+  opacity: 0.85;
+  background-color: rgba(24, 144, 255, 0.05);
+}
+
+/* 图标样式 */
+.icon-edit, .icon-manage {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.icon-edit {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23595959' viewBox='0 0 24 24'%3E%3Cpath d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E");
+}
+
+.icon-manage {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%231890ff' viewBox='0 0 24 24'%3E%3Cpath d='M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z'/%3E%3C/svg%3E");
 } 

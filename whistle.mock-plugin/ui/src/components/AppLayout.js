@@ -25,8 +25,7 @@ const AppLayout = ({ children }) => {
   const getSelectedKeys = () => {
     if (currentPath === '/' || currentPath === '#/') return ['1'];
     if (currentPath.startsWith('/interface') || currentPath.includes('/interface')) return ['2'];
-    if (currentPath === '/logs' || currentPath.includes('/logs')) return ['3'];
-    if (currentPath === '/settings' || currentPath.includes('/settings')) return ['4'];
+    if (currentPath === '/settings' || currentPath.includes('/settings')) return ['3'];
     return [];
   };
 
@@ -43,8 +42,6 @@ const AppLayout = ({ children }) => {
       if (currentPath.includes('/interface/') && currentPath !== '/interface/') {
         breadcrumbs.push({ path: currentPath, title: '功能接口详情' });
       }
-    } else if (currentPath === '/logs') {
-      breadcrumbs.push({ path: '/logs', title: '运行日志' });
     } else if (currentPath === '/settings') {
       breadcrumbs.push({ path: '/settings', title: '系统设置' });
     }
@@ -56,7 +53,6 @@ const AppLayout = ({ children }) => {
   const getPageTitle = () => {
     if (currentPath === '/' || currentPath === '#/') return '功能模块管理';
     if (currentPath.startsWith('/interface')) return '接口配置管理';
-    if (currentPath === '/logs') return '运行日志';
     if (currentPath === '/settings') return '系统设置';
     return 'Whistle Mock Plugin';
   };
@@ -75,11 +71,6 @@ const AppLayout = ({ children }) => {
     },
     {
       key: '3',
-      icon: <FileTextOutlined />,
-      label: <Link to="/logs">运行日志</Link>,
-    },
-    {
-      key: '4',
       icon: <SettingOutlined />,
       label: <Link to="/settings">系统设置</Link>,
     }
@@ -108,10 +99,6 @@ const AppLayout = ({ children }) => {
         </div>
         <div className="header-right">
           <Space>
-            <Badge count={5} size="small">
-              <Button type="text" icon={<FileTextOutlined />} />
-            </Badge>
-            <Divider type="vertical" />
             <Text type="secondary">v0.1.0</Text>
           </Space>
         </div>
@@ -140,23 +127,7 @@ const AppLayout = ({ children }) => {
         </Sider>
 
         {/* 主内容区 */}
-        <Layout className="app-content-wrapper" style={{ padding: '0 24px 24px', background: colorBgLayout }}>
-          {/* 面包屑导航 */}
-          <Breadcrumb className="app-breadcrumb" style={{ margin: '16px 0' }}>
-            {breadcrumbs.map((item, index) => (
-              <Breadcrumb.Item key={index}>
-                {index < breadcrumbs.length - 1 ? (
-                  <Link to={item.path}>{item.title}</Link>
-                ) : (
-                  item.title
-                )}
-              </Breadcrumb.Item>
-            ))}
-          </Breadcrumb>
-          <Title level={4} style={{ margin: '16px 0' }}>
-            {getPageTitle()}
-          </Title>
-
+        <Layout className="app-content-wrapper" style={{ padding: 0, background: colorBgLayout }}>
           {/* 内容区 */}
           <Content
             className="app-content"
