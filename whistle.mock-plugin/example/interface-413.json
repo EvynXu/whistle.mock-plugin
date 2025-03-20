@@ -1,0 +1,16 @@
+{
+  "id": "payload-too-large-error",
+  "featureId": "error-simulation",
+  "name": "413 Payload Too Large 错误",
+  "urlPattern": "/api/payload-too-large",
+  "httpMethod": "ALL",
+  "httpStatus": 413,
+  "contentType": "application/json",
+  "responseContent": "{\"code\":413,\"message\":\"请求体太大，超出服务器限制\",\"error\":\"Payload Too Large\"}",
+  "proxyType": "response",
+  "responseDelay": 0,
+  "active": true,
+  "createdAt": "2023-07-10T10:00:00.000Z",
+  "updatedAt": "2023-07-10T10:00:00.000Z",
+  "description": "模拟请求体过大错误，当用户上传的数据超过服务器允许的限制时返回此错误"
+} 

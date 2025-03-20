@@ -5,6 +5,13 @@ const fs = require('fs-extra');
 const path = require('path');
 const storage = require('./storage');
 
+// 缓存启用的接口列表
+let enabledInterfacesCache = null;
+let lastCacheTime = 0;
+
+// 缓存过期时间（毫秒）
+const CACHE_TTL = 5000; // 5秒
+
 const dataManager = {
   /**
    * 初始化数据管理器
@@ -14,11 +21,13 @@ const dataManager = {
     this.baseDir = options.baseDir || storage.DATA_DIR;
     this.featuresFile = path.join(this.baseDir, 'features.json');
     this.interfacesFile = path.join(this.baseDir, 'interfaces.json');
+    this.logsFile = path.join(this.baseDir, 'logs.json');
     this.log = options.log || console.log;
     
     this.log(`数据管理器初始化, 基础目录: ${this.baseDir}`);
     this.log(`功能配置文件: ${this.featuresFile}`);
     this.log(`接口配置文件: ${this.interfacesFile}`);
+    this.log(`日志文件: ${this.logsFile}`);
     
     // 确保目录存在
     try {
@@ -45,9 +54,132 @@ const dataManager = {
         fs.writeJsonSync(this.interfacesFile, { interfaces: [] }, { spaces: 2 });
         this.log(`创建接口配置文件: ${this.interfacesFile}`);
       }
+      
+      if (!fs.existsSync(this.logsFile)) {
+        fs.writeJsonSync(this.logsFile, { logs: [] }, { spaces: 2 });
+        this.log(`创建日志文件: ${this.logsFile}`);
+      }
     } catch (err) {
       this.log(`确保文件存在失败: ${err.message}`);
       console.error('确保文件存在失败:', err);
+    }
+  },
+  
+  /**
+   * 记录请求日志
+   * @param {object} logData 日志数据
+   */
+  logRequest(logData) {
+    try {
+      // 确保日志文件存在
+      if (!fs.existsSync(this.logsFile)) {
+        fs.writeJsonSync(this.logsFile, { logs: [] }, { spaces: 2 });
+      }
+      
+      // 读取现有日志
+      const logsData = fs.readJsonSync(this.logsFile);
+      
+      // 确保日志结构正确
+      if (!logsData.logs) {
+        logsData.logs = [];
+      }
+      
+      // 标准化日志数据，确保同时包含type和eventType字段
+      const standardizedLogData = {
+        ...logData,
+        // 确保type和eventType都存在，前端可能使用eventType进行过滤
+        eventType: logData.eventType || logData.type || 'unknown',
+        type: logData.type || logData.eventType || 'unknown',
+        // 如果缺少必要字段，提供默认值，确保前端过滤不出错
+        url: logData.url || '',
+        method: logData.method || '',
+        message: logData.message || '',
+        status: logData.status || '',
+        pattern: logData.pattern || ''
+      };
+      
+      // 添加ID和时间戳
+      const logEntry = {
+        ...standardizedLogData,
+        id: Date.now().toString(),
+        timestamp: logData.timestamp || new Date().toISOString()
+      };
+      
+      // 将新日志添加到前面
+      logsData.logs.unshift(logEntry);
+      
+      // 限制日志数量，保留最新的5000条
+      if (logsData.logs.length > 5000) {
+        logsData.logs = logsData.logs.slice(0, 5000);
+      }
+      
+      // 保存日志
+      fs.writeJsonSync(this.logsFile, logsData, { spaces: 2 });
+      
+      this.log(`记录请求日志: ${logEntry.method} ${logEntry.url} (${logEntry.type})`);
+      return true;
+    } catch (err) {
+      this.log(`记录请求日志失败: ${err.message}`);
+      console.error('记录请求日志失败:', err);
+      return false;
+    }
+  },
+  
+  /**
+   * 获取请求日志
+   * @param {object} options 查询选项
+   * @param {number} options.limit 返回日志的最大数量
+   * @param {string} options.type 日志类型
+   * @returns {Promise<Array>} 日志列表
+   */
+  async getLogs(options = {}) {
+    try {
+      // 确保日志文件存在
+      if (!fs.existsSync(this.logsFile)) {
+        fs.writeJsonSync(this.logsFile, { logs: [] }, { spaces: 2 });
+        return [];
+      }
+      
+      // 读取日志
+      const logsData = await fs.readJson(this.logsFile);
+      
+      if (!logsData.logs) {
+        return [];
+      }
+      
+      let logs = logsData.logs;
+      
+      // 根据类型过滤
+      if (options.type) {
+        logs = logs.filter(log => log.type === options.type);
+      }
+      
+      // 限制返回数量
+      if (options.limit && options.limit > 0) {
+        logs = logs.slice(0, options.limit);
+      }
+      
+      return logs;
+    } catch (err) {
+      this.log(`获取日志失败: ${err.message}`);
+      console.error('获取日志失败:', err);
+      return [];
+    }
+  },
+
+  /**
+   * 清空日志
+   * @returns {Promise<boolean>} 是否成功
+   */
+  async clearLogs() {
+    try {
+      fs.writeJsonSync(this.logsFile, { logs: [] }, { spaces: 2 });
+      this.log('日志已清空');
+      return true;
+    } catch (err) {
+      this.log(`清空日志失败: ${err.message}`);
+      console.error('清空日志失败:', err);
+      return false;
     }
   },
 
@@ -168,35 +300,40 @@ const dataManager = {
 
   /**
    * 获取所有启用的接口
-   * @returns {Promise<Array>} 接口列表
+   * @returns {Promise<Array>} 启用状态的接口列表
    */
   async getEnabledInterfaces() {
+    const now = Date.now();
+    
+    // 如果缓存存在且未过期，直接返回缓存
+    if (enabledInterfacesCache && (now - lastCacheTime < CACHE_TTL)) {
+      return enabledInterfacesCache;
+    }
+    
     try {
-      this.log('获取所有启用的接口...');
+      // 读取所有接口数据
+      const data = await this.getInterfaces();
+      this.log(`读取到接口数据: ${JSON.stringify(data.filter(item => item.enabled === true || item.active === true))}`);
+      // 过滤出启用状态的接口
+      const enabledInterfaces = data.filter(item => item.enabled === true || item.active === true);
       
-      // 获取所有接口
-      const interfaces = await this.getInterfaces();
+      // 更新缓存
+      enabledInterfacesCache = enabledInterfaces;
+      lastCacheTime = now;
       
-      // 获取启用的功能
-      const features = await this.getFeatures();
-      const enabledFeatureIds = features
-        .filter(feature => feature.active)
-        .map(feature => feature.id);
-      
-      this.log(`发现 ${enabledFeatureIds.length} 个启用的功能`);
-      
-      // 过滤出启用功能中的启用接口
-      const enabledInterfaces = interfaces.filter(
-        intf => enabledFeatureIds.includes(intf.featureId) && intf.active
-      );
-      
-      this.log(`找到 ${enabledInterfaces.length} 个启用的接口`);
       return enabledInterfaces;
     } catch (err) {
-      this.log(`获取启用的接口失败: ${err.message}`);
-      console.error('获取启用的接口失败:', err);
+      console.error('获取启用接口失败:', err);
       return [];
     }
+  },
+
+  /**
+   * 使缓存失效，强制下次请求重新加载
+   */
+  invalidateCache() {
+    enabledInterfacesCache = null;
+    lastCacheTime = 0;
   },
 
   /**
@@ -336,11 +473,20 @@ const dataManager = {
     }
   },
 
-  // 获取所有启用的特性
+  /**
+   * 获取所有启用的特性
+   * @returns {Promise<Array>} 启用的特性列表
+   */
   async getEnabledFeatures() {
     try {
       const features = await this.getFeatures();
-      const enabledFeatures = features.filter(feature => feature.active);
+      // 确保features是数组
+      if (!Array.isArray(features)) {
+        this.log(`获取启用的功能失败: features不是数组`);
+        return [];
+      }
+      
+      const enabledFeatures = features.filter(feature => feature && typeof feature === 'object' && feature.active);
       this.log(`获取启用的功能, 共 ${enabledFeatures.length} 个`);
       return enabledFeatures;
     } catch (err) {

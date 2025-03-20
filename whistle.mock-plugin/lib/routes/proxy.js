@@ -17,7 +17,7 @@ fs.ensureDirSync(FILES_DIR);
 const router = express.Router();
 
 // 解析 JSON 请求体
-router.use(express.json());
+router.use(express.json({ limit: '100mb' }));
 
 /**
  * 获取文件内容

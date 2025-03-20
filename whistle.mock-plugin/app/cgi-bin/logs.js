@@ -5,60 +5,126 @@ module.exports = function(req, res) {
   const dataDir = this.dataDir;
   const logsFile = path.join(dataDir, 'logs.json');
   
-  try {
-    // 确保日志文件存在
-    if (!fs.existsSync(logsFile)) {
-      fs.writeJsonSync(logsFile, { logs: [] }, { spaces: 2 });
-    }
-    
-    // 处理GET请求 - 获取所有日志
-    if (req.method === 'GET') {
-      let logsData;
-      try {
-        logsData = fs.readJsonSync(logsFile);
-        if (!logsData.logs) {
-          logsData = { logs: [] };
+  // 处理GET请求 - 获取日志
+  if (req.method === 'GET') {
+    try {
+      // 解析查询参数
+      const limit = parseInt(req.query.limit) || 100;
+      const type = req.query.type || '';
+      const keyword = req.query.keyword || '';
+      const page = parseInt(req.query.page) || 1;
+      const pageSize = parseInt(req.query.pageSize) || 20;
+      
+      // 确保日志文件存在
+      if (!fs.existsSync(logsFile)) {
+        fs.writeJsonSync(logsFile, { logs: [] }, { spaces: 2 });
+        return res.json({
+          code: 0,
+          message: '成功',
+          data: {
+            logs: [],
+            total: 0,
+            page: 1,
+            pageSize: pageSize,
+            totalPages: 0
+          }
+        });
+      }
+      
+      // 读取日志
+      const logsData = fs.readJsonSync(logsFile);
+      
+      // 确保日志结构正确
+      if (!logsData || !logsData.logs || !Array.isArray(logsData.logs)) {
+        logsData.logs = [];
+      }
+      
+      // 标准化日志格式，确保每个日志项都有正确的字段
+      let logs = logsData.logs.map(log => {
+        if (!log) return null;
+        
+        // 标准化事件类型字段，确保兼容前端过滤
+        // 将type转换为eventType确保前端能够正确过滤
+        return {
+          id: log.id || Date.now().toString(),
+          timestamp: log.timestamp || new Date().toISOString(),
+          eventType: log.eventType || log.type || 'unknown',
+          type: log.type || log.eventType || 'unknown',
+          method: log.method || '',
+          url: log.url || '',
+          status: log.status || '',
+          message: log.message || '',
+          pattern: log.pattern || '',
+          ...log // 保留原有其他字段
+        };
+      }).filter(Boolean); // 过滤掉null
+      
+      // 根据类型过滤
+      if (type && type !== 'all') {
+        try {
+          logs = logs.filter(log => 
+            log && (log.eventType === type || log.type === type)
+          );
+        } catch (err) {
+          console.error('按类型过滤日志失败:', err);
+          // 出错时不过滤
         }
-      } catch (err) {
-        console.error('读取日志文件错误:', err);
-        logsData = { logs: [] };
       }
       
-      // 查询参数处理
-      const limit = req.query.limit ? parseInt(req.query.limit, 10) : 1000;
-      const type = req.query.type || null;
-      const startDate = req.query.startDate ? new Date(req.query.startDate) : null;
-      const endDate = req.query.endDate ? new Date(req.query.endDate) : null;
-      
-      // 筛选日志
-      let filteredLogs = logsData.logs;
-      
-      if (type) {
-        filteredLogs = filteredLogs.filter(log => log.eventType === type);
+      // 根据关键词过滤
+      if (keyword) {
+        try {
+          logs = logs.filter(log => {
+            if (!log) return false;
+            
+            // 检查关键字段是否包含关键词
+            const url = (log.url || '').toLowerCase();
+            const pattern = (log.pattern || '').toLowerCase();
+            const message = (log.message || '').toLowerCase();
+            const lowercaseKeyword = keyword.toLowerCase();
+            
+            return url.includes(lowercaseKeyword) || 
+                   pattern.includes(lowercaseKeyword) || 
+                   message.includes(lowercaseKeyword);
+          });
+        } catch (err) {
+          console.error('按关键词过滤日志失败:', err);
+          // 出错时不过滤
+        }
       }
       
-      if (startDate) {
-        filteredLogs = filteredLogs.filter(log => new Date(log.timestamp) >= startDate);
-      }
+      // 计算总记录数和总页数
+      const total = logs.length;
+      const totalPages = Math.ceil(total / pageSize);
       
-      if (endDate) {
-        filteredLogs = filteredLogs.filter(log => new Date(log.timestamp) <= endDate);
-      }
-      
-      // 限制数量并按时间倒序排序
-      filteredLogs = filteredLogs
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, limit);
+      // 分页
+      const startIndex = (page - 1) * pageSize;
+      const pagedLogs = logs.slice(startIndex, startIndex + pageSize);
       
       return res.json({
         code: 0,
         message: '成功',
-        data: filteredLogs
+        data: {
+          logs: pagedLogs,
+          total: total,
+          page: page,
+          pageSize: pageSize,
+          totalPages: totalPages
+        }
+      });
+    } catch (err) {
+      console.error('获取日志失败:', err);
+      return res.status(500).json({
+        code: 500,
+        message: '获取日志失败: ' + err.message,
+        data: null
       });
     }
-    
-    // 处理DELETE请求 - 清空日志
-    if (req.method === 'DELETE') {
+  }
+  
+  // 处理DELETE请求 - 清空日志
+  if (req.method === 'DELETE') {
+    try {
       fs.writeJsonSync(logsFile, { logs: [] }, { spaces: 2 });
       
       return res.json({
@@ -66,67 +132,20 @@ module.exports = function(req, res) {
         message: '日志已清空',
         data: null
       });
-    }
-    
-    // 处理POST请求 - 添加日志（内部使用）
-    if (req.method === 'POST') {
-      const logEntry = req.body;
-      
-      if (!logEntry) {
-        return res.status(400).json({
-          code: 400,
-          message: '日志数据不能为空',
-          data: null
-        });
-      }
-      
-      let logsData;
-      try {
-        logsData = fs.readJsonSync(logsFile);
-        if (!logsData.logs) {
-          logsData = { logs: [] };
-        }
-      } catch (err) {
-        console.error('读取日志文件错误:', err);
-        logsData = { logs: [] };
-      }
-      
-      // 添加时间戳和ID
-      const newLog = {
-        ...logEntry,
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString()
-      };
-      
-      // 添加新日志
-      logsData.logs.unshift(newLog);
-      
-      // 限制日志数量，最多保留10000条
-      if (logsData.logs.length > 10000) {
-        logsData.logs = logsData.logs.slice(0, 10000);
-      }
-      
-      fs.writeJsonSync(logsFile, logsData, { spaces: 2 });
-      
-      return res.json({
-        code: 0,
-        message: '日志添加成功',
-        data: newLog
+    } catch (err) {
+      console.error('清空日志失败:', err);
+      return res.status(500).json({
+        code: 500,
+        message: '清空日志失败: ' + err.message,
+        data: null
       });
     }
-    
-    // 其他请求方法
-    return res.status(405).json({
-      code: 405,
-      message: '不支持的请求方法',
-      data: null
-    });
-  } catch (err) {
-    console.error('处理日志请求出错:', err);
-    return res.status(500).json({
-      code: 500,
-      message: '服务器内部错误: ' + err.message,
-      data: null
-    });
   }
+  
+  // 其他请求方法
+  return res.status(405).json({
+    code: 405,
+    message: '不支持的请求方法',
+    data: null
+  });
 }; 

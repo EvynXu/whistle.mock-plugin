@@ -1,13 +1,18 @@
 # 测试问题收集
 
-1. 运行日志中把没有匹配到规则的请求也添加进去
-2. 功能模块管理中卡片UI优化一下
-
-# TODO
-
-1. 未命中规则的请求不需要拦截，直接放过走原始请求
-2. 接口添加中添加代理模式（目前实现的是response数据模式，新增一个直接代理成其他地址请求）
-3. 根据接口文档直接生成JSON数据的功能
+1. 运行日志中报错
+index.js:2 TypeError: n.filter is not a function
+    at E (index.js:2:1299329)
+    at AH (index.js:2:1299786)
+    at hi (index.js:2:106198)
+    at $l (index.js:2:120236)
+    at Sc (index.js:2:166006)
+    at ys (index.js:2:154391)
+    at vs (index.js:2:154319)
+    at hs (index.js:2:154182)
+    at as (index.js:2:151017)
+    at os (index.js:2:149573)
+2. 放过的请求按照原路径  完整的url 请求
 
 
 # 问题处理注意

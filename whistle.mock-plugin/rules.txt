@@ -1,49 +1,22 @@
 # Whistle Mock Plugin 使用指南
-# 版本: 0.2.1
+# 版本: 0.3.0
 
 # ===== 基本规则配置 =====
-# 在 Whistle 的规则配置中，使用以下格式添加拦截规则：
-# 域名匹配规则 whistle.mock-plugin://
+# 在 Whistle 的规则配置中，使用以下格式添加规则：
+* whistle.mock-plugin://
 
-# ===== 常见配置场景 =====
+# 该插件现在会自动匹配已配置的接口规则，对于没有在插件中配置的接口，不会进行拦截
 
-# 1. 完整URL匹配（推荐使用）
-# 示例：拦截特定URL的请求，包含完整域名
-# https://wx.qa.17u.cn/mihawkapi/api/login whistle.mock-plugin://
+# ===== 规则匹配逻辑 =====
+# 1. 请求会先检查是否匹配接口配置中定义的 URL 模式
+# 2. 如果找到匹配的接口配置，且该接口处于启用状态，才会由插件处理
+# 3. 如果没有匹配的接口配置，请求会直接透传到真实服务器
 
-# 2. 域名级别匹配
-# 示例：拦截所有指向该域名的请求
-# wx.qa.17u.cn whistle.mock-plugin://
+# ===== 常见配置示例 =====
+# 不需要添加其他规则，只需要保留上面的全局规则即可
+# 插件会根据在插件界面中配置的接口规则自动决定哪些请求需要处理
 
-# 3. 域名+路径匹配
-# 示例：拦截域名下特定路径的请求
-# wx.qa.17u.cn/mihawkapi/api/ whistle.mock-plugin://
-
-# 4. 使用正则表达式匹配
-# 示例：匹配所有包含 mihawkapi/api/ 的URL
-# /mihawkapi\/api\// whistle.mock-plugin://
-
-# ===== 插件界面配置 =====
-# 1. 在插件界面中创建功能模块
-# 2. 在功能模块中添加接口，配置URL匹配规则
-# 3. 接口的URL匹配规则必须是路径部分，例如：/mihawkapi/api/login
-# 4. 保存并确保功能和接口都已启用
-
-# ===== 故障排查 =====
-# 1. 确保您已正确安装并启用 whistle.mock-plugin 插件
-# 2. 检查 Whistle 是否已正确启动，并且规则已启用
-# 3. 访问 Whistle 管理面板 (默认 http://127.0.0.1:8899)，查看流量是否经过插件
-# 4. 查看日志文件：~/.whistle-mock-plugin/data/logs/plugin.log
-# 5. 如果规则不生效，请尝试以下解决方法：
-#    - 确保URL匹配规则与接口匹配规则一致（大小写敏感）
-#    - 重启Whistle服务
-#    - 清除浏览器缓存
-#    - 使用完整URL匹配规则
-#    - 检查 Whistle 插件是否已安装并激活
-
-# ===== 特殊场景 =====
-# 如果您使用HTTPS请求，确保已信任Whistle的证书：
-# 1. 访问 http://local.whistlejs.com/ 下载并安装根证书
-# 2. 如果使用移动设备，需在设备上手动安装并信任证书
-
-# 更多问题请参考 Github: https://github.com/avwo/whistle 或插件文档 
+# ===== 调试功能 =====
+# 通过访问以下URL可以查看插件的配置和状态：
+# 查看全部配置: whistle.mock-plugin/_debug/config
+# 查看启用的接口: whistle.mock-plugin/_debug/enabled-interfaces

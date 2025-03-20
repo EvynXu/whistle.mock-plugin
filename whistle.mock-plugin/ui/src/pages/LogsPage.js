@@ -16,21 +16,79 @@ const LogsPage = () => {
   const [dateRange, setDateRange] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(null);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 15,
+    total: 0,
+    showSizeChanger: true,
+    pageSizeOptions: ['15', '30', '50', '100'],
+    showTotal: (total) => `共 ${total} 条日志`
+  });
 
   // 获取日志数据
-  const fetchLogs = async () => {
+  const fetchLogs = async (paginationParams = {}) => {
     try {
       setLoading(true);
-      const response = await fetch('/cgi-bin/logs');
+      
+      // 构建查询参数
+      const params = new URLSearchParams({
+        page: paginationParams.current || pagination.current || 1,
+        pageSize: paginationParams.pageSize || pagination.pageSize || 15,
+        type: filterType !== 'all' ? filterType : '',
+        keyword: searchText || ''
+      });
+      
+      // 如果有日期范围，添加到查询参数
+      if (dateRange && dateRange.length === 2) {
+        params.append('startDate', dateRange[0].format('YYYY-MM-DD'));
+        params.append('endDate', dateRange[1].format('YYYY-MM-DD'));
+      }
+      
+      const response = await fetch(`/cgi-bin/logs?${params.toString()}`);
       const result = await response.json();
       
       if (result.code === 0) {
-        setLogs(result.data || []);
+        // 检查返回的数据结构，正确处理后端返回的数据
+        if (result.data && Array.isArray(result.data.logs)) {
+          // 后端返回的是 { logs: [...], total: ..., page: ..., pageSize: ..., totalPages: ... }
+          setLogs(result.data.logs);
+          // 更新分页信息
+          setPagination(prev => ({
+            ...prev,
+            current: result.data.page || 1,
+            pageSize: result.data.pageSize || 15,
+            total: result.data.total || 0
+          }));
+        } else if (Array.isArray(result.data)) {
+          // 后端直接返回数组的情况
+          setLogs(result.data);
+          setPagination(prev => ({
+            ...prev,
+            total: result.data.length
+          }));
+        } else {
+          // 没有有效数据时设为空数组
+          setLogs([]);
+          setPagination(prev => ({
+            ...prev,
+            total: 0
+          }));
+        }
       } else {
         console.error('获取日志失败:', result.message);
+        setLogs([]);
+        setPagination(prev => ({
+          ...prev,
+          total: 0
+        }));
       }
     } catch (error) {
       console.error('获取日志错误:', error);
+      setLogs([]);
+      setPagination(prev => ({
+        ...prev,
+        total: 0
+      }));
     } finally {
       setLoading(false);
     }
@@ -51,7 +109,10 @@ const LogsPage = () => {
   useEffect(() => {
     if (autoRefresh) {
       const interval = setInterval(() => {
-        fetchLogs();
+        fetchLogs({
+          current: pagination.current,
+          pageSize: pagination.pageSize
+        });
       }, 5000); // 每5秒刷新一次
       setRefreshInterval(interval);
     } else if (refreshInterval) {
@@ -64,7 +125,7 @@ const LogsPage = () => {
         clearInterval(refreshInterval);
       }
     };
-  }, [autoRefresh]);
+  }, [autoRefresh, pagination.current, pagination.pageSize, filterType, searchText, dateRange]);
 
   // 清空日志
   const clearLogs = async () => {
@@ -77,6 +138,12 @@ const LogsPage = () => {
         
         if (result.code === 0) {
           setLogs([]);
+          // 重置分页
+          setPagination(prev => ({
+            ...prev,
+            current: 1,
+            total: 0
+          }));
         } else {
           console.error('清空日志失败:', result.message);
         }
@@ -101,6 +168,10 @@ const LogsPage = () => {
 
   // 根据筛选条件过滤日志
   const getFilteredLogs = () => {
+    // 如果使用后端分页，则不需要在前端进行筛选
+    return logs;
+    
+    /* 注释掉旧的本地筛选逻辑，现在使用后端筛选和分页
     return logs.filter(log => {
       // 根据日志类型筛选
       if (filterType !== 'all' && log.eventType !== filterType) {
@@ -129,6 +200,7 @@ const LogsPage = () => {
       
       return true;
     });
+    */
   };
 
   // 获取状态标签样式
@@ -277,6 +349,39 @@ const LogsPage = () => {
     console.log('查看日志详情:', log);
   };
 
+  // 处理表格分页、排序、筛选变化
+  const handleTableChange = (newPagination, filters, sorter) => {
+    setPagination(newPagination);
+    fetchLogs(newPagination);
+  };
+
+  // 处理筛选条件变更
+  const handleFilterChange = (newFilterType = null, newSearchText = null, newDateRange = null) => {
+    const updatedFilterType = newFilterType !== null ? newFilterType : filterType;
+    const updatedSearchText = newSearchText !== null ? newSearchText : searchText;
+    const updatedDateRange = newDateRange !== null ? newDateRange : dateRange;
+    
+    // 更新筛选条件状态
+    if (newFilterType !== null) setFilterType(newFilterType);
+    if (newSearchText !== null) setSearchText(newSearchText);
+    if (newDateRange !== null) setDateRange(newDateRange);
+    
+    // 重置分页到第一页
+    const resetPagination = {
+      ...pagination,
+      current: 1
+    };
+    setPagination(resetPagination);
+    
+    // 使用新的筛选条件获取数据
+    fetchLogs({
+      ...resetPagination,
+      filterType: updatedFilterType,
+      searchText: updatedSearchText,
+      dateRange: updatedDateRange
+    });
+  };
+
   return (
     <AppLayout>
       <div className="page-container logs-page-container">
@@ -305,7 +410,7 @@ const LogsPage = () => {
             </Tooltip>
             <Button 
               icon={<SyncOutlined />}
-              onClick={fetchLogs}
+              onClick={() => fetchLogs()}
             >
               刷新
             </Button>
@@ -334,7 +439,7 @@ const LogsPage = () => {
                 placeholder="搜索URL或规则" 
                 allowClear
                 value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
+                onChange={(e) => handleFilterChange(null, e.target.value, null)}
                 prefix={<SearchOutlined />}
                 style={{ width: 200 }}
                 className="filter-item"
@@ -342,7 +447,7 @@ const LogsPage = () => {
               <Select 
                 defaultValue="all" 
                 style={{ width: 120 }}
-                onChange={(value) => setFilterType(value)}
+                onChange={(value) => handleFilterChange(value, null, null)}
                 placeholder="事件类型"
                 className="filter-item"
               >
@@ -354,7 +459,7 @@ const LogsPage = () => {
               </Select>
               <RangePicker 
                 allowClear
-                onChange={(dates) => setDateRange(dates)}
+                onChange={(dates) => handleFilterChange(null, null, dates)}
                 className="filter-item"
               />
               <Badge 
@@ -376,9 +481,9 @@ const LogsPage = () => {
               ) : (
                 <Text type="secondary" className="d-flex align-center">
                   <ClockCircleOutlined className="mr-1" /> 
-                  <span>显示 {filteredLogs.length} 条日志记录</span>
-                  {logs.length > filteredLogs.length && (
-                    <span className="ml-1">(已筛选，共 {logs.length} 条)</span>
+                  <span>显示 {logs.length} 条日志记录</span>
+                  {pagination.total > 0 && logs.length < pagination.total && (
+                    <span className="ml-1">(第 {pagination.current} 页，共 {pagination.total} 条)</span>
                   )}
                 </Text>
               )}
@@ -391,14 +496,10 @@ const LogsPage = () => {
             columns={columns} 
             dataSource={filteredLogs}
             rowKey={(record) => record.id || record.timestamp}
-            pagination={{ 
-              pageSize: 15,
-              showSizeChanger: true,
-              pageSizeOptions: ['15', '30', '50', '100'],
-              showTotal: (total) => `共 ${total} 条日志`
-            }}
+            pagination={pagination}
             loading={loading}
             size="middle"
+            onChange={handleTableChange}
             locale={{ 
               emptyText: logs.length === 0 ? (
                 <Empty 

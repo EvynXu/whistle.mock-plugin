@@ -37,32 +37,97 @@ const ruleManager = {
    * @param {object} req 请求对象
    * @param {object} res 响应对象
    * @param {string} ruleValue 规则值
+   * @param {function} next 下一个中间件
    * @returns {Promise<object>} 处理结果
    */
-  async handleRequest(req, res, ruleValue) {
-    this.log(`[规则处理器] 收到请求处理: ${req.method} ${req.url}`);
-    this.log(`[规则处理器] 规则值: ${ruleValue || '无'}`);
+  async handleRequest(req, res, ruleValue, next) {
+    // 只记录请求开始和规则值
+    this.log(`[规则处理器] 收到请求: ${req.method} ${req.url}, 规则值: ${ruleValue || '无'}`);
+    
+    // 记录所有经过插件的请求
+    try {
+      if (this.dataManager && typeof this.dataManager.logRequest === 'function') {
+        this.dataManager.logRequest({
+          type: 'plugin_request',
+          method: req.method,
+          url: req.url,
+          ruleValue,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (err) {
+      // 错误日志需要保留
+      this.log(`[规则处理器] 记录请求日志失败: ${err.message}`);
+    }
     
     // 获取所有启用的接口配置
     const enabledInterfaces = await this.dataManager.getEnabledInterfaces();
+    
+    // 只记录接口数量，不记录详情
     this.log(`[规则处理器] 启用的接口数量: ${enabledInterfaces ? enabledInterfaces.length : 0}`);
     
     if (!enabledInterfaces || enabledInterfaces.length === 0) {
-      this.log('[规则处理器] 没有启用的接口可用');
+      this.log('[规则处理器] 没有启用的接口可用，透传请求');
       return { handled: false };
     }
 
     // 解析请求路径
     const parsedUrl = url.parse(req.url);
     const requestPath = parsedUrl.pathname;
-    this.log(`[规则处理器] 解析后的请求路径: ${requestPath}`);
     
     // 查找匹配的接口
     const matchedInterface = this.findMatchingInterface(enabledInterfaces, requestPath, req.method);
     
     if (!matchedInterface) {
-      this.log(`[规则处理器] 未找到匹配的接口，请求: ${req.method} ${requestPath}`);
+      this.log(`[规则处理器] 未找到匹配的接口，请求将透传: ${req.method} ${requestPath}`);
+      
+      // 记录未匹配的情况
+      try {
+        if (this.dataManager && typeof this.dataManager.logRequest === 'function') {
+          this.dataManager.logRequest({
+            type: 'not_matched',
+            method: req.method,
+            url: req.url,
+            path: requestPath,
+            ruleValue,
+            timestamp: new Date().toISOString(),
+            message: '未找到匹配的接口配置，请求继续'
+          });
+        }
+      } catch (err) {
+        this.log(`[规则处理器] 记录未匹配日志失败: ${err.message}`);
+      }
+      
+      // 从请求头获取原始完整URL
+      const originalUrl = req.originalReq?.url || req.originalReq?.realUrl;
+      
+      // 如果存在原始URL，确保放回请求头，以便后续处理程序使用
+      if (originalUrl && originalUrl.startsWith('http')) {
+        this.log(`[规则处理器] 保存原始URL到请求头，确保透传: ${originalUrl}`);
+        req.headers['x-whistle-real-url'] = originalUrl;
+      }
+      
+      // 标记为未处理，将由下一个中间件处理
       return { handled: false };
+    }
+
+    // 记录匹配到接口的情况
+    try {
+      if (this.dataManager && typeof this.dataManager.logRequest === 'function') {
+        this.dataManager.logRequest({
+          type: 'matched',
+          method: req.method,
+          url: req.url,
+          path: requestPath,
+          ruleValue,
+          interfaceId: matchedInterface.id,
+          interfaceName: matchedInterface.name,
+          timestamp: new Date().toISOString(),
+          message: `请求匹配到接口: ${matchedInterface.name}`
+        });
+      }
+    } catch (err) {
+      this.log(`[规则处理器] 记录匹配日志失败: ${err.message}`);
     }
 
     this.log(`[规则处理器] 找到匹配的接口: ${matchedInterface.name}, 代理类型: ${matchedInterface.proxyType}`);
@@ -70,7 +135,7 @@ const ruleManager = {
     // 根据接口类型处理请求
     this.log(`[规则处理器] 开始处理请求...`);
     const result = await this.processRequest(matchedInterface, req, res);
-    this.log(`[规则处理器] 请求处理完成，结果: ${JSON.stringify(result)}`);
+    this.log(`[规则处理器] 请求处理完成，状态: ${result.error ? '失败' : '成功'}`);
     
     return { handled: true, result };
   },
@@ -83,20 +148,29 @@ const ruleManager = {
    * @returns {object|null} 匹配的接口对象，如果没有匹配则返回 null
    */
   findMatchingInterface(interfaces, requestPath, method) {
-    this.log(`[规则处理器] 尝试匹配接口，请求路径: ${requestPath}, 方法: ${method}`);
-    this.log(`[规则处理器] 可用接口数量: ${interfaces.length}`);
+    // 简化日志，只记录正在进行匹配的操作
+    this.log(`[规则处理器] 尝试匹配接口，路径: ${requestPath}, 方法: ${method}`);
+    
+    // 确保interfaces是一个数组
+    if (!Array.isArray(interfaces)) {
+      this.log(`[规则处理器] 错误: interfaces不是一个数组`);
+      return null;
+    }
     
     // 先尝试完全匹配
     let matchedInterface = interfaces.find(intf => {
       // 检查URL和方法是否匹配
       const urlMatches = intf.urlPattern === requestPath;
-      const methodMatches = intf.method === 'ANY' || intf.method === method;
-      if (urlMatches) {
-        this.log(`[规则处理器] URL完全匹配: ${intf.urlPattern}`);
-      }
-      if (methodMatches) {
-        this.log(`[规则处理器] 方法匹配: ${intf.method}`);
-      }
+      
+      // 修复: 兼容不同的方法名称和值
+      const methodField = intf.httpMethod || intf.method;
+      const methodValue = methodField && methodField.toUpperCase();
+      const methodMatches = !methodValue || 
+                            methodValue === 'ALL' || 
+                            methodValue === 'ANY' || 
+                            methodValue === method;
+      
+      // 移除中间匹配过程的日志
       return urlMatches && methodMatches;
     });
 
@@ -114,19 +188,21 @@ const ruleManager = {
         const pattern = this.convertPatternToRegex(intf.urlPattern);
         const regex = new RegExp(pattern);
         
-        this.log(`[规则处理器] 尝试匹配 "${requestPath}" 与模式 "${intf.urlPattern}" (转换为正则: ${pattern})`);
+        // 获取方法值，兼容不同的字段名
+        const methodField = intf.httpMethod || intf.method;
+        const methodValue = methodField && methodField.toUpperCase();
+        
+        // 只记录尝试匹配的模式，不记录详细过程
+        this.log(`[规则处理器] 尝试正则匹配，测试 ${interfaces.length} 个模式`);
         
         // 检查URL和方法是否匹配
         const urlMatches = regex.test(requestPath);
-        const methodMatches = intf.method === 'ANY' || intf.method === method;
+        const methodMatches = !methodValue || 
+                              methodValue === 'ALL' || 
+                              methodValue === 'ANY' || 
+                              methodValue === method;
         
-        if (urlMatches) {
-          this.log(`[规则处理器] URL模式匹配成功: ${intf.urlPattern}`);
-        }
-        if (methodMatches) {
-          this.log(`[规则处理器] 方法匹配: ${intf.method}`);
-        }
-        
+        // 移除中间匹配过程的日志
         return urlMatches && methodMatches;
       } catch (err) {
         this.log(`[规则处理器] 无效的URL模式: ${intf.urlPattern}, 错误: ${err.message}`);
@@ -166,42 +242,68 @@ const ruleManager = {
    * @returns {Promise<object>} 处理结果
    */
   async processRequest(interfaceObj, req, res) {
-    const { proxyType, config } = interfaceObj;
+    // 兼容不同的代理类型字段名和值
+    const proxyType = interfaceObj.proxyType || '';
+    
+    // 创建统一的配置对象，兼容直接字段访问和config嵌套字段
+    const config = interfaceObj.config || interfaceObj;
+    
+    // 只记录关键信息
+    this.log(`[规则处理器] 处理请求，接口: ${interfaceObj.name}, 代理类型: ${proxyType}`);
     
     // 设置响应头
-    if (config.headers) {
-      const headers = this.parseHeaders(config.headers);
-      Object.entries(headers).forEach(([key, value]) => {
-        res.setHeader(key, value);
-      });
+    let headers = config.headers;
+    if (typeof headers === 'string') {
+      headers = this.parseHeaders(headers);
+    } else if (typeof headers === 'object' && headers !== null) {
+      // 已经是对象格式，直接使用
+    } else {
+      headers = {};
+    }
+    
+    Object.entries(headers).forEach(([key, value]) => {
+      res.setHeader(key, value);
+    });
+    
+    // 设置内容类型
+    if (config.contentType && !res.getHeader('Content-Type')) {
+      res.setHeader('Content-Type', config.contentType);
     }
     
     // 添加延迟
-    if (config.delay > 0) {
-      await new Promise(resolve => setTimeout(resolve, config.delay));
+    const delay = parseInt(config.responseDelay || config.delay || 0, 10);
+    if (delay > 0) {
+      this.log(`[规则处理器] 添加响应延迟: ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
     
     // 设置状态码
-    res.statusCode = config.statusCode || 200;
+    res.statusCode = parseInt(config.httpStatus || config.statusCode || 200, 10);
     
     // 根据代理类型处理
-    switch (proxyType) {
-      case 'url_redirect':
-        return this.handleUrlRedirect(interfaceObj, req, res);
-      
-      case 'data_template':
-        return this.handleDataTemplate(interfaceObj, req, res);
-      
-      case 'file_proxy':
-        return this.handleFileProxy(interfaceObj, req, res);
-      
-      case 'dynamic_data':
-        return this.handleDynamicData(interfaceObj, req, res);
-      
-      default:
-        res.end(JSON.stringify({ error: 'Unsupported proxy type' }));
-        return { error: 'Unsupported proxy type' };
+    let result;
+    if (proxyType === 'url_redirect' || proxyType === 'redirect') {
+      result = await this.handleUrlRedirect(interfaceObj, req, res);
+    } 
+    else if (proxyType === 'data_template' || proxyType === 'response') {
+      result = await this.handleDataTemplate(interfaceObj, req, res);
+    } 
+    else if (proxyType === 'file_proxy' || proxyType === 'file') {
+      result = await this.handleFileProxy(interfaceObj, req, res);
+    } 
+    else if (proxyType === 'dynamic_data') {
+      result = await this.handleDynamicData(interfaceObj, req, res);
+    } 
+    else {
+      // 默认使用数据模板处理
+      this.log(`[规则处理器] 未知的代理类型 "${proxyType}"，默认使用数据模板处理`);
+      result = await this.handleDataTemplate(interfaceObj, req, res);
     }
+    
+    // 记录处理结果
+    this.log(`[规则处理器] 请求处理完成，状态码: ${res.statusCode}`);
+    
+    return result;
   },
 
   /**
@@ -212,8 +314,10 @@ const ruleManager = {
    * @returns {Promise<object>} 处理结果
    */
   async handleUrlRedirect(interfaceObj, req, res) {
-    const { config } = interfaceObj;
-    const { targetUrl, preserveParams } = config;
+    // 兼容不同的字段命名
+    const config = interfaceObj.config || interfaceObj;
+    const targetUrl = config.targetUrl || '';
+    const preserveParams = config.preserveParams || false;
     
     if (!targetUrl) {
       res.end(JSON.stringify({ error: 'No target URL specified' }));
@@ -256,8 +360,9 @@ const ruleManager = {
    * @returns {Promise<object>} 处理结果
    */
   async handleDataTemplate(interfaceObj, req, res) {
-    const { config } = interfaceObj;
-    const { template } = config;
+    // 兼容不同的字段命名
+    const config = interfaceObj.config || interfaceObj;
+    const template = config.responseContent || config.template || '{}';
     
     if (!template) {
       res.end(JSON.stringify({ error: 'No template specified' }));
@@ -290,10 +395,12 @@ const ruleManager = {
    * @returns {Promise<object>} 处理结果
    */
   async handleFileProxy(interfaceObj, req, res) {
-    const { config } = interfaceObj;
-    const { filePath } = config;
+    // 兼容不同的字段命名
+    const config = interfaceObj.config || interfaceObj;
+    const filePath = config.filePath || '';
     
-    this.log(`[规则处理器] 处理文件代理，接口: ${interfaceObj.name}`);
+    // 只记录关键信息
+    this.log(`[规则处理器] 处理文件代理，路径: ${filePath}`);
     
     if (!filePath) {
       this.log(`[规则处理器] 错误: 未指定文件路径`);
@@ -306,30 +413,24 @@ const ruleManager = {
       ? filePath 
       : path.join(this.mockDataDir, filePath);
     
-    this.log(`[规则处理器] 文件路径: ${filePath}`);
-    this.log(`[规则处理器] 绝对路径: ${absFilePath}`);
-    
     try {
       // 检查文件是否存在
       if (!fs.existsSync(absFilePath)) {
-        this.log(`[规则处理器] 错误: 文件不存在: ${absFilePath}`);
+        this.log(`[规则处理器] 错误: 文件不存在: ${path.basename(absFilePath)}`);
         res.statusCode = 404;
         res.end(JSON.stringify({ error: 'File not found', path: absFilePath }));
         return { error: 'File not found', path: absFilePath };
       }
       
-      this.log(`[规则处理器] 文件存在，准备读取内容`);
-      
       // 读取文件内容
       const fileContent = fs.readFileSync(absFilePath, 'utf8');
-      this.log(`[规则处理器] 成功读取文件，内容长度: ${fileContent.length}`);
+      this.log(`[规则处理器] 成功读取文件: ${path.basename(absFilePath)}`);
       
       // 设置内容类型（根据文件扩展名）
       if (!res.getHeader('Content-Type')) {
         const ext = path.extname(absFilePath).toLowerCase();
         const contentType = this.getContentTypeByExt(ext);
         if (contentType) {
-          this.log(`[规则处理器] 设置内容类型: ${contentType}`);
           res.setHeader('Content-Type', contentType);
         }
       }
@@ -338,9 +439,8 @@ const ruleManager = {
       res.setHeader('X-Handled-By', 'whistle.mock-plugin');
       
       // 发送文件内容
-      this.log(`[规则处理器] 发送文件内容...`);
       res.end(fileContent);
-      return { fileContent: fileContent.substring(0, 100) + '...' }; // 只返回部分内容，避免日志过大
+      return { success: true };
     } catch (err) {
       this.log(`[规则处理器] 读取文件错误: ${err.message}`);
       res.end(JSON.stringify({ error: 'File reading error', message: err.message }));

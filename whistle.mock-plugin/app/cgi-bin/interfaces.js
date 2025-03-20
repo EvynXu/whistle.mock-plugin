@@ -111,6 +111,15 @@ module.exports = function(req, res) {
         });
       }
       
+      // 检查是否响应内容过大，超过100MB时给予特殊处理
+      if (interfaceData.responseContent && Buffer.byteLength(interfaceData.responseContent, 'utf8') > 100 * 1024 * 1024) {
+        return res.status(413).json({
+          code: 413,
+          message: '响应内容过大，超过100MB限制',
+          data: null
+        });
+      }
+      
       // 检查功能是否存在
       let featureExists = false;
       if (fs.existsSync(featuresFile)) {

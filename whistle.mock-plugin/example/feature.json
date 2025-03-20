@@ -1,0 +1,8 @@
+{
+  "id": "error-simulation",
+  "name": "错误响应模拟",
+  "description": "模拟各种错误响应的接口集合",
+  "active": true,
+  "createdAt": "2023-07-10T10:00:00.000Z",
+  "updatedAt": "2023-07-10T10:00:00.000Z"
+} 

@@ -28,8 +28,8 @@ app.use(function(req, res, next) {
 });
 
 // 解析请求体
-app.use(bodyParser.urlencoded({ extended: true, limit: '6mb'}));
-app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true, limit: '100mb'}));
+app.use(bodyParser.json({ limit: '100mb' }));
 
 // 处理CGI请求
 app.all('/cgi-bin/*', function(req, res) {
