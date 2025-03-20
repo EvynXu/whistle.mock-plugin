@@ -204,7 +204,8 @@ module.exports = function(req, res) {
           httpStatus: interfaceData.httpStatus || 200,
           responseDelay: interfaceData.responseDelay || 0,
           httpMethod: interfaceData.httpMethod || 'ALL',
-          active: interfaceData.active !== false
+          active: interfaceData.active !== false,
+          contentType: interfaceData.contentType || 'text/plain'
         };
         
         // 确保interfaces数组存在
