@@ -500,34 +500,35 @@ const InterfaceManagement = () => {
   return (
     <AppLayout>
       <div className="interface-management-container">
-        <div className="feature-selector">
-          <span>功能模块：</span>
-          <Select
-            value={selectedFeatureId}
-            onChange={handleSelectFeature}
-            style={{ width: 200 }}
-            placeholder="选择功能模块"
-            loading={featuresLoading}
+        <div className="interface-management-header">
+          <div className="feature-selector">
+            <span>功能模块：</span>
+            <Select
+              value={selectedFeatureId}
+              onChange={handleSelectFeature}
+              style={{ width: 200 }}
+              placeholder="选择功能模块"
+              loading={featuresLoading}
+            >
+              {(features || []).map(feature => (
+                <Option key={feature.id} value={feature.id}>
+                  {feature.name}
+                  {feature.active === false && 
+                    <span style={{ color: '#ff4d4f', marginLeft: 8 }}>(已禁用)</span>
+                  }
+                </Option>
+              ))}
+            </Select>
+          </div>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAddInterface}
+            disabled={!selectedFeatureId || selectedFeature?.active === false}
           >
-            {(features || []).map(feature => (
-              <Option key={feature.id} value={feature.id}>
-                {feature.name}
-                {feature.active === false && 
-                  <span style={{ color: '#ff4d4f', marginLeft: 8 }}>(已禁用)</span>
-                }
-              </Option>
-            ))}
-          </Select>
+            添加接口
+          </Button>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleAddInterface}
-          disabled={!selectedFeatureId || selectedFeature?.active === false}
-        >
-          添加接口
-        </Button>
-
         {!features.length && (
           <Alert
             message="未找到功能模块"
@@ -648,6 +649,9 @@ const InterfaceManagement = () => {
 
             <Form.Item
               name="responseBody"
+              labelCol={{
+                span: 8,          /* 宽度比例 */
+              }}
               label={
                 <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                   <span>响应内容</span>

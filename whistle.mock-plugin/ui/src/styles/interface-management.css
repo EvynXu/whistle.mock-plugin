@@ -31,6 +31,15 @@
   border-bottom: 1px solid var(--border-color);
 }
 
+.interface-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
 .feature-selector {
   display: flex;
   align-items: center;

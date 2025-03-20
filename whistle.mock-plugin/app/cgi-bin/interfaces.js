@@ -334,6 +334,63 @@ module.exports = function(req, res) {
       });
     }
     
+    // 处理 PATCH 请求 - 部分更新接口（如启用/禁用状态）
+    if (req.method === 'PATCH') {
+      const { id } = req.query;
+      const patchData = req.body;
+      
+      if (!id) {
+        return res.status(400).json({
+          code: 400,
+          message: '接口ID不能为空',
+          data: null
+        });
+      }
+      
+      // 读取接口数据
+      let interfacesData;
+      try {
+        interfacesData = fs.readJsonSync(interfacesFile);
+        if (!interfacesData || !interfacesData.interfaces) {
+          interfacesData = { interfaces: [] };
+        }
+      } catch (err) {
+        console.error('读取接口列表错误:', err);
+        return res.status(500).json({
+          code: 500, 
+          message: '读取接口数据失败',
+          data: null
+        });
+      }
+      
+      // 查找接口
+      const index = interfacesData.interfaces.findIndex(item => item.id === id);
+      
+      if (index === -1) {
+        return res.status(404).json({
+          code: 404,
+          message: '接口不存在',
+          data: null
+        });
+      }
+      
+      // 部分更新接口数据
+      const updatedInterface = {
+        ...interfacesData.interfaces[index],
+        ...patchData,
+        updatedAt: new Date().toISOString()
+      };
+      
+      interfacesData.interfaces[index] = updatedInterface;
+      fs.writeJsonSync(interfacesFile, interfacesData, { spaces: 2 });
+      
+      return res.json({
+        code: 0,
+        message: '接口更新成功',
+        data: updatedInterface
+      });
+    }
+    
     // 其他请求方法
     return res.status(405).json({
       code: 405,

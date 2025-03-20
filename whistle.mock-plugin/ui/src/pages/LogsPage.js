@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, Button, Space, Input, DatePicker, Select, Card, Typography, Empty, Spin, Tooltip, Badge } from 'antd';
-import { SyncOutlined, DeleteOutlined, SearchOutlined, ExportOutlined, ClockCircleOutlined, FilterOutlined, EyeOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Table, Tag, Button, Space, Input, DatePicker, Select, Card, Typography, Empty, Spin, Tooltip, Badge, Modal, Tabs, Descriptions, Divider, message } from 'antd';
+import { SyncOutlined, DeleteOutlined, SearchOutlined, ExportOutlined, ClockCircleOutlined, FilterOutlined, EyeOutlined, InfoCircleOutlined, CloseCircleOutlined, SettingOutlined, CheckCircleOutlined, CodeOutlined, ApiOutlined, QuestionCircleOutlined, CloseOutlined, CopyOutlined } from '@ant-design/icons';
 import AppLayout from '../components/AppLayout';
 import '../styles/logs-page.css';
 
@@ -24,6 +24,9 @@ const LogsPage = () => {
     pageSizeOptions: ['15', '30', '50', '100'],
     showTotal: (total) => `共 ${total} 条日志`
   });
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [currentLog, setCurrentLog] = useState(null);
+  const [activeTab, setActiveTab] = useState('request');
 
   // 获取日志数据
   const fetchLogs = async (paginationParams = {}) => {
@@ -343,10 +346,67 @@ const LogsPage = () => {
     },
   ];
 
-  // 显示日志详情
+  // 修改日志详情查看功能
   const showLogDetail = (log) => {
-    // TODO: 实现日志详情查看功能
-    console.log('查看日志详情:', log);
+    setCurrentLog(log);
+    setDetailVisible(true);
+    setActiveTab(log.eventType === 'response' ? 'response' : 'request');
+  };
+
+  // 关闭日志详情模态框
+  const handleDetailClose = () => {
+    setDetailVisible(false);
+    setCurrentLog(null);
+  };
+
+  // 格式化 JSON 数据
+  const formatJSON = (jsonStr) => {
+    try {
+      if (!jsonStr) return '-';
+      return JSON.stringify(JSON.parse(jsonStr), null, 2);
+    } catch (error) {
+      return jsonStr || '-';
+    }
+  };
+
+  // 渲染请求或响应头信息
+  const renderHeaders = (headers) => {
+    if (!headers) return <Typography.Text type="secondary">无头信息</Typography.Text>;
+    
+    try {
+      const headerObj = typeof headers === 'string' ? JSON.parse(headers) : headers;
+      return (
+        <Descriptions bordered size="small" column={1} className="log-detail-descriptions">
+          {Object.entries(headerObj).map(([key, value]) => (
+            <Descriptions.Item 
+              key={key} 
+              label={<Typography.Text code>{key}</Typography.Text>}
+              className="header-item"
+            >
+              <Typography.Text copyable>{value}</Typography.Text>
+            </Descriptions.Item>
+          ))}
+        </Descriptions>
+      );
+    } catch (e) {
+      return <Typography.Text type="secondary">{headers || '无头信息'}</Typography.Text>;
+    }
+  };
+
+  // 获取状态描述
+  const getStatusDescription = (status) => {
+    switch (status) {
+      case 'matched':
+        return <span className="status-description success"><CheckCircleOutlined /> 已成功匹配规则</span>;
+      case 'unmatched':
+        return <span className="status-description warning"><QuestionCircleOutlined /> 未匹配任何规则</span>;
+      case 'disabled':
+        return <span className="status-description warning"><CloseCircleOutlined /> 匹配的规则已被禁用</span>;
+      case 'error':
+        return <span className="status-description error"><CloseCircleOutlined /> 处理请求时发生错误</span>;
+      default:
+        return <span className="status-description">{status}</span>;
+    }
   };
 
   // 处理表格分页、排序、筛选变化
@@ -513,8 +573,156 @@ const LogsPage = () => {
                 />
               )
             }}
+            onRow={(record) => ({
+              onClick: () => showLogDetail(record),
+              className: 'log-table-row'
+            })}
           />
         </div>
+
+        {/* 日志详情模态框 */}
+        <Modal
+          visible={detailVisible}
+          title={
+            <div className="log-detail-header">
+              <div className="log-detail-title">
+                <span>日志详情</span>
+                {currentLog && (
+                  <span className="log-timestamp">
+                    {new Date(currentLog.timestamp).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <div className="log-detail-status">
+                {currentLog && getStatusDescription(currentLog.status)}
+              </div>
+            </div>
+          }
+          onCancel={handleDetailClose}
+          footer={null}
+          width={800}
+          className="log-detail-modal"
+          closeIcon={<CloseOutlined />}
+          destroyOnClose={true}
+        >
+          {currentLog && (
+            <div className="log-detail-content">
+              <div className="log-overview">
+                <Descriptions bordered size="small" column={2} className="log-detail-descriptions">
+                  <Descriptions.Item label="请求URL" span={2}>
+                    <Typography.Text copyable ellipsis style={{ maxWidth: 600 }}>
+                      {currentLog.url || '-'}
+                    </Typography.Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="事件类型">
+                    {getEventTypeTag(currentLog.eventType)}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="状态">
+                    {getStatusTag(currentLog.status)}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="匹配规则">
+                    {currentLog.pattern ? (
+                      <Typography.Text code copyable>
+                        {currentLog.pattern}
+                      </Typography.Text>
+                    ) : '无匹配规则'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="状态码">
+                    {currentLog.statusCode ? (
+                      <Tag color={currentLog.statusCode >= 200 && currentLog.statusCode < 300 ? 'success' : currentLog.statusCode >= 400 ? 'error' : 'warning'}>
+                        {currentLog.statusCode}
+                      </Tag>
+                    ) : '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="请求方法">
+                    <Tag color="processing">{currentLog.method || '-'}</Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="耗时">
+                    {currentLog.duration ? (
+                      <Tag color={currentLog.duration < 100 ? 'success' : currentLog.duration < 500 ? 'warning' : 'error'}>
+                        {currentLog.duration}ms
+                      </Tag>
+                    ) : '-'}
+                  </Descriptions.Item>
+                </Descriptions>
+              </div>
+
+              <Divider style={{ margin: '16px 0' }} />
+
+              <Tabs 
+                activeKey={activeTab} 
+                onChange={setActiveTab}
+                className="log-detail-tabs"
+              >
+                <Tabs.TabPane 
+                  tab={<span><ApiOutlined /> 请求信息</span>} 
+                  key="request"
+                >
+                  <div className="tab-content">
+                    <Descriptions bordered size="small" column={1} className="log-detail-descriptions">
+                      <Descriptions.Item label="请求头" className="header-section">
+                        {renderHeaders(currentLog.requestHeaders)}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="请求体" className="body-section">
+                        {currentLog.requestBody ? (
+                          <div className="code-block-wrapper">
+                            <pre className="code-block">
+                              {formatJSON(currentLog.requestBody)}
+                            </pre>
+                            <Button 
+                              type="text" 
+                              icon={<CopyOutlined />}
+                              className="copy-btn"
+                              onClick={() => {
+                                navigator.clipboard.writeText(currentLog.requestBody);
+                                message.success('已复制到剪贴板');
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <Typography.Text type="secondary">无请求体</Typography.Text>
+                        )}
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </div>
+                </Tabs.TabPane>
+                <Tabs.TabPane 
+                  tab={<span><CodeOutlined /> 响应信息</span>} 
+                  key="response"
+                  disabled={!currentLog.responseHeaders && !currentLog.responseBody}
+                >
+                  <div className="tab-content">
+                    <Descriptions bordered size="small" column={1} className="log-detail-descriptions">
+                      <Descriptions.Item label="响应头" className="header-section">
+                        {renderHeaders(currentLog.responseHeaders)}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="响应体" className="body-section">
+                        {currentLog.responseBody ? (
+                          <div className="code-block-wrapper">
+                            <pre className="code-block">
+                              {formatJSON(currentLog.responseBody)}
+                            </pre>
+                            <Button 
+                              type="text" 
+                              icon={<CopyOutlined />}
+                              className="copy-btn"
+                              onClick={() => {
+                                navigator.clipboard.writeText(currentLog.responseBody);
+                                message.success('已复制到剪贴板');
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <Typography.Text type="secondary">无响应体</Typography.Text>
+                        )}
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </div>
+                </Tabs.TabPane>
+              </Tabs>
+            </div>
+          )}
+        </Modal>
       </div>
     </AppLayout>
   );

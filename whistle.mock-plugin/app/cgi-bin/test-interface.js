@@ -7,49 +7,6 @@ module.exports = async function(req, res) {
   const interfacesFile = path.join(dataDir, 'interfaces.json');
   const featuresFile = path.join(dataDir, 'features.json');
   
-  // 添加日志记录函数
-  const recordLog = async (logData) => {
-    try {
-      const logsFile = path.join(dataDir, 'logs.json');
-      
-      // 确保日志文件存在
-      if (!fs.existsSync(logsFile)) {
-        fs.writeJsonSync(logsFile, { logs: [] }, { spaces: 2 });
-      }
-      
-      // 读取现有日志
-      let logsData;
-      try {
-        logsData = fs.readJsonSync(logsFile);
-        if (!logsData.logs) {
-          logsData = { logs: [] };
-        }
-      } catch (err) {
-        console.error('读取日志文件错误:', err);
-        logsData = { logs: [] };
-      }
-      
-      // 添加时间戳和ID
-      const newLog = {
-        ...logData,
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString()
-      };
-      
-      // 添加新日志
-      logsData.logs.unshift(newLog);
-      
-      // 限制日志数量，最多保留10000条
-      if (logsData.logs.length > 10000) {
-        logsData.logs = logsData.logs.slice(0, 10000);
-      }
-      
-      fs.writeJsonSync(logsFile, logsData, { spaces: 2 });
-    } catch (err) {
-      console.error('记录日志失败:', err);
-    }
-  };
-  
   try {
     // 只处理 POST 请求
     if (req.method === 'POST') {
@@ -77,15 +34,6 @@ module.exports = async function(req, res) {
       try {
         interfacesData = fs.readJsonSync(interfacesFile);
         if (!interfacesData || !interfacesData.interfaces) {
-          // 记录错误日志
-          recordLog({
-            eventType: 'error',
-            status: 'error',
-            url,
-            message: '未找到接口数据文件或接口数据为空',
-            errorType: 'DATA_NOT_FOUND'
-          });
-          
           return res.status(404).json({
             code: 404,
             message: '未找到接口数据',
@@ -93,17 +41,6 @@ module.exports = async function(req, res) {
           });
         }
       } catch (err) {
-        console.error('读取接口列表错误:', err);
-        
-        // 记录错误日志
-        recordLog({
-          eventType: 'error',
-          status: 'error',
-          url,
-          message: '读取接口数据失败: ' + err.message,
-          errorType: 'READ_ERROR'
-        });
-        
         return res.status(500).json({
           code: 500,
           message: '读取接口数据失败',
@@ -115,16 +52,6 @@ module.exports = async function(req, res) {
       const targetInterface = interfacesData.interfaces.find(item => item.id === interfaceId);
       
       if (!targetInterface) {
-        // 记录错误日志
-        recordLog({
-          eventType: 'error',
-          status: 'error',
-          url,
-          message: '指定的接口不存在',
-          interfaceId,
-          errorType: 'INTERFACE_NOT_FOUND'
-        });
-        
         return res.status(404).json({
           code: 404,
           message: '指定的接口不存在',
@@ -134,17 +61,6 @@ module.exports = async function(req, res) {
       
       // 检查接口是否已禁用
       if (targetInterface.active === false) {
-        // 记录警告日志
-        recordLog({
-          eventType: 'match',
-          status: 'disabled',
-          url,
-          pattern: targetInterface.urlPattern,
-          interfaceId: targetInterface.id,
-          interfaceName: targetInterface.name,
-          message: '接口已禁用，无法测试'
-        });
-        
         return res.status(400).json({
           code: 400,
           message: '接口已禁用，无法测试',
@@ -160,19 +76,6 @@ module.exports = async function(req, res) {
           const featureItem = featuresData.features.find(item => item.id === targetInterface.featureId);
           
           if (featureItem && featureItem.active === false) {
-            // 记录警告日志
-            recordLog({
-              eventType: 'match',
-              status: 'disabled',
-              url,
-              pattern: targetInterface.urlPattern,
-              interfaceId: targetInterface.id,
-              interfaceName: targetInterface.name,
-              featureId: featureItem.id,
-              featureName: featureItem.name,
-              message: '所属功能模块已禁用，接口无法使用'
-            });
-            
             return res.status(400).json({
               code: 400,
               message: '所属功能模块已禁用，接口无法使用',
@@ -181,7 +84,7 @@ module.exports = async function(req, res) {
           }
         }
       } catch (err) {
-        console.error('读取功能模块数据失败:', err);
+        // 忽略读取错误，继续处理
       }
       
       const startTime = Date.now();
@@ -200,7 +103,6 @@ module.exports = async function(req, res) {
           responseBody = JSON.stringify(mockData);
         }
       } catch (err) {
-        console.error('处理Mock数据失败:', err);
         // 如果Mock失败，使用原始内容
       }
       
@@ -227,58 +129,23 @@ module.exports = async function(req, res) {
         }
       };
       
-      // 记录成功日志
-      recordLog({
-        eventType: 'response',
-        status: 'matched',
-        url,
-        pattern: targetInterface.urlPattern,
-        interfaceId: targetInterface.id,
-        interfaceName: targetInterface.name,
-        featureId: targetInterface.featureId,
-        statusCode: targetInterface.httpStatus,
-        httpMethod: targetInterface.httpMethod,
-        duration: duration,
-        delay: delay,
-        contentType: targetInterface.contentType
-      });
-      
       return res.json({
         code: 0,
         message: '成功',
         data: responseData
       });
     } else {
-      // 记录错误日志
-      recordLog({
-        eventType: 'error',
-        status: 'error',
-        message: '不支持的请求方法: ' + req.method,
-        errorType: 'METHOD_NOT_ALLOWED'
-      });
-      
+      // 不支持的请求方法
       return res.status(405).json({
         code: 405,
         message: '不支持的请求方法',
         data: null
       });
     }
-  } catch (error) {
-    console.error('测试接口处理异常:', error);
-    
-    // 记录错误日志
-    recordLog({
-      eventType: 'error',
-      status: 'error',
-      url: req.body?.url,
-      message: '内部服务器错误: ' + error.message,
-      errorType: 'INTERNAL_ERROR',
-      stack: error.stack
-    });
-    
+  } catch (err) {
     return res.status(500).json({
       code: 500,
-      message: '内部服务器错误',
+      message: '服务器内部错误: ' + err.message,
       data: null
     });
   }
