@@ -703,7 +703,7 @@ const InterfaceManagement = () => {
                 description={
                   <div>
                     <p>当前接口匹配规则：<code>{editingInterface.urlPattern}</code></p>
-                    <p>在Whistle规则中，您需要配置完整URL或域名指向whistle.mock-plugin://，然后插件会根据接口的匹配规则处理请求。</p>
+                    <p>在Whistle规则中，您需要配置完整URL或域名指向whistle.mock-plugins://，然后插件会根据接口的匹配规则处理请求。</p>
                     <p>插件支持以下匹配方式：</p>
                     <ul>
                       <li>精确匹配：完全匹配URL路径部分</li>

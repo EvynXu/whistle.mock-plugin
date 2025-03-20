@@ -88,7 +88,7 @@ describe('rulesServer 测试', () => {
     req.originalReq.method = 'GET';
     
     requestHandler(req, res);
-    expect(res.end).toHaveBeenCalledWith('mock-plugin://');
+    expect(res.end).toHaveBeenCalledWith('mock-plugins://');
   });
   
   test('未匹配的URL应该返回空字符串', () => {
@@ -115,6 +115,6 @@ describe('rulesServer 测试', () => {
     req.originalReq.method = 'GET';
     
     requestHandler(req, res);
-    expect(res.end).toHaveBeenCalledWith('mock-plugin://');
+    expect(res.end).toHaveBeenCalledWith('mock-plugins://');
   });
 }); 

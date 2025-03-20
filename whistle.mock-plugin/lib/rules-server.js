@@ -257,7 +257,7 @@ module.exports = (server, options) => {
     // 如果找到匹配的接口，返回对应的规则将请求转发到插件
     if (matchedInterface) {
       log(`找到匹配接口 "${matchedInterface.name || matchedInterface.id || '未知'}" 用于 ${method} ${path}`);
-      res.end(`${fullUrl} mock-plugin://`);
+      res.end(`${fullUrl} mock-plugins://`);
     } else {
       // 如果没有匹配的接口，返回空字符串，Whistle 会继续处理下一个规则
       log(`未找到匹配接口，跳过处理 ${method} ${path}`);
