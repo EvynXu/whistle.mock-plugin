@@ -1,4 +1,4 @@
-# Whistle.mock-plugin
+# Whistle.mock-plugins
 
 一个强大的 Whistle 插件，用于快速创建 API 模拟数据，提供友好的用户界面和丰富的功能。
 
