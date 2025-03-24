@@ -105,8 +105,19 @@ const ruleManager = {
       return null;
     }
     
-    // 先尝试完全匹配
+    // 防止空路径
+    if (!requestPath) {
+      this.log(`[规则处理器] 错误: 请求路径为空`);
+      return null;
+    }
+    
+    // 先尝试完全匹配，效率更高
     let matchedInterface = interfaces.find(intf => {
+      // 检查接口对象是否有效
+      if (!intf || !intf.urlPattern) {
+        return false;
+      }
+      
       // 检查URL和方法是否匹配
       const urlMatches = intf.urlPattern === requestPath;
       
@@ -130,38 +141,59 @@ const ruleManager = {
     // 如果没有完全匹配，尝试正则表达式匹配
     this.log(`[规则处理器] 未找到完全匹配，尝试正则表达式匹配...`);
     
-    matchedInterface = interfaces.find(intf => {
-      try {
-        // 将通配符转换为正则表达式
-        const pattern = this.convertPatternToRegex(intf.urlPattern);
-        const regex = new RegExp(pattern);
-        
-        // 获取方法值，兼容不同的字段名
-        const methodField = intf.httpMethod || intf.method;
-        const methodValue = methodField && methodField.toUpperCase();
-        
-        // 只记录尝试匹配的模式，不记录详细过程
-        this.log(`[规则处理器] 尝试正则匹配，测试 ${interfaces.length} 个模式`);
-        
-        // 检查URL和方法是否匹配
-        const urlMatches = regex.test(requestPath);
-        const methodMatches = !methodValue || 
-                              methodValue === 'ALL' || 
-                              methodValue === 'ANY' || 
-                              methodValue === method;
-        
-        // 移除中间匹配过程的日志
-        return urlMatches && methodMatches;
-      } catch (err) {
-        this.log(`[规则处理器] 无效的URL模式: ${intf.urlPattern}, 错误: ${err.message}`);
-        return false;
-      }
-    });
+    // 使用正则表达式缓存优化性能
+    if (!this.regexCache) {
+      this.regexCache = new Map();
+    }
     
+    try {
+      matchedInterface = interfaces.find(intf => {
+        try {
+          // 验证接口对象
+          if (!intf || !intf.urlPattern) {
+            return false;
+          }
+          
+          // 从缓存获取或创建正则表达式
+          let regex;
+          if (this.regexCache.has(intf.urlPattern)) {
+            regex = this.regexCache.get(intf.urlPattern);
+          } else {
+            // 将通配符转换为正则表达式
+            const pattern = this.convertPatternToRegex(intf.urlPattern);
+            regex = new RegExp(pattern);
+            // 缓存正则表达式，避免重复创建
+            this.regexCache.set(intf.urlPattern, regex);
+          }
+          
+          // 获取方法值，兼容不同的字段名
+          const methodField = intf.httpMethod || intf.method;
+          const methodValue = methodField && methodField.toUpperCase();
+          
+          // 检查URL和方法是否匹配
+          const urlMatches = regex.test(requestPath);
+          const methodMatches = !methodValue || 
+                                methodValue === 'ALL' || 
+                                methodValue === 'ANY' || 
+                                methodValue === method;
+          
+          return urlMatches && methodMatches;
+        } catch (err) {
+          // 记录特定接口的错误，但继续处理其他接口
+          this.log(`[规则处理器] 匹配接口 ${intf?.name || 'unknown'} 时出错: ${err.message}`);
+          return false;
+        }
+      });
+    } catch (err) {
+      // 记录整体匹配过程的错误
+      this.log(`[规则处理器] 正则匹配过程出错: ${err.message}`);
+      return null;
+    }
+
     if (matchedInterface) {
-      this.log(`[规则处理器] 找到模式匹配的接口: ${matchedInterface.name}`);
+      this.log(`[规则处理器] 找到正则匹配的接口: ${matchedInterface.name}`);
     } else {
-      this.log(`[规则处理器] 未找到任何匹配的接口`);
+      this.log(`[规则处理器] 未找到匹配的接口`);
     }
     
     return matchedInterface;

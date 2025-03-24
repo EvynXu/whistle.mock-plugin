@@ -43,6 +43,12 @@ const logMessage = (message) => {
 // 记录日志到 logs.json 文件
 const addToJsonLog = (logData) => {
   try {
+    // 验证参数有效性
+    if (!logData || typeof logData !== 'object') {
+      console.error('无效的日志数据');
+      return;
+    }
+    
     const logsFile = path.join(DATA_DIR, 'logs.json');
 
     // 确保日志文件存在
@@ -86,9 +92,9 @@ const addToJsonLog = (logData) => {
     // 添加新日志
     logsData.logs.unshift(newLog);
     
-    // 限制日志数量，最多保留10000条
-    if (logsData.logs.length > 10000) {
-      logsData.logs = logsData.logs.slice(0, 10000);
+    // 限制日志数量，最多保留5000条 (减少内存使用)
+    if (logsData.logs.length > 5000) {
+      logsData.logs = logsData.logs.slice(0, 5000);
     }
     
     fs.writeJsonSync(logsFile, logsData, { spaces: 2 });

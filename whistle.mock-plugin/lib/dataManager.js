@@ -71,6 +71,12 @@ const dataManager = {
    */
   logRequest(logData) {
     try {
+      // 首先检查参数是否有效，避免不必要的文件操作
+      if (!logData || typeof logData !== 'object') {
+        this.log(`记录请求日志失败: 无效的日志数据`);
+        return false;
+      }
+      
       // 确保日志文件存在
       if (!fs.existsSync(this.logsFile)) {
         fs.writeJsonSync(this.logsFile, { logs: [] }, { spaces: 2 });

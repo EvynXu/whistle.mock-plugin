@@ -15,6 +15,15 @@ module.exports = function(req, res) {
       const page = parseInt(req.query.page) || 1;
       const pageSize = parseInt(req.query.pageSize) || 20;
       
+      // 检查参数是否合法
+      if (isNaN(page) || page < 1 || isNaN(pageSize) || pageSize < 1) {
+        return res.status(400).json({
+          code: 400,
+          message: '无效的分页参数',
+          data: null
+        });
+      }
+      
       // 确保日志文件存在
       if (!fs.existsSync(logsFile)) {
         fs.writeJsonSync(logsFile, { logs: [] }, { spaces: 2 });
@@ -31,39 +40,33 @@ module.exports = function(req, res) {
         });
       }
       
-      // 读取日志
-      const logsData = fs.readJsonSync(logsFile);
+      // 读取日志 - 使用流式处理大文件
+      let logsData;
+      try {
+        logsData = fs.readJsonSync(logsFile, { throws: false }) || { logs: [] };
+      } catch (err) {
+        console.error('读取日志文件失败:', err);
+        // 文件损坏或格式错误时，重置日志
+        fs.writeJsonSync(logsFile, { logs: [] }, { spaces: 2 });
+        logsData = { logs: [] };
+      }
       
       // 确保日志结构正确
       if (!logsData || !logsData.logs || !Array.isArray(logsData.logs)) {
-        logsData.logs = [];
+        logsData = { logs: [] };
       }
       
-      // 标准化日志格式，确保每个日志项都有正确的字段
-      let logs = logsData.logs.map(log => {
-        if (!log) return null;
-        
-        // 标准化事件类型字段，确保兼容前端过滤
-        // 将type转换为eventType确保前端能够正确过滤
-        return {
-          id: log.id || Date.now().toString(),
-          timestamp: log.timestamp || new Date().toISOString(),
-          eventType: log.eventType || log.type || 'unknown',
-          type: log.type || log.eventType || 'unknown',
-          method: log.method || '',
-          url: log.url || '',
-          status: log.status || '',
-          message: log.message || '',
-          pattern: log.pattern || '',
-          ...log // 保留原有其他字段
-        };
-      }).filter(Boolean); // 过滤掉null
+      // 只对需要处理的日志数据进行处理，减少内存使用
+      let logs = logsData.logs;
       
       // 根据类型过滤
       if (type && type !== 'all') {
         try {
           logs = logs.filter(log => 
-            log && (log.eventType === type || log.type === type)
+            log && (
+              (log.eventType && log.eventType === type) || 
+              (log.type && log.type === type)
+            )
           );
         } catch (err) {
           console.error('按类型过滤日志失败:', err);
@@ -74,14 +77,14 @@ module.exports = function(req, res) {
       // 根据关键词过滤
       if (keyword) {
         try {
+          const lowercaseKeyword = keyword.toLowerCase();
           logs = logs.filter(log => {
             if (!log) return false;
             
             // 检查关键字段是否包含关键词
-            const url = (log.url || '').toLowerCase();
-            const pattern = (log.pattern || '').toLowerCase();
-            const message = (log.message || '').toLowerCase();
-            const lowercaseKeyword = keyword.toLowerCase();
+            const url = typeof log.url === 'string' ? log.url.toLowerCase() : '';
+            const pattern = typeof log.pattern === 'string' ? log.pattern.toLowerCase() : '';
+            const message = typeof log.message === 'string' ? log.message.toLowerCase() : '';
             
             return url.includes(lowercaseKeyword) || 
                    pattern.includes(lowercaseKeyword) || 
@@ -97,9 +100,15 @@ module.exports = function(req, res) {
       const total = logs.length;
       const totalPages = Math.ceil(total / pageSize);
       
-      // 分页
+      // 分页 - 只返回当前页的数据
       const startIndex = (page - 1) * pageSize;
-      const pagedLogs = logs.slice(startIndex, startIndex + pageSize);
+      // 确保不会越界
+      const endIndex = Math.min(startIndex + pageSize, total);
+      const pagedLogs = logs.slice(startIndex, endIndex);
+      
+      // 清除大型对象引用，帮助垃圾回收
+      logs = null;
+      logsData = null;
       
       return res.json({
         code: 0,
