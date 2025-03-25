@@ -543,7 +543,28 @@ const InterfaceManagement = () => {
           return '-';
         }
         
-        return <span style={{ color: '#1890ff' }}>{count}个</span>;
+        // 检查是否包含随机值
+        const hasRandomValue = Object.values(headers).some(v => v && v.startsWith('@'));
+        
+        return (
+          <Tooltip title={
+            <div>
+              {Object.entries(headers).map(([key, value]) => (
+                <div key={key}>
+                  {key}: {value}
+                  {value && value.startsWith('@') && (
+                    <span style={{ color: '#52c41a' }}> (随机)</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          }>
+            <span style={{ color: '#1890ff' }}>
+              {count}个
+              {hasRandomValue && <span style={{ marginLeft: 4 }}>🎲</span>}
+            </span>
+          </Tooltip>
+        );
       }
     },
     {
@@ -978,6 +999,27 @@ const InterfaceManagement = () => {
                                       {...restField}
                                       name={[name, 'headerValue']}
                                       noStyle
+                                      rules={[
+                                        {
+                                          validator: (_, value) => {
+                                            if (!value) return Promise.resolve();
+                                            
+                                            // 检查是否是随机数格式 @xxxx-xxx
+                                            if (value.startsWith('@')) {
+                                              const randomPattern = value.substring(1);
+                                              // 验证格式: 只能包含x和-，且首尾不能是-
+                                              if (!/^[x][-x]*[x]$/.test(randomPattern) || 
+                                                  randomPattern.startsWith('-') || 
+                                                  randomPattern.endsWith('-')) {
+                                                return Promise.reject(
+                                                  new Error('随机数格式错误，应为@xxxx-xxx格式，只能包含x和-，且首尾不能是-')
+                                                );
+                                              }
+                                            }
+                                            return Promise.resolve();
+                                          }
+                                        }
+                                      ]}
                                     >
                                       <Input placeholder="Header-Value" />
                                     </Form.Item>
@@ -1029,6 +1071,24 @@ const InterfaceManagement = () => {
                                 >
                                   添加 User-Agent
                                 </Button>
+                                <Button
+                                  type="link"
+                                  onClick={() => {
+                                    add({ headerName: 'X-Random-ID', headerValue: '@xxxx-xxxx' });
+                                  }}
+                                >
+                                  添加随机ID
+                                </Button>
+                              </div>
+                              
+                              <div style={{ marginTop: 8, background: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>随机数格式说明：</div>
+                                <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                                  <li>使用 <code>@</code> 开头表示这是一个随机数值</li>
+                                  <li>格式示例：<code>@xxxx-xxxx</code> 将生成如 <code>a1b2-c3d4</code> 的随机值</li>
+                                  <li>每个 <code>x</code> 将替换为随机字母或数字</li>
+                                  <li><code>-</code> 将保留在输出中作为分隔符</li>
+                                </ul>
                               </div>
                             </>
                           )}
@@ -1175,7 +1235,25 @@ const InterfaceManagement = () => {
                         <div className="result-item">
                           <span className="label">自定义请求头：</span>
                           <div className="value" style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-                            {testResult.formattedHeaders}
+                            {
+                              editingInterface.customHeaders && 
+                              Object.entries(editingInterface.customHeaders)
+                                .map(([key, value]) => {
+                                  const generatedValue = testResult.customHeaders[key];
+                                  return (
+                                    <div key={key}>
+                                      {key}: {value.startsWith('@') ? (
+                                        <span>
+                                          <span style={{ color: '#d9d9d9' }}>{value}</span>
+                                          {' '} → {' '}
+                                          <span style={{ color: '#52c41a', fontWeight: 'bold' }}>{generatedValue}</span>
+                                          <span style={{ color: '#8c8c8c', fontSize: '12px' }}> (随机生成)</span>
+                                        </span>
+                                      ) : generatedValue}
+                                    </div>
+                                  );
+                                })
+                            }
                           </div>
                         </div>
                       )}

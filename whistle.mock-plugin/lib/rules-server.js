@@ -192,6 +192,21 @@ const validateRedirectRule = (interface) => {
   return true;
 };
 
+// 生成随机数工具函数
+const generateRandomValue = (pattern) => {
+  // 如果不是以@开头的模式，直接返回原值
+  if (!pattern || !pattern.startsWith('@')) {
+    return pattern;
+  }
+  
+  const formatPattern = pattern.substring(1); // 去掉@前缀
+  // 为每个x生成一个随机字符（字母或数字）
+  return formatPattern.replace(/x/g, () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    return chars.charAt(Math.floor(Math.random() * chars.length));
+  });
+};
+
 // 构建重定向规则
 const buildRedirectRule = (fullUrl, targetUrl, customHeaders, pattern, isUrlRedirect = 0) => {
   if(!isUrlRedirect){
@@ -206,12 +221,15 @@ const buildRedirectRule = (fullUrl, targetUrl, customHeaders, pattern, isUrlRedi
   if (customHeaders && Object.keys(customHeaders).length > 0) {
     // 构建headerReplace规则，格式: headerReplace://req.header-name:pattern1=replacement1&pattern2=replacement2
     const headerRuleLines = Object.entries(customHeaders).map(([key, value]) => {
-      return `req.${key}:/(.*)/=${value}`;
+      // 处理随机值
+      const processedValue = generateRandomValue(value);
+      
+      return `${fullUrl} headerReplace://req.${key}:/(.*)/=${processedValue}`;
     });
     
     if (headerRuleLines.length > 0) {
       // 将所有规则合并为一个多行规则字符串
-      rule = `${rule}\n ${fullUrl} headerReplace://${headerRuleLines.join('&')}`;
+      rule = `${rule}\n${headerRuleLines.join('\n')}`;
     }
   }
   

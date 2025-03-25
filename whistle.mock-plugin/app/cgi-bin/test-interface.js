@@ -1,6 +1,22 @@
 const fs = require('fs-extra');
 const path = require('path');
 const Mock = require('mockjs');
+const url = require('url');
+
+// 生成随机数工具函数（与rules-server.js中保持一致）
+const generateRandomValue = (pattern) => {
+  // 如果不是以@开头的模式，直接返回原值
+  if (!pattern || !pattern.startsWith('@')) {
+    return pattern;
+  }
+  
+  const formatPattern = pattern.substring(1); // 去掉@前缀
+  // 为每个x生成一个随机字符（字母或数字）
+  return formatPattern.replace(/x/g, () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    return chars.charAt(Math.floor(Math.random() * chars.length));
+  });
+};
 
 module.exports = async function(req, res) {
   const dataDir = this.dataDir;
@@ -208,9 +224,16 @@ module.exports = async function(req, res) {
             });
           }
           
-          // 处理自定义请求头
+          // 处理自定义请求头，包括随机值
           const redirectHeaders = targetInterface.customHeaders || {};
-          const formattedRedirectHeaders = Object.entries(redirectHeaders)
+          const processedHeaders = {};
+          
+          // 处理随机值，转换为实际值
+          Object.entries(redirectHeaders).forEach(([key, value]) => {
+            processedHeaders[key] = generateRandomValue(value);
+          });
+          
+          const formattedRedirectHeaders = Object.entries(processedHeaders)
             .map(([key, value]) => `${key}: ${value}`)
             .join('\n');
           
@@ -219,7 +242,7 @@ module.exports = async function(req, res) {
             contentType: 'application/json; charset=utf-8',
             proxyType: 'redirect',
             targetUrl: redirectTarget,
-            customHeaders: redirectHeaders,
+            customHeaders: processedHeaders,
             formattedHeaders: formattedRedirectHeaders,
             mockInfo: {
               matchedPattern: targetInterface.urlPattern,
@@ -264,7 +287,14 @@ module.exports = async function(req, res) {
           
           // 处理自定义请求头
           const urlRedirectHeaders = targetInterface.customHeaders || {};
-          const formattedUrlRedirectHeaders = Object.entries(urlRedirectHeaders)
+          const processedUrlRedirectHeaders = {};
+          
+          // 处理随机值，转换为实际值
+          Object.entries(urlRedirectHeaders).forEach(([key, value]) => {
+            processedUrlRedirectHeaders[key] = generateRandomValue(value);
+          });
+          
+          const formattedUrlRedirectHeaders = Object.entries(processedUrlRedirectHeaders)
             .map(([key, value]) => `${key}: ${value}`)
             .join('\n');
           
@@ -273,7 +303,7 @@ module.exports = async function(req, res) {
             contentType: 'application/json; charset=utf-8',
             proxyType: 'url_redirect',
             targetUrl: baseUrl,
-            customHeaders: urlRedirectHeaders,
+            customHeaders: processedUrlRedirectHeaders,
             formattedHeaders: formattedUrlRedirectHeaders,
             mockInfo: {
               matchedPattern: targetInterface.urlPattern,
