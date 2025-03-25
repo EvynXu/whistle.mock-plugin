@@ -115,10 +115,25 @@ const loadInterfaces = () => {
 };
 
 // 匹配URL是否符合模式
-const isUrlMatch = (url, pattern) => {
+const isUrlMatch = (url, pattern, proxyType, fullUrl) => {
   if (!pattern) return false;
 
   try {
+    // 针对不同的代理类型采用不同的匹配策略
+    
+    // 对于url_redirect类型，需要完全匹配fullPath才命中
+    if (proxyType === 'url_redirect') {
+      // 精确匹配完整路径
+      return pattern === fullUrl;
+    }
+    
+    // 对于redirect类型，只要url以pattern开头即可命中（前缀匹配）
+    if (proxyType === 'redirect') {
+      return fullUrl.indexOf(pattern) === 0;
+    }
+    
+    // 以下是默认的匹配逻辑（用于response类型等）
+    
     // 精确匹配
     if (pattern === url) {
       return true;
@@ -146,6 +161,35 @@ const isUrlMatch = (url, pattern) => {
   }
 
   return false;
+};
+
+// 验证目标URL是否有效
+const isValidTargetUrl = (url) => {
+  if (!url) return false;
+  
+  try {
+    // 检查是否是合法的URL格式
+    new URL(url);
+    return true;
+  } catch (e) {
+    log(`URL验证错误: ${e.message}`);
+    return false;
+  }
+};
+
+// 验证重定向规则的有效性
+const validateRedirectRule = (interface) => {
+  if (!interface) return false;
+  
+  const { proxyType, targetUrl } = interface;
+  
+  // 对于redirect和url_redirect类型，必须有有效的目标URL
+  if ((proxyType === 'redirect' || proxyType === 'url_redirect') && !isValidTargetUrl(targetUrl)) {
+    log(`接口 ${interface.id || interface.name || '未知'} 的目标URL无效: ${targetUrl}`);
+    return false;
+  }
+  
+  return true;
 };
 
 // Whistle 规则服务器实现
@@ -220,21 +264,22 @@ module.exports = (server, options) => {
     const matchedInterface = enabledInterfaces.find(intf => {
       // 获取URL模式
       const pattern = intf.urlPattern || '';
+      const proxyType = intf.proxyType || 'response';
       
       if (!pattern) {
         log(`接口 ${intf.id || intf.name || '未知'} 缺少URL模式`);
         return false;
       }
       
-      // 检查URL模式匹配
-      const urlMatches = isUrlMatch(path, pattern);
+      // 检查URL模式匹配，根据proxyType选择适当的匹配策略
+      const urlMatches = isUrlMatch(path, pattern, proxyType, fullUrl);
       
       if (!urlMatches) {
         // 不记录每个失败的匹配，以减少日志量
         return false;
       }
       
-      log(`URL模式匹配成功: ${path} 匹配 ${pattern}`);
+      log(`URL模式匹配成功: ${fullUrl} 匹配 ${pattern} (${proxyType}模式)`);
       
       // 检查HTTP方法匹配
       const methodField = intf.httpMethod || intf.method || '';
@@ -254,9 +299,85 @@ module.exports = (server, options) => {
       return true;
     });
     
-    // 如果找到匹配的接口，返回对应的规则将请求转发到插件
+    // 如果找到匹配的接口，处理对应的规则
     if (matchedInterface) {
       log(`找到匹配接口 "${matchedInterface.name || matchedInterface.id || '未知'}" 用于 ${method} ${path}`);
+      
+      // 处理不同的代理类型
+      const proxyType = matchedInterface.proxyType || 'response';
+      
+      // 优先级判断：首先处理 response 类型
+      if (proxyType === 'response') {
+        // 返回指向插件服务的规则
+        log(`接口 "${matchedInterface.name}" 使用模拟响应模式`);
+        res.end(`${fullUrl} mock-plugins://`);
+        return;
+      }
+      
+      // 对于redirect和url_redirect类型，验证规则有效性
+      if ((proxyType === 'redirect' || proxyType === 'url_redirect') && !validateRedirectRule(matchedInterface)) {
+        log(`接口 "${matchedInterface.name}" 的重定向规则无效，跳过处理`);
+        res.end('');
+        return;
+      }
+      
+      // 处理 redirect 类型：将请求的 url 中的源 url 部分替换为目标 url
+      if (proxyType === 'redirect') {
+        const targetUrl = matchedInterface.targetUrl.trim();
+        const pattern = matchedInterface.urlPattern.trim();
+        log(`接口 "${matchedInterface.name}" 使用重定向模式，模式: ${pattern}, 目标URL: ${targetUrl}`);
+        
+        // 确保目标URL合法
+        if (!isValidTargetUrl(targetUrl)) {
+          log(`目标URL不合法: ${targetUrl}，跳过处理`);
+          res.end('');
+          return;
+        }
+        
+        // 执行重定向：将fullUrl中匹配的pattern替换为targetUrl
+        // 对于redirect类型，我们使用indexOf确认前缀匹配
+        if (fullUrl.indexOf(pattern) === 0) {
+          // 构建新的目标URL
+          const redirectUrl = fullUrl.replace(pattern, targetUrl);
+          
+          // 按照 whistle 规则格式返回重定向规则
+          res.end(`${fullUrl} ${redirectUrl}`);
+          log(`重定向规则: ${fullUrl} ${redirectUrl}`);
+          return;
+        } else {
+          log(`URL ${fullUrl} 不以 ${pattern} 开头，跳过处理`);
+          res.end('');
+          return;
+        }
+      }
+      
+      // 处理 url_redirect 类型：完全匹配 fullPath 并直接返回目标URL
+      if (proxyType === 'url_redirect') {
+        const targetUrl = matchedInterface.targetUrl.trim();
+        log(`接口 "${matchedInterface.name}" 使用URL重定向模式，目标URL: ${targetUrl}`);
+        
+        // 确保目标URL合法
+        if (!isValidTargetUrl(targetUrl)) {
+          log(`目标URL不合法: ${targetUrl}，跳过处理`);
+          res.end('');
+          return;
+        }
+        
+        // 对于url_redirect，我们需要完全匹配
+        if (fullUrl === matchedInterface.urlPattern) {
+          // 直接返回whistle规则
+          res.end(`${fullUrl} redirect://${targetUrl}`);
+          log(`URL重定向规则: ${fullUrl} redirect://${targetUrl}`);
+          return;
+        } else {
+          log(`URL ${fullUrl} 不完全匹配 ${matchedInterface.urlPattern}，跳过处理`);
+          res.end('');
+          return;
+        }
+      }
+      
+      // 默认情况下使用mock-plugins处理
+      log(`接口 "${matchedInterface.name}" 使用默认处理模式`);
       res.end(`${fullUrl} mock-plugins://`);
     } else {
       // 如果没有匹配的接口，返回空字符串，Whistle 会继续处理下一个规则

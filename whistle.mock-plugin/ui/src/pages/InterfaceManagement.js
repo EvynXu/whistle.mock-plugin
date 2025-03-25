@@ -38,6 +38,12 @@ const InterfaceManagement = () => {
     { value: 'application/javascript; charset=utf-8', label: 'JavaScript' },
   ];
 
+  const proxyTypes = [
+    { value: 'response', label: '模拟响应' },
+    { value: 'redirect', label: '重定向' },
+    { value: 'url_redirect', label: 'URL重定向' },
+  ];
+
   const statusCodes = [
     { value: '200', label: '200 OK' },
     { value: '201', label: '201 Created' },
@@ -134,10 +140,12 @@ const InterfaceManagement = () => {
     form.setFieldsValue({
       name: record.name,
       pattern: record.urlPattern,
+      proxyType: record.proxyType || 'response',
       statusCode: record.httpStatus?.toString() || '200',
       contentType: record.contentType || 'application/json; charset=utf-8',
       responseBody: record.responseContent || '',
       httpMethod: record.httpMethod || 'ALL',
+      targetUrl: record.targetUrl || '',
     });
     setModalVisible(true);
   };
@@ -174,7 +182,6 @@ const InterfaceManagement = () => {
     }
   };
 
-  // 清理JSON响应内容中不需要的空白和格式化
   const cleanJsonResponse = (jsonStr) => {
     try {
       const parsed = JSON.parse(jsonStr);
@@ -184,18 +191,24 @@ const InterfaceManagement = () => {
     }
   };
 
+  // 验证URL是否合法
+  const isValidUrl = (url) => {
+    if (!url) return false;
+    
+    try {
+      new URL(url);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       
-      // 验证 URL 匹配规则格式
-      if (!isValidPattern(values.pattern)) {
-        message.error('URL匹配规则格式不正确');
-        return;
-      }
-
       // 验证响应内容格式
-      if (values.contentType.includes('json')) {
+      if (values.proxyType === 'response' && values.contentType.includes('json')) {
         try {
           // 清理并验证JSON
           const cleanedJson = cleanJsonResponse(values.responseBody);
@@ -206,13 +219,26 @@ const InterfaceManagement = () => {
           return;
         }
       }
+      
+      // 验证重定向URL
+      if ((values.proxyType === 'redirect' || values.proxyType === 'url_redirect') && !values.targetUrl) {
+        message.error('重定向目标URL不能为空');
+        return;
+      }
+      
+      // 验证重定向URL的格式
+      if ((values.proxyType === 'redirect' || values.proxyType === 'url_redirect') && !isValidUrl(values.targetUrl)) {
+        message.error('重定向目标URL格式不正确，请输入完整的URL，包括http://或https://');
+        return;
+      }
 
       const interfaceData = {
         name: values.name,
         featureId: selectedFeatureId,
         urlPattern: values.pattern,
-        proxyType: 'response',
-        responseContent: values.responseBody,
+        proxyType: values.proxyType,
+        responseContent: values.proxyType === 'response' ? values.responseBody : '',
+        targetUrl: (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') ? values.targetUrl : '',
         httpStatus: parseInt(values.statusCode, 10), // 转换为数字
         contentType: values.contentType,
         responseDelay: 0,
@@ -247,29 +273,6 @@ const InterfaceManagement = () => {
     }
   };
 
-  // 验证 URL 匹配规则格式
-  const isValidPattern = (pattern) => {
-    if (!pattern) return false;
-    
-    // 检查是否是有效的正则表达式
-    if (pattern.startsWith('/') && pattern.endsWith('/')) {
-      try {
-        new RegExp(pattern.slice(1, -1));
-        return true;
-      } catch (e) {
-        return false;
-      }
-    }
-    
-    // 检查通配符格式
-    if (pattern.includes('*')) {
-      return /^[a-zA-Z0-9\-_/.*]+$/.test(pattern);
-    }
-    
-    // 检查普通路径格式
-    return /^[a-zA-Z0-9\-_/]+$/.test(pattern);
-  };
-
   const handleCancel = () => {
     setModalVisible(false);
   };
@@ -282,6 +285,45 @@ const InterfaceManagement = () => {
     testForm.resetFields();
   };
 
+  // 检查 URL 是否匹配模式
+  const isUrlMatchPattern = (url, pattern, proxyType) => {
+    if (!url || !pattern) return false;
+    
+    try {
+      // 对于url_redirect类型，需要完全匹配
+      if (proxyType === 'url_redirect') {
+        return url === pattern;
+      }
+      
+      // 对于redirect类型，只要url以pattern开头即可命中（前缀匹配）
+      if (proxyType === 'redirect') {
+        return url.indexOf(pattern) === 0;
+      }
+      
+      // 以下是默认的匹配逻辑（用于response类型等）
+      // 如果是正则表达式
+      if (pattern.startsWith('/') && pattern.endsWith('/')) {
+        const regex = new RegExp(pattern.slice(1, -1));
+        return regex.test(url);
+      }
+      
+      // 如果是通配符模式
+      if (pattern.includes('*')) {
+        const regexPattern = pattern
+          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, '.*');
+        const regex = new RegExp(`^${regexPattern}$`);
+        return regex.test(url);
+      }
+      
+      // 精确匹配
+      return url === pattern;
+    } catch (e) {
+      console.error('URL匹配检查失败:', e);
+      return false;
+    }
+  };
+
   const handleTestSubmit = async () => {
     try {
       const values = await testForm.validateFields();
@@ -289,12 +331,21 @@ const InterfaceManagement = () => {
       
       try {
         // 验证测试 URL 是否匹配当前接口的匹配规则
-        if (!isUrlMatchPattern(values.testUrl, editingInterface.urlPattern)) {
+        if (!isUrlMatchPattern(values.testUrl, editingInterface.urlPattern, editingInterface.proxyType)) {
+          let errorMessage = '测试URL与接口匹配规则不匹配';
+          
+          // 根据不同的代理类型提供更具体的错误信息
+          if (editingInterface.proxyType === 'url_redirect') {
+            errorMessage = `测试URL必须完全匹配 ${editingInterface.urlPattern}`;
+          } else if (editingInterface.proxyType === 'redirect') {
+            errorMessage = `测试URL必须以 ${editingInterface.urlPattern} 开头`;
+          }
+          
           setTestResult({
             success: false,
-            error: '测试URL与接口匹配规则不匹配'
+            error: errorMessage
           });
-          message.error('测试URL与接口匹配规则不匹配');
+          message.error(errorMessage);
           return;
         }
 
@@ -336,34 +387,6 @@ const InterfaceManagement = () => {
     }
   };
 
-  // 检查 URL 是否匹配模式
-  const isUrlMatchPattern = (url, pattern) => {
-    if (!url || !pattern) return false;
-    
-    try {
-      // 如果是正则表达式
-      if (pattern.startsWith('/') && pattern.endsWith('/')) {
-        const regex = new RegExp(pattern.slice(1, -1));
-        return regex.test(url);
-      }
-      
-      // 如果是通配符模式
-      if (pattern.includes('*')) {
-        const regexPattern = pattern
-          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-          .replace(/\*/g, '.*');
-        const regex = new RegExp(`^${regexPattern}$`);
-        return regex.test(url);
-      }
-      
-      // 精确匹配
-      return url === pattern;
-    } catch (e) {
-      console.error('URL匹配检查失败:', e);
-      return false;
-    }
-  };
-
   const handleSelectFeature = (featureId) => {
     setSelectedFeatureId(featureId);
   };
@@ -381,6 +404,11 @@ const InterfaceManagement = () => {
   };
 
   const formatJsonContent = () => {
+    const proxyType = form.getFieldValue('proxyType');
+    if (proxyType !== 'response') {
+      return;
+    }
+    
     const responseBody = form.getFieldValue('responseBody');
     if (responseBody) {
       try {
@@ -394,6 +422,11 @@ const InterfaceManagement = () => {
   };
 
   const handlePreview = () => {
+    const proxyType = form.getFieldValue('proxyType');
+    if (proxyType !== 'response') {
+      return;
+    }
+    
     const responseBody = form.getFieldValue('responseBody');
     if (responseBody) {
       try {
@@ -443,19 +476,44 @@ const InterfaceManagement = () => {
       ellipsis: true,
     },
     {
+      title: '处理方式',
+      dataIndex: 'proxyType',
+      key: 'proxyType',
+      width: 120,
+      render: (text) => {
+        const found = proxyTypes.find(item => item.value === text);
+        return found ? found.label : text || '模拟响应';
+      }
+    },
+    {
       title: '状态码',
       dataIndex: 'httpStatus',
       key: 'httpStatus',
       width: 100,
+      render: (text, record) => {
+        return record.proxyType === 'response' ? text : '-';
+      }
     },
     {
       title: '内容类型',
       dataIndex: 'contentType',
       key: 'contentType',
       width: 120,
-      render: (text) => {
+      render: (text, record) => {
+        if (record.proxyType !== 'response') {
+          return '-';
+        }
         const found = contentTypes.find(item => item.value === text);
         return found ? found.label : text;
+      }
+    },
+    {
+      title: '目标URL',
+      dataIndex: 'targetUrl',
+      key: 'targetUrl',
+      ellipsis: true,
+      render: (text, record) => {
+        return (record.proxyType === 'redirect' || record.proxyType === 'url_redirect') ? text : '-';
       }
     },
     {
@@ -577,10 +635,12 @@ const InterfaceManagement = () => {
             initialValues={{
               name: '',
               pattern: '',
+              proxyType: 'response',
               statusCode: '200',
               contentType: 'application/json; charset=utf-8',
               responseBody: '{\n  "code": 0,\n  "message": "success",\n  "data": {}\n}',
-              httpMethod: 'ALL'
+              httpMethod: 'ALL',
+              targetUrl: ''
             }}
           >
             <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
@@ -597,36 +657,120 @@ const InterfaceManagement = () => {
                 <Form.Item
                   name="pattern"
                   label="URL匹配规则"
-                  rules={[{ required: true, message: '请输入URL匹配规则' }]}
-                  tooltip="支持多种匹配方式：精确匹配 - /api/users，通配符 - /api/users/*，正则表达式 - /api\/users\/\d+/"
+                  rules={[
+                    { required: true, message: '请输入URL匹配规则' },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        const proxyType = getFieldValue('proxyType');
+                        if (!value) return Promise.resolve();
+                        
+                        // URL重定向模式下，必须是完整URL
+                        if (proxyType === 'url_redirect') {
+                          try {
+                            new URL(value);
+                            return Promise.resolve();
+                          } catch (e) {
+                            return Promise.reject(new Error('URL重定向模式下，URL匹配规则必须是完整的URL（包括http://或https://）'));
+                          }
+                        }
+                        
+                        // 重定向模式下，必须以http://或https://开头
+                        if (proxyType === 'redirect') {
+                          if (value.startsWith('http://') || value.startsWith('https://')) {
+                            return Promise.resolve();
+                          }
+                          return Promise.reject(new Error('重定向模式下，URL匹配规则必须以http://或https://开头'));
+                        }
+                        
+                        // 响应模式下的验证
+                        if (proxyType === 'response') {
+                          // 正则表达式验证
+                          if (value.startsWith('/') && value.endsWith('/')) {
+                            try {
+                              new RegExp(value.slice(1, -1));
+                              return Promise.resolve();
+                            } catch (e) {
+                              return Promise.reject(new Error('无效的正则表达式格式'));
+                            }
+                          }
+                          
+                          // 通配符验证
+                          if (value.includes('*')) {
+                            if (/^[a-zA-Z0-9\-_/.*]+$/.test(value)) {
+                              return Promise.resolve();
+                            }
+                            return Promise.reject(new Error('通配符URL格式不正确'));
+                          }
+                          
+                          // 普通路径验证
+                          if (/^[a-zA-Z0-9\-_/]+$/.test(value)) {
+                            return Promise.resolve();
+                          }
+                          return Promise.reject(new Error('URL路径格式不正确'));
+                        }
+                        
+                        return Promise.resolve();
+                      },
+                    }),
+                  ]}
+                  tooltip={{
+                    title: (
+                      <>
+                        <div>不同处理方式下URL匹配规则要求：</div>
+                        <ul style={{margin: '5px 0 0 15px', padding: 0}}>
+                          <li><b>模拟响应：</b> 支持路径格式如 /api/users，通配符如 /api/*，正则如 /\/api\/\d+/</li>
+                          <li><b>重定向：</b> 必须以http://或https://开头，例如：https://example.com/api</li>
+                          <li><b>URL重定向：</b> 必须是完整URL，包括http://或https://，例如：https://example.com/api/users</li>
+                        </ul>
+                      </>
+                    ),
+                    overlayStyle: { maxWidth: '450px' }
+                  }}
                 >
-                  <Input placeholder="例如：/api/users，/api/users/*，/api\/users\/\d+/" />
+                  <Input 
+                    placeholder="根据选择的处理方式输入相应格式的URL" 
+                  />
                 </Form.Item>
               </div>
             </div>
-
+            
             <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
               <div style={{ flex: 1 }}>
                 <Form.Item
-                  name="statusCode"
-                  label="状态码"
-                  rules={[{ required: true, message: '请选择状态码' }]}
+                  name="proxyType"
+                  label="处理方式"
+                  rules={[{ required: true, message: '请选择处理方式' }]}
+                  tooltip={{
+                    title: (
+                      <>
+                        <div>不同处理方式的规则说明：</div>
+                        <ul style={{margin: '5px 0 0 15px', padding: 0}}>
+                          <li><b>模拟响应：</b> 返回您定义的响应内容</li>
+                          <li><b>重定向：</b> 将请求重定向到其他URL，URL匹配规则必须以http://或https://开头</li>
+                          <li><b>URL重定向：</b> 完全匹配URL时重定向，URL匹配规则必须是完整URL</li>
+                        </ul>
+                      </>
+                    ),
+                    overlayStyle: { maxWidth: '450px' }
+                  }}
                 >
-                  <Select>
-                    {statusCodes.map(item => (
-                      <Option key={item.value} value={item.value}>{item.label}</Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </div>
-              <div style={{ flex: 1 }}>
-                <Form.Item
-                  name="contentType"
-                  label="内容类型"
-                  rules={[{ required: true, message: '请选择内容类型' }]}
-                >
-                  <Select>
-                    {contentTypes.map(item => (
+                  <Select onChange={(value) => {
+                    // 当切换代理类型时，清空pattern字段，并提供不同的placeholder
+                    form.setFieldsValue({ pattern: '' });
+                    
+                    // 为不同的代理类型提供不同的pattern占位符
+                    const patternInput = document.querySelector('input[placeholder="根据选择的处理方式输入相应格式的URL"]');
+                    if (patternInput) {
+                      if (value === 'response') {
+                        patternInput.placeholder = "例如：/api/users，/api/users/*，/api\/users\/\d+/";
+                      } else if (value === 'redirect') {
+                        patternInput.placeholder = "例如：https://example.com/api";
+                      } else if (value === 'url_redirect') {
+                        patternInput.placeholder = "例如：https://example.com/api/users";
+                      }
+                    }
+                  }}>
+                    {proxyTypes.map(item => (
                       <Option key={item.value} value={item.value}>{item.label}</Option>
                     ))}
                   </Select>
@@ -647,37 +791,131 @@ const InterfaceManagement = () => {
               </div>
             </div>
 
-            <Form.Item
-              name="responseBody"
-              labelCol={{
-                span: 8,          /* 宽度比例 */
+            {/* 根据proxyType显示不同的表单项 */}
+            <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.proxyType !== currentValues.proxyType}>
+              {({ getFieldValue }) => {
+                const proxyType = getFieldValue('proxyType');
+                
+                if (proxyType === 'response') {
+                  return (
+                    <>
+                      <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
+                        <div style={{ flex: 1 }}>
+                          <Form.Item
+                            name="statusCode"
+                            label="状态码"
+                            rules={[{ required: true, message: '请选择状态码' }]}
+                          >
+                            <Select>
+                              {statusCodes.map(item => (
+                                <Option key={item.value} value={item.value}>{item.label}</Option>
+                              ))}
+                            </Select>
+                          </Form.Item>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <Form.Item
+                            name="contentType"
+                            label="内容类型"
+                            rules={[{ required: true, message: '请选择内容类型' }]}
+                          >
+                            <Select>
+                              {contentTypes.map(item => (
+                                <Option key={item.value} value={item.value}>{item.label}</Option>
+                              ))}
+                            </Select>
+                          </Form.Item>
+                        </div>
+                      </div>
+
+                      <Form.Item
+                        name="responseBody"
+                        labelCol={{
+                          span: 8,          /* 宽度比例 */
+                        }}
+                        label={
+                          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                            <span>响应内容</span>
+                            <Space>
+                              <Button 
+                                type="link" 
+                                icon={<EyeOutlined />} 
+                                onClick={handlePreview}
+                                style={{ padding: 0 }}
+                              >
+                                预览
+                              </Button>
+                              <Button 
+                                type="link" 
+                                icon={<FormatPainterOutlined />} 
+                                onClick={formatJsonContent}
+                                style={{ padding: 0 }}
+                              >
+                                格式化JSON
+                              </Button>
+                            </Space>
+                          </div>
+                        }
+                        rules={[{ required: true, message: '请输入响应内容' }]}
+                      >
+                        <TextArea rows={12} placeholder="请输入响应内容" style={{ fontFamily: 'monospace' }} />
+                      </Form.Item>
+                    </>
+                  );
+                }
+                
+                if (proxyType === 'redirect' || proxyType === 'url_redirect') {
+                  return (
+                    <Form.Item
+                      name="targetUrl"
+                      label="重定向目标URL"
+                      rules={[
+                        { required: true, message: '请输入重定向目标URL' },
+                        { 
+                          validator: (_, value) => {
+                            if (!value) return Promise.resolve();
+                            
+                            try {
+                              new URL(value);
+                              return Promise.resolve();
+                            } catch (e) {
+                              return Promise.reject(new Error('请输入有效的URL，必须包含http://或https://'));
+                            }
+                          }
+                        }
+                      ]}
+                      tooltip={proxyType === 'redirect' ? 
+                        "重定向模式：输入完整的目标URL。匹配时使用前缀匹配，只要请求URL以匹配规则开头即命中。例如：https://example.com/api" : 
+                        "URL重定向模式：输入完整的目标URL。匹配时要求完全匹配URL，必须与匹配规则完全一致才命中。例如：https://example.com/api/users"
+                      }
+                    >
+                      <Input 
+                        placeholder={proxyType === 'redirect' ? 
+                          "例如：https://example.com/api" : 
+                          "例如：https://example.com/api/users"
+                        } 
+                        addonBefore={
+                          <Select 
+                            defaultValue="https://" 
+                            className="select-before" 
+                            style={{ width: 100 }}
+                            onChange={(value) => {
+                              const currentUrl = form.getFieldValue('targetUrl') || '';
+                              const urlWithoutProtocol = currentUrl.replace(/^https?:\/\//, '');
+                              form.setFieldsValue({ targetUrl: value + urlWithoutProtocol });
+                            }}
+                          >
+                            <Option value="http://">http://</Option>
+                            <Option value="https://">https://</Option>
+                          </Select>
+                        }
+                      />
+                    </Form.Item>
+                  );
+                }
+                
+                return null;
               }}
-              label={
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                  <span>响应内容</span>
-                  <Space>
-                    <Button 
-                      type="link" 
-                      icon={<EyeOutlined />} 
-                      onClick={handlePreview}
-                      style={{ padding: 0 }}
-                    >
-                      预览
-                    </Button>
-                    <Button 
-                      type="link" 
-                      icon={<FormatPainterOutlined />} 
-                      onClick={formatJsonContent}
-                      style={{ padding: 0 }}
-                    >
-                      格式化JSON
-                    </Button>
-                  </Space>
-                </div>
-              }
-              rules={[{ required: true, message: '请输入响应内容' }]}
-            >
-              <TextArea rows={12} placeholder="请输入响应内容" style={{ fontFamily: 'monospace' }} />
             </Form.Item>
           </Form>
         </Modal>
@@ -703,14 +941,45 @@ const InterfaceManagement = () => {
                 description={
                   <div>
                     <p>当前接口匹配规则：<code>{editingInterface.urlPattern}</code></p>
-                    <p>在Whistle规则中，您需要配置完整URL或域名指向whistle.mock-plugins://，然后插件会根据接口的匹配规则处理请求。</p>
-                    <p>插件支持以下匹配方式：</p>
-                    <ul>
-                      <li>精确匹配：完全匹配URL路径部分</li>
-                      <li>通配符匹配：使用*代表任意字符（例如：/api/users/*）</li>
-                      <li>正则表达式：使用/pattern/格式（例如：/\/api\/users\/\d+/）</li>
-                      <li>部分匹配：URL包含指定路径即匹配</li>
-                    </ul>
+                    <p>代理类型：{
+                      proxyTypes.find(item => item.value === editingInterface.proxyType)?.label || 
+                      editingInterface.proxyType || '模拟响应'
+                    }</p>
+                    
+                    {editingInterface.proxyType === 'url_redirect' && (
+                      <div>
+                        <p><b>URL重定向模式规则：</b></p>
+                        <ul>
+                          <li>URL匹配规则必须是完整URL（包括http://或https://）</li>
+                          <li>需要完全匹配URL路径，测试URL必须与匹配规则<b>完全一致</b></li>
+                          <li>命中后将直接跳转到目标URL: {editingInterface.targetUrl}</li>
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {editingInterface.proxyType === 'redirect' && (
+                      <div>
+                        <p><b>重定向模式规则：</b></p>
+                        <ul>
+                          <li>URL匹配规则必须以http://或https://开头</li>
+                          <li>测试URL必须以匹配规则开头（<b>前缀匹配</b>）</li>
+                          <li>命中后将直接跳转到目标URL: {editingInterface.targetUrl}</li>
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {editingInterface.proxyType === 'response' && (
+                      <div>
+                        <p>在Whistle规则中，您需要配置完整URL或域名指向whistle.mock-plugins://，然后插件会根据接口的匹配规则处理请求。</p>
+                        <p>插件支持以下匹配方式：</p>
+                        <ul>
+                          <li>精确匹配：完全匹配URL路径部分</li>
+                          <li>通配符匹配：使用*代表任意字符（例如：/api/users/*）</li>
+                          <li>正则表达式：使用/pattern/格式（例如：/\/api\/users\/\d+/）</li>
+                        </ul>
+                      </div>
+                    )}
+                    
                     <p>请在下方输入完整测试URL进行测试</p>
                   </div>
                 }
@@ -761,13 +1030,35 @@ const InterfaceManagement = () => {
                         <span className="value">{testResult.httpMethod || 'ALL'}</span>
                       </div>
                       <div className="result-item">
-                        <span className="label">状态码：</span>
-                        <span className="value">{testResult.statusCode}</span>
+                        <span className="label">处理方式：</span>
+                        <span className="value">
+                          {(() => {
+                            const found = proxyTypes.find(item => item.value === editingInterface.proxyType);
+                            return found ? found.label : editingInterface.proxyType || '模拟响应';
+                          })()}
+                        </span>
                       </div>
-                      <div className="result-item">
-                        <span className="label">内容类型：</span>
-                        <span className="value">{testResult.contentType}</span>
-                      </div>
+                      
+                      {(editingInterface.proxyType === 'redirect' || editingInterface.proxyType === 'url_redirect') && (
+                        <div className="result-item">
+                          <span className="label">重定向目标：</span>
+                          <span className="value">{testResult.targetUrl || editingInterface.targetUrl}</span>
+                        </div>
+                      )}
+                      
+                      {editingInterface.proxyType === 'response' && (
+                        <>
+                          <div className="result-item">
+                            <span className="label">状态码：</span>
+                            <span className="value">{testResult.statusCode}</span>
+                          </div>
+                          <div className="result-item">
+                            <span className="label">内容类型：</span>
+                            <span className="value">{testResult.contentType}</span>
+                          </div>
+                        </>
+                      )}
+                      
                       {testResult.mockInfo && (
                         <>
                           <div className="result-item">
@@ -780,10 +1071,13 @@ const InterfaceManagement = () => {
                           </div>
                         </>
                       )}
-                      <div className="result-body">
-                        <div className="label">响应内容：</div>
-                        <pre>{formatResponseContent(testResult.responseBody, testResult.contentType)}</pre>
-                      </div>
+                      
+                      {editingInterface.proxyType === 'response' && (
+                        <div className="result-body">
+                          <div className="label">响应内容：</div>
+                          <pre>{formatResponseContent(testResult.responseBody, testResult.contentType)}</pre>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="result-error">

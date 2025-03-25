@@ -89,45 +89,192 @@ module.exports = async function(req, res) {
       
       const startTime = Date.now();
       
-      // 处理内容，支持 Mock.js 模板语法
-      let responseBody = targetInterface.responseContent;
+      // 根据代理类型处理不同的响应
+      let responseData;
       
-      try {
-        // 如果响应内容是JSON，则尝试应用Mock.js模板
-        if (targetInterface.contentType && targetInterface.contentType.includes('json')) {
-          // 尝试解析JSON
-          const jsonTemplate = JSON.parse(responseBody);
-          // 使用Mock.js生成随机数据
-          const mockData = Mock.mock(jsonTemplate);
-          // 将结果转换回字符串
-          responseBody = JSON.stringify(mockData);
-        }
-      } catch (err) {
-        // 如果Mock失败，使用原始内容
-      }
-      
-      // 模拟接口处理延迟
-      const delay = targetInterface.responseDelay || 0;
-      if (delay > 0) {
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-      
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-      
-      // 模拟接口处理
-      const responseData = {
-        statusCode: targetInterface.httpStatus || 200,
-        contentType: targetInterface.contentType || 'application/json; charset=utf-8',
-        responseBody: responseBody,
-        mockInfo: {
-          matchedPattern: targetInterface.urlPattern,
-          requestMethod: targetInterface.httpMethod,
-          delay: delay,
-          duration: duration,
-          timestamp: new Date().toISOString()
+      // 检查 URL 是否匹配模式
+      const isUrlMatchPattern = (url, pattern, proxyType) => {
+        if (!url || !pattern) return false;
+        
+        try {
+          // 对于url_redirect类型，需要完全匹配
+          if (proxyType === 'url_redirect') {
+            return url === pattern;
+          }
+          
+          // 对于redirect类型，只要url以pattern开头即可命中（前缀匹配）
+          if (proxyType === 'redirect') {
+            return url.indexOf(pattern) === 0;
+          }
+          
+          // 默认的匹配逻辑（用于response类型等）
+          // 如果是正则表达式
+          if (pattern.startsWith('/') && pattern.endsWith('/')) {
+            const regex = new RegExp(pattern.slice(1, -1));
+            return regex.test(url);
+          }
+          
+          // 如果是通配符模式
+          if (pattern.includes('*')) {
+            const regexPattern = pattern
+              .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+              .replace(/\*/g, '.*');
+            const regex = new RegExp(`^${regexPattern}$`);
+            return regex.test(url);
+          }
+          
+          // 精确匹配
+          return url === pattern;
+        } catch (e) {
+          console.error('URL匹配检查失败:', e);
+          return false;
         }
       };
+      
+      // 处理不同的代理类型
+      switch (targetInterface.proxyType) {
+        case 'response':
+          // 处理内容，支持 Mock.js 模板语法
+          let responseBody = targetInterface.responseContent;
+          
+          try {
+            // 如果响应内容是JSON，则尝试应用Mock.js模板
+            if (targetInterface.contentType && targetInterface.contentType.includes('json')) {
+              // 尝试解析JSON
+              const jsonTemplate = JSON.parse(responseBody);
+              // 使用Mock.js生成随机数据
+              const mockData = Mock.mock(jsonTemplate);
+              // 将结果转换回字符串
+              responseBody = JSON.stringify(mockData);
+            }
+          } catch (err) {
+            // 如果Mock失败，使用原始内容
+          }
+          
+          // 模拟接口处理延迟
+          const delay = targetInterface.responseDelay || 0;
+          if (delay > 0) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+          
+          const endTime = Date.now();
+          const duration = endTime - startTime;
+          
+          // 模拟接口处理
+          responseData = {
+            statusCode: targetInterface.httpStatus || 200,
+            contentType: targetInterface.contentType || 'application/json; charset=utf-8',
+            responseBody: responseBody,
+            mockInfo: {
+              matchedPattern: targetInterface.urlPattern,
+              requestMethod: targetInterface.httpMethod,
+              delay: delay,
+              duration: duration,
+              timestamp: new Date().toISOString()
+            }
+          };
+          break;
+          
+        case 'redirect':
+          // 处理重定向
+          const redirectTarget = targetInterface.targetUrl || '';
+          
+          // 验证目标URL是否有效
+          if (!redirectTarget) {
+            return res.status(400).json({
+              code: 400,
+              message: '重定向目标URL不能为空',
+              data: null
+            });
+          }
+          
+          try {
+            // 验证URL格式
+            new URL(redirectTarget);
+          } catch (err) {
+            return res.status(400).json({
+              code: 400,
+              message: '重定向目标URL格式无效，必须包含http://或https://',
+              data: null
+            });
+          }
+          
+          // 验证URL匹配（前缀匹配）
+          if (url.indexOf(targetInterface.urlPattern) !== 0) {
+            return res.status(400).json({
+              code: 400,
+              message: `测试URL不匹配重定向规则，URL必须以 ${targetInterface.urlPattern} 开头`,
+              data: null
+            });
+          }
+          
+          responseData = {
+            statusCode: 302,
+            contentType: 'application/json; charset=utf-8',
+            proxyType: 'redirect',
+            targetUrl: redirectTarget,
+            mockInfo: {
+              matchedPattern: targetInterface.urlPattern,
+              requestMethod: targetInterface.httpMethod,
+              timestamp: new Date().toISOString()
+            }
+          };
+          break;
+          
+        case 'url_redirect':
+          // 处理URL重定向
+          const baseUrl = targetInterface.targetUrl || '';
+          
+          // 验证基础URL是否有效
+          if (!baseUrl) {
+            return res.status(400).json({
+              code: 400,
+              message: 'URL重定向目标URL不能为空',
+              data: null
+            });
+          }
+          
+          try {
+            // 验证URL格式
+            new URL(baseUrl);
+          } catch (err) {
+            return res.status(400).json({
+              code: 400,
+              message: 'URL重定向目标URL格式无效，必须包含http://或https://',
+              data: null
+            });
+          }
+          
+          // 验证URL完全匹配
+          if (url !== targetInterface.urlPattern) {
+            return res.status(400).json({
+              code: 400,
+              message: `测试URL不匹配URL重定向规则，URL必须完全匹配 ${targetInterface.urlPattern}`,
+              data: null
+            });
+          }
+          
+          responseData = {
+            statusCode: 302,
+            contentType: 'application/json; charset=utf-8',
+            proxyType: 'url_redirect',
+            targetUrl: baseUrl,
+            mockInfo: {
+              matchedPattern: targetInterface.urlPattern,
+              requestMethod: targetInterface.httpMethod,
+              timestamp: new Date().toISOString()
+            }
+          };
+          break;
+          
+        default:
+          // 不支持的代理类型
+          return res.status(400).json({
+            code: 400,
+            message: `不支持的代理类型: ${targetInterface.proxyType || 'undefined'}`,
+            data: null
+          });
+      }
       
       return res.json({
         code: 0,

@@ -1,20 +1,17 @@
 # 测试问题收集
 
-1. 运行日志中报错
-index.js:2 TypeError: n.filter is not a function
-    at E (index.js:2:1299329)
-    at AH (index.js:2:1299786)
-    at hi (index.js:2:106198)
-    at $l (index.js:2:120236)
-    at Sc (index.js:2:166006)
-    at ys (index.js:2:154391)
-    at vs (index.js:2:154319)
-    at hs (index.js:2:154182)
-    at as (index.js:2:151017)
-    at os (index.js:2:149573)
-2. 放过的请求按照原路径  完整的url 请求
+## 调整 redirect 和 url_redirect规则
+
+- 接口配置中：
+
+1. url_redirect规则完整url
+
+2. redirect规则是 http:// 或者 https:// 配置结尾没有细致要求 可以是/ 可以是 /api
+
+- 匹配规则：
+
+1. url_redirect规则需要完整匹配 fullPath 与配置地址完全匹配才会命中规则，命中后直接返回 res.end(`${fullUrl} ${targetUrl}`);
+
+2. redirect规则根据请求的 url 与配置的源 url 判断是否 indexOf() == 0 即可，命中后直接通过 replace fullUrl 地址然后返回 res.end(`${fullUrl} ${targetUrl}`);
 
 
-# 问题处理注意
-
-- 所有问题请举一反三，检查所有类似的地方是否存在问题，如果存在一并处理

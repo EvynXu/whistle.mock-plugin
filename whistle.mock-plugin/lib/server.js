@@ -649,6 +649,71 @@ const handleResponse = (interfaceItem, req, res) => {
         }
         break;
       
+      case 'redirect':
+        // 处理redirect - 完全重定向
+        const redirectUrl = interfaceItem.targetUrl || '';
+        logMessage(`重定向处理: ${req.url} -> ${redirectUrl}`);
+        // 这里不需要实际执行重定向，因为规则服务器已经返回了whistle规则
+        // 仅记录日志，并返回信息性消息
+        res.status(200).json({
+          code: 302,
+          message: '请求已被重定向到: ' + redirectUrl,
+          data: {
+            originalUrl: req.url,
+            targetUrl: redirectUrl,
+            mode: 'redirect'
+          }
+        });
+        
+        // 记录重定向日志
+        addToJsonLog({
+          eventType: 'redirect',
+          url: req.url,
+          method: req.method,
+          targetUrl: redirectUrl,
+          message: `请求被重定向: ${req.method} ${req.url} -> ${redirectUrl}`,
+          pattern: interfaceItem.urlPattern
+        });
+        break;
+        
+      case 'url_redirect':
+        // 处理url_redirect - URL重定向，保留查询参数
+        const baseUrl = interfaceItem.targetUrl || '';
+        // 提取原始URL的查询参数，实际重定向在规则服务器中处理
+        const reqUrl = req.url || '';
+        let finalRedirectUrl = baseUrl;
+        
+        if (req.url.includes('?')) {
+          const queryStr = req.url.split('?')[1];
+          finalRedirectUrl = baseUrl.includes('?') 
+            ? `${baseUrl}&${queryStr}` 
+            : `${baseUrl}?${queryStr}`;
+        }
+        
+        logMessage(`URL重定向处理: ${req.url} -> ${finalRedirectUrl}`);
+        
+        // 返回信息性消息
+        res.status(200).json({
+          code: 302,
+          message: '请求已被URL重定向到: ' + finalRedirectUrl,
+          data: {
+            originalUrl: req.url,
+            targetUrl: finalRedirectUrl,
+            mode: 'url_redirect'
+          }
+        });
+        
+        // 记录URL重定向日志
+        addToJsonLog({
+          eventType: 'url_redirect',
+          url: req.url,
+          method: req.method,
+          targetUrl: finalRedirectUrl,
+          message: `请求被URL重定向: ${req.method} ${req.url} -> ${finalRedirectUrl}`,
+          pattern: interfaceItem.urlPattern
+        });
+        break;
+      
     case 'url':
       // URL重定向 - 实际场景中这需要代理到目标URL
       logMessage(`URL重定向: ${req.url} -> ${interfaceItem.targetUrl}`);
