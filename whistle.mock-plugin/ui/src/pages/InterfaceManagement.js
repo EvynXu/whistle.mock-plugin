@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useHistory } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
-import { Table, Button, Modal, Form, Input, Select, message, Switch, Popconfirm, Alert, Space, Tabs } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined, PlayCircleOutlined, FormatPainterOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Input, Select, message, Switch, Popconfirm, Alert, Space, Tabs, Card, Divider, Badge, Tooltip, Row, Col } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined, PlayCircleOutlined, FormatPainterOutlined, EyeOutlined, CopyOutlined, CodeOutlined, CheckCircleOutlined, CloseCircleOutlined, MenuOutlined, PlusCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import '../styles/interface-management.css';
 import axios from 'axios';
 
@@ -137,6 +137,16 @@ const InterfaceManagement = () => {
 
   const handleEditInterface = (record) => {
     setEditingInterface(record);
+    
+    // 将自定义请求头转换为数组格式，用于动态表单项
+    let headersArray = [];
+    if (record.customHeaders && typeof record.customHeaders === 'object') {
+      headersArray = Object.entries(record.customHeaders).map(([key, value]) => ({
+        headerName: key,
+        headerValue: value
+      }));
+    }
+    
     form.setFieldsValue({
       name: record.name,
       pattern: record.urlPattern,
@@ -146,6 +156,7 @@ const InterfaceManagement = () => {
       responseBody: record.responseContent || '',
       httpMethod: record.httpMethod || 'ALL',
       targetUrl: record.targetUrl || '',
+      headerItems: headersArray // 使用数组存储表单项
     });
     setModalVisible(true);
   };
@@ -207,29 +218,27 @@ const InterfaceManagement = () => {
     try {
       const values = await form.validateFields();
       
-      // 验证响应内容格式
-      if (values.proxyType === 'response' && values.contentType.includes('json')) {
+      // 检查responseBody是否是有效的JSON
+      if (values.proxyType === 'response' && values.contentType.includes('application/json')) {
         try {
-          // 清理并验证JSON
-          const cleanedJson = cleanJsonResponse(values.responseBody);
-          JSON.parse(cleanedJson);
-          values.responseBody = cleanedJson;
+          JSON.parse(values.responseBody);
         } catch (e) {
-          message.error('JSON响应内容格式不正确');
+          message.error('响应体不是有效的JSON格式');
           return;
         }
       }
       
-      // 验证重定向URL
-      if ((values.proxyType === 'redirect' || values.proxyType === 'url_redirect') && !values.targetUrl) {
-        message.error('重定向目标URL不能为空');
-        return;
-      }
+      // 处理自定义请求头，将表单项数组转换为对象格式
+      let customHeaders = {};
       
-      // 验证重定向URL的格式
-      if ((values.proxyType === 'redirect' || values.proxyType === 'url_redirect') && !isValidUrl(values.targetUrl)) {
-        message.error('重定向目标URL格式不正确，请输入完整的URL，包括http://或https://');
-        return;
+      if (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') {
+        if (values.headerItems && values.headerItems.length > 0) {
+          values.headerItems.forEach(item => {
+            if (item && item.headerName && item.headerName.trim()) {
+              customHeaders[item.headerName.trim()] = item.headerValue || '';
+            }
+          });
+        }
       }
 
       const interfaceData = {
@@ -239,6 +248,7 @@ const InterfaceManagement = () => {
         proxyType: values.proxyType,
         responseContent: values.proxyType === 'response' ? values.responseBody : '',
         targetUrl: (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') ? values.targetUrl : '',
+        customHeaders: (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') ? customHeaders : {},
         httpStatus: parseInt(values.statusCode, 10), // 转换为数字
         contentType: values.contentType,
         responseDelay: 0,
@@ -517,6 +527,26 @@ const InterfaceManagement = () => {
       }
     },
     {
+      title: '自定义头',
+      dataIndex: 'customHeaders',
+      key: 'customHeaders',
+      width: 100,
+      render: (_, record) => {
+        if (record.proxyType !== 'redirect' && record.proxyType !== 'url_redirect') {
+          return '-';
+        }
+        
+        const headers = record.customHeaders || {};
+        const count = Object.keys(headers).length;
+        
+        if (count === 0) {
+          return '-';
+        }
+        
+        return <span style={{ color: '#1890ff' }}>{count}个</span>;
+      }
+    },
+    {
       title: '请求方法',
       dataIndex: 'httpMethod',
       key: 'httpMethod',
@@ -640,7 +670,8 @@ const InterfaceManagement = () => {
               contentType: 'application/json; charset=utf-8',
               responseBody: '{\n  "code": 0,\n  "message": "success",\n  "data": {}\n}',
               httpMethod: 'ALL',
-              targetUrl: ''
+              targetUrl: '',
+              headerItems: []
             }}
           >
             <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
@@ -866,51 +897,144 @@ const InterfaceManagement = () => {
                 
                 if (proxyType === 'redirect' || proxyType === 'url_redirect') {
                   return (
-                    <Form.Item
-                      name="targetUrl"
-                      label="重定向目标URL"
-                      rules={[
-                        { required: true, message: '请输入重定向目标URL' },
-                        { 
-                          validator: (_, value) => {
-                            if (!value) return Promise.resolve();
-                            
-                            try {
-                              new URL(value);
-                              return Promise.resolve();
-                            } catch (e) {
-                              return Promise.reject(new Error('请输入有效的URL，必须包含http://或https://'));
+                    <>
+                      <Form.Item
+                        name="targetUrl"
+                        label="重定向目标URL"
+                        rules={[
+                          { required: true, message: '请输入重定向目标URL' },
+                          { 
+                            validator: (_, value) => {
+                              if (!value) return Promise.resolve();
+                              
+                              try {
+                                new URL(value);
+                                return Promise.resolve();
+                              } catch (e) {
+                                return Promise.reject(new Error('请输入有效的URL，必须包含http://或https://'));
+                              }
                             }
                           }
+                        ]}
+                        tooltip={proxyType === 'redirect' ? 
+                          "重定向模式：输入完整的目标URL。匹配时使用前缀匹配，只要请求URL以匹配规则开头即命中。例如：https://example.com/api" : 
+                          "URL重定向模式：输入完整的目标URL。匹配时要求完全匹配URL，必须与匹配规则完全一致才命中。例如：https://example.com/api/users"
                         }
-                      ]}
-                      tooltip={proxyType === 'redirect' ? 
-                        "重定向模式：输入完整的目标URL。匹配时使用前缀匹配，只要请求URL以匹配规则开头即命中。例如：https://example.com/api" : 
-                        "URL重定向模式：输入完整的目标URL。匹配时要求完全匹配URL，必须与匹配规则完全一致才命中。例如：https://example.com/api/users"
-                      }
-                    >
-                      <Input 
-                        placeholder={proxyType === 'redirect' ? 
-                          "例如：https://example.com/api" : 
-                          "例如：https://example.com/api/users"
-                        } 
-                        addonBefore={
-                          <Select 
-                            defaultValue="https://" 
-                            className="select-before" 
-                            style={{ width: 100 }}
-                            onChange={(value) => {
-                              const currentUrl = form.getFieldValue('targetUrl') || '';
-                              const urlWithoutProtocol = currentUrl.replace(/^https?:\/\//, '');
-                              form.setFieldsValue({ targetUrl: value + urlWithoutProtocol });
-                            }}
-                          >
-                            <Option value="http://">http://</Option>
-                            <Option value="https://">https://</Option>
-                          </Select>
-                        }
-                      />
-                    </Form.Item>
+                      >
+                        <Input 
+                          placeholder={proxyType === 'redirect' ? 
+                            "例如：https://example.com/api" : 
+                            "例如：https://example.com/api/users"
+                          } 
+                          addonBefore={
+                            <Select 
+                              defaultValue="https://" 
+                              className="select-before" 
+                              style={{ width: 100 }}
+                              onChange={(value) => {
+                                const currentUrl = form.getFieldValue('targetUrl') || '';
+                                const urlWithoutProtocol = currentUrl.replace(/^https?:\/\//, '');
+                                form.setFieldsValue({ targetUrl: value + urlWithoutProtocol });
+                              }}
+                            >
+                              <Option value="http://">http://</Option>
+                              <Option value="https://">https://</Option>
+                            </Select>
+                          }
+                        />
+                      </Form.Item>
+                      
+                      <Form.Item
+                        label="自定义请求头"
+                        tooltip="为请求添加或替换HTTP请求头"
+                        className="custom-headers-container"
+                      >
+                        <Form.List name="headerItems">
+                          {(fields, { add, remove }) => (
+                            <>
+                              {fields.map(({ key, name, ...restField }) => (
+                                <Row key={key} gutter={8} style={{ marginBottom: 8 }}>
+                                  <Col span={10}>
+                                    <Form.Item
+                                      {...restField}
+                                      name={[name, 'headerName']}
+                                      noStyle
+                                      rules={[
+                                        { 
+                                          required: true, 
+                                          message: '请输入请求头名称' 
+                                        },
+                                        {
+                                          pattern: /^[^:]+$/,
+                                          message: '请求头名称不能包含冒号'
+                                        }
+                                      ]}
+                                    >
+                                      <Input placeholder="Header-Name" />
+                                    </Form.Item>
+                                  </Col>
+                                  <Col span={12}>
+                                    <Form.Item
+                                      {...restField}
+                                      name={[name, 'headerValue']}
+                                      noStyle
+                                    >
+                                      <Input placeholder="Header-Value" />
+                                    </Form.Item>
+                                  </Col>
+                                  <Col span={2}>
+                                    <Button 
+                                      type="text" 
+                                      icon={<MinusCircleOutlined />} 
+                                      onClick={() => remove(name)}
+                                      style={{ color: '#ff4d4f' }}
+                                    />
+                                  </Col>
+                                </Row>
+                              ))}
+                              
+                              <Form.Item>
+                                <Button 
+                                  type="dashed" 
+                                  onClick={() => add()} 
+                                  block 
+                                  icon={<PlusOutlined />}
+                                >
+                                  添加请求头
+                                </Button>
+                              </Form.Item>
+                              
+                              <div style={{ marginTop: 8 }}>
+                                <Button 
+                                  type="link" 
+                                  onClick={() => {
+                                    add({ headerName: 'Content-Type', headerValue: 'application/json' });
+                                  }}
+                                >
+                                  添加 Content-Type
+                                </Button>
+                                <Button 
+                                  type="link" 
+                                  onClick={() => {
+                                    add({ headerName: 'Authorization', headerValue: 'Bearer ' });
+                                  }}
+                                >
+                                  添加 Authorization
+                                </Button>
+                                <Button 
+                                  type="link" 
+                                  onClick={() => {
+                                    add({ headerName: 'User-Agent', headerValue: 'Mozilla/5.0' });
+                                  }}
+                                >
+                                  添加 User-Agent
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </Form.List>
+                      </Form.Item>
+                    </>
                   );
                 }
                 
@@ -1043,6 +1167,16 @@ const InterfaceManagement = () => {
                         <div className="result-item">
                           <span className="label">重定向目标：</span>
                           <span className="value">{testResult.targetUrl || editingInterface.targetUrl}</span>
+                        </div>
+                      )}
+                      
+                      {(editingInterface.proxyType === 'redirect' || editingInterface.proxyType === 'url_redirect') && 
+                       testResult.formattedHeaders && (
+                        <div className="result-item">
+                          <span className="label">自定义请求头：</span>
+                          <div className="value" style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                            {testResult.formattedHeaders}
+                          </div>
                         </div>
                       )}
                       

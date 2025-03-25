@@ -192,6 +192,32 @@ const validateRedirectRule = (interface) => {
   return true;
 };
 
+// 构建重定向规则
+const buildRedirectRule = (fullUrl, targetUrl, customHeaders, pattern, isUrlRedirect = 0) => {
+  if(!isUrlRedirect){
+    targetUrl = fullUrl.replace(pattern, targetUrl);
+  }else{
+    targetUrl = `redirect://${targetUrl}`;
+  }
+
+  let rule = `${fullUrl} ${targetUrl}`;
+  
+  // 如果有自定义请求头，添加到规则中
+  if (customHeaders && Object.keys(customHeaders).length > 0) {
+    // 构建headerReplace规则，格式: headerReplace://req.header-name:pattern1=replacement1&pattern2=replacement2
+    const headerRuleLines = Object.entries(customHeaders).map(([key, value]) => {
+      return `req.${key}:/(.*)/=${value}`;
+    });
+    
+    if (headerRuleLines.length > 0) {
+      // 将所有规则合并为一个多行规则字符串
+      rule = `${rule}\n ${fullUrl} headerReplace://${headerRuleLines.join('&')}`;
+    }
+  }
+  
+  return rule;
+};
+
 // Whistle 规则服务器实现
 module.exports = (server, options) => {
   server.on('request', (req, res) => {
@@ -337,12 +363,15 @@ module.exports = (server, options) => {
         // 执行重定向：将fullUrl中匹配的pattern替换为targetUrl
         // 对于redirect类型，我们使用indexOf确认前缀匹配
         if (fullUrl.indexOf(pattern) === 0) {
-          // 构建新的目标URL
-          const redirectUrl = fullUrl.replace(pattern, targetUrl);
+          // 获取自定义请求头
+          const customHeaders = matchedInterface.customHeaders || {};
           
-          // 按照 whistle 规则格式返回重定向规则
-          res.end(`${fullUrl} ${redirectUrl}`);
-          log(`重定向规则: ${fullUrl} ${redirectUrl}`);
+          // 构建重定向规则，包括自定义请求头
+          const redirectRule = buildRedirectRule(fullUrl, targetUrl, customHeaders, pattern, 0);
+          
+          // 返回规则
+          res.end(redirectRule);
+          log(`重定向规则: ${redirectRule}`);
           return;
         } else {
           log(`URL ${fullUrl} 不以 ${pattern} 开头，跳过处理`);
@@ -365,9 +394,15 @@ module.exports = (server, options) => {
         
         // 对于url_redirect，我们需要完全匹配
         if (fullUrl === matchedInterface.urlPattern) {
-          // 直接返回whistle规则
-          res.end(`${fullUrl} redirect://${targetUrl}`);
-          log(`URL重定向规则: ${fullUrl} redirect://${targetUrl}`);
+          // 获取自定义请求头
+          const customHeaders = matchedInterface.customHeaders || {};
+          
+          // 构建重定向规则，包括自定义请求头
+          const redirectRule = buildRedirectRule(fullUrl, targetUrl, customHeaders, pattern, 1);
+          
+          // 返回规则
+          res.end(redirectRule);
+          log(`URL重定向规则: ${redirectRule}`);
           return;
         } else {
           log(`URL ${fullUrl} 不完全匹配 ${matchedInterface.urlPattern}，跳过处理`);

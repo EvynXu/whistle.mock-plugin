@@ -208,11 +208,19 @@ module.exports = async function(req, res) {
             });
           }
           
+          // 处理自定义请求头
+          const redirectHeaders = targetInterface.customHeaders || {};
+          const formattedRedirectHeaders = Object.entries(redirectHeaders)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join('\n');
+          
           responseData = {
             statusCode: 302,
             contentType: 'application/json; charset=utf-8',
             proxyType: 'redirect',
             targetUrl: redirectTarget,
+            customHeaders: redirectHeaders,
+            formattedHeaders: formattedRedirectHeaders,
             mockInfo: {
               matchedPattern: targetInterface.urlPattern,
               requestMethod: targetInterface.httpMethod,
@@ -254,11 +262,19 @@ module.exports = async function(req, res) {
             });
           }
           
+          // 处理自定义请求头
+          const urlRedirectHeaders = targetInterface.customHeaders || {};
+          const formattedUrlRedirectHeaders = Object.entries(urlRedirectHeaders)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join('\n');
+          
           responseData = {
             statusCode: 302,
             contentType: 'application/json; charset=utf-8',
             proxyType: 'url_redirect',
             targetUrl: baseUrl,
+            customHeaders: urlRedirectHeaders,
+            formattedHeaders: formattedUrlRedirectHeaders,
             mockInfo: {
               matchedPattern: targetInterface.urlPattern,
               requestMethod: targetInterface.httpMethod,
