@@ -167,6 +167,9 @@ const InterfaceManagement = () => {
       if (response.data && response.data.code === 0) {
         message.success('接口删除成功');
         fetchInterfaces();
+        
+        // 刷新规则缓存
+        refreshCacheAfterUpdate();
       } else {
         throw new Error(response.data?.message || '接口删除失败');
       }
@@ -214,6 +217,28 @@ const InterfaceManagement = () => {
     }
   };
 
+  // 缓存刷新服务
+  const flushCache = async () => {
+    try {
+      const response = await axios.get('/_flush_cache');
+      return response.data;
+    } catch (error) {
+      console.error('刷新缓存失败:', error);
+      throw error;
+    }
+  };
+
+  // 更新成功后刷新缓存
+  const refreshCacheAfterUpdate = async () => {
+    try {
+      await flushCache();
+      // 这里不需要显示提示，因为主要操作会有自己的提示
+    } catch (error) {
+      // 如果刷新缓存失败，记录错误但不影响用户体验
+      console.error('刷新缓存失败，可能需要等待缓存自动过期:', error);
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
@@ -256,30 +281,28 @@ const InterfaceManagement = () => {
         active: true
       };
       
+      let response;
       if (editingInterface) {
-        const response = await axios.put(`/cgi-bin/interfaces?id=${editingInterface.id}`, interfaceData);
-        if (response.data && response.data.code === 0) {
-          message.success('接口更新成功');
-        } else {
-          throw new Error(response.data?.message || '接口更新失败');
-        }
+        // 更新现有接口
+        response = await axios.put(`/cgi-bin/interfaces?id=${editingInterface.id}`, interfaceData);
       } else {
-        const response = await axios.post('/cgi-bin/interfaces', interfaceData);
-        if (response.data && response.data.code === 0) {
-          message.success('接口添加成功');
-        } else {
-          throw new Error(response.data?.message || '接口添加失败');
-        }
+        // 创建新接口
+        response = await axios.post('/cgi-bin/interfaces', interfaceData);
       }
-      
-      setModalVisible(false);
-      fetchInterfaces();
+
+      if (response.data && response.data.code === 0) {
+        message.success(editingInterface ? '接口更新成功' : '接口创建成功');
+        setModalVisible(false);
+        fetchInterfaces();
+        
+        // 刷新规则缓存
+        refreshCacheAfterUpdate();
+      } else {
+        throw new Error(response.data?.message || '操作失败');
+      }
     } catch (error) {
-      if (error.errorFields) {
-        return; // 表单验证错误
-      }
       console.error('操作失败:', error);
-      message.error(error.response?.data?.message || error.message || '操作失败，请检查数据格式是否正确');
+      message.error(error.response?.data?.message || error.message || '操作失败');
     }
   };
 
@@ -287,10 +310,11 @@ const InterfaceManagement = () => {
     setModalVisible(false);
   };
 
-  const handleTestInterface = (record) => {
+  const handleTestInterface = async (record) => {
     setEditingInterface(record);
     setTestUrl('');
     setTestResult(null);
+    setTestLoading(false);
     setTestModalVisible(true);
     testForm.resetFields();
   };
@@ -337,11 +361,26 @@ const InterfaceManagement = () => {
   const handleTestSubmit = async () => {
     try {
       const values = await testForm.validateFields();
+      const { testUrl } = values;
+      
+      if (!testUrl) {
+        message.error('请输入测试URL');
+        return;
+      }
+      
       setTestLoading(true);
       
       try {
+        // 测试前刷新缓存，确保使用最新的接口定义
+        await refreshCacheAfterUpdate();
+      } catch (error) {
+        // 即使刷新缓存失败，也继续测试
+        console.warn('刷新缓存失败，将使用现有的缓存数据:', error);
+      }
+      
+      try {
         // 验证测试 URL 是否匹配当前接口的匹配规则
-        if (!isUrlMatchPattern(values.testUrl, editingInterface.urlPattern, editingInterface.proxyType)) {
+        if (!isUrlMatchPattern(testUrl, editingInterface.urlPattern, editingInterface.proxyType)) {
           let errorMessage = '测试URL与接口匹配规则不匹配';
           
           // 根据不同的代理类型提供更具体的错误信息
@@ -356,27 +395,26 @@ const InterfaceManagement = () => {
             error: errorMessage
           });
           message.error(errorMessage);
+          setTestLoading(false);
           return;
         }
 
         // 调用实际测试接口
         const response = await axios.post(`/cgi-bin/test-interface`, {
-          url: values.testUrl,
+          url: testUrl,
           interfaceId: editingInterface.id
         });
-
-        if (response.data && response.data.code === 0 && response.data.data) {
+        
+        if (response.data && response.data.code === 0) {
+          // 设置测试结果
           setTestResult({
             success: true,
-            statusCode: response.data.data.statusCode,
-            contentType: response.data.data.contentType,
-            responseBody: response.data.data.responseBody,
+            ...response.data.data,
             matchedRule: editingInterface.urlPattern,
             httpMethod: editingInterface.httpMethod,
-            requestUrl: values.testUrl,
+            requestUrl: testUrl,
             mockInfo: response.data.data.mockInfo
           });
-          message.success('测试成功');
         } else {
           throw new Error(response.data?.message || '测试响应格式不正确');
         }
@@ -393,6 +431,8 @@ const InterfaceManagement = () => {
       if (error.errorFields) {
         return; // 表单验证错误
       }
+      console.error('测试失败:', error);
+      message.error(error.message || '测试失败');
       setTestLoading(false);
     }
   };

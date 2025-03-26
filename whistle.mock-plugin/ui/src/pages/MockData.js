@@ -4,9 +4,21 @@ import AppLayout from '../components/AppLayout';
 import { Card, Row, Col, Button, Modal, Form, Input, message, Switch, Empty, Spin, Typography, Tooltip, Badge } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined, ExportOutlined, InfoCircleOutlined, CalendarOutlined } from '@ant-design/icons';
 import '../styles/mock-data.css';
+import axios from 'axios';
 
 const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
+
+// 刷新缓存服务
+const flushCache = async () => {
+  try {
+    const response = await axios.get(`/_flush_cache`);
+    return response.data;
+  } catch (error) {
+    console.error('刷新缓存失败:', error);
+    throw error;
+  }
+};
 
 const MockData = () => {
   const history = useHistory();
@@ -69,6 +81,17 @@ const MockData = () => {
     setShowModal(false);
   };
 
+  // 更新成功后刷新缓存
+  const refreshCacheAfterUpdate = async () => {
+    try {
+      await flushCache();
+      // 不显示提示，避免干扰主操作的反馈
+    } catch (error) {
+      // 记录错误但不影响用户体验
+      console.error('刷新缓存失败，可能需要等待缓存自动过期:', error);
+    }
+  };
+
   const handleSubmit = async (values) => {
     try {
       const featureData = {
@@ -96,6 +119,9 @@ const MockData = () => {
         message.success(currentFeature ? '功能模块更新成功' : '功能模块创建成功');
         fetchFeatures();
         closeModal();
+        
+        // 刷新缓存
+        refreshCacheAfterUpdate();
       } else {
         message.error('操作失败: ' + result.message);
       }
@@ -127,6 +153,9 @@ const MockData = () => {
         setMockFeatures(mockFeatures.map(feature => 
           feature.id === id ? { ...feature, active: !currentActive } : feature
         ));
+        
+        // 刷新缓存 - 功能启用状态变化是最关键的需要刷新缓存的操作
+        refreshCacheAfterUpdate();
       } else {
         message.error(`${currentActive ? '禁用' : '启用'}功能模块失败: ${result.message}`);
       }
@@ -156,6 +185,9 @@ const MockData = () => {
             message.success('功能模块已成功删除');
             // 更新本地状态
             setMockFeatures(mockFeatures.filter(f => f.id !== id));
+            
+            // 刷新缓存
+            refreshCacheAfterUpdate();
           } else {
             message.error('删除失败: ' + result.message);
           }
