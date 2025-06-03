@@ -266,6 +266,11 @@ const ruleManager = {
       result = await this.handleUrlRedirect(interfaceObj, req, res);
     } 
     else if (proxyType === 'data_template' || proxyType === 'response') {
+      // 添加CORS支持 - 设置跨域相关的响应头
+      const origin = req.headers.origin || req.headers.host;
+      res.setHeader('Access-Control-Allow-Origin', origin || '*');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      
       result = await this.handleDataTemplate(interfaceObj, req, res);
     } 
     else if (proxyType === 'file_proxy' || proxyType === 'file') {
