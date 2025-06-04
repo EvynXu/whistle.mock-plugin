@@ -10,10 +10,6 @@
   position: relative;
 }
 
-.feature-card:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-  transform: translateY(-4px);
-}
 
 .feature-card-color-bar {
   height: 4px;

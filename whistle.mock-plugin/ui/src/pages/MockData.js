@@ -338,6 +338,33 @@ const MockData = () => {
     const formattedDate = feature.createdAt 
       ? new Date(feature.createdAt).toLocaleDateString()
       : '未知日期';
+
+    // 处理卡片点击事件
+    const handleCardClick = (e) => {
+      // 检查点击目标是否是开关或其父元素
+      const target = e.target;
+      const switchElement = target.closest('.ant-switch') || target.closest('.feature-name .ant-switch');
+      
+      // 如果点击的是开关区域，则不执行跳转
+      if (switchElement) {
+        return;
+      }
+      
+      // 检查是否点击了操作按钮区域
+      const actionElement = target.closest('.ant-card-actions') || target.closest('.ant-card-actions li');
+      if (actionElement) {
+        return;
+      }
+      
+      // 执行跳转到接口管理界面
+      viewInterfaces(feature);
+    };
+
+    // 处理开关点击事件，阻止事件冒泡
+    const handleSwitchClick = (checked, e) => {
+      e.stopPropagation(); // 阻止事件冒泡到卡片
+      handleToggleActive(feature.id, feature.active);
+    };
     
     return (
       <Col xs={24} sm={12} md={8} lg={6} key={feature.id} style={{ marginBottom: 16 }}>
@@ -347,20 +374,33 @@ const MockData = () => {
           style={{ display: 'block' }}
         >
           <Card
-            hoverable
             className={`feature-card ${!feature.active ? 'inactive-feature' : ''}`}
+            onClick={handleCardClick}
+            style={{ cursor: 'pointer' }}
             actions={[
               <Tooltip title="管理接口">
-                <ApiOutlined key="interfaces" onClick={() => viewInterfaces(feature)} />
+                <ApiOutlined key="interfaces" onClick={(e) => {
+                  e.stopPropagation();
+                  viewInterfaces(feature);
+                }} />
               </Tooltip>,
               <Tooltip title="编辑功能">
-                <EditOutlined key="edit" onClick={() => openModal(feature)} />
+                <EditOutlined key="edit" onClick={(e) => {
+                  e.stopPropagation();
+                  openModal(feature);
+                }} />
               </Tooltip>,
               <Tooltip title="删除功能">
-                <DeleteOutlined key="delete" onClick={() => deleteFeature(feature.id)} />
+                <DeleteOutlined key="delete" onClick={(e) => {
+                  e.stopPropagation();
+                  deleteFeature(feature.id);
+                }} />
               </Tooltip>,
               <Tooltip title="导出配置">
-                <ExportOutlined key="export" onClick={() => exportFeatureConfig(feature)} />
+                <ExportOutlined key="export" onClick={(e) => {
+                  e.stopPropagation();
+                  exportFeatureConfig(feature);
+                }} />
               </Tooltip>
             ]}
           >
@@ -372,8 +412,9 @@ const MockData = () => {
 
                 <Switch
                   checked={feature.active}
-                  onChange={() => handleToggleActive(feature.id, feature.active)}
+                  onChange={handleSwitchClick}
                   size="small"
+                  onClick={() => {event.stopPropagation()}}
                 />
               </div>
               

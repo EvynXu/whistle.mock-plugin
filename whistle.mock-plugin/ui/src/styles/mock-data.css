@@ -23,11 +23,41 @@
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
 }
 
-.feature-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+.feature-card:active {
+  transform: translateY(-2px);
+}
+
+/* 添加卡片点击提示 */
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(24, 144, 255, 0.02), rgba(24, 144, 255, 0.05));
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.feature-card:hover::before {
+  opacity: 1;
+}
+
+/* 为卡片内容添加相对定位，确保在渐变层之上 */
+.feature-card .ant-card-body {
+  position: relative;
+  z-index: 2;
+}
+
+.feature-card .ant-card-actions {
+  position: relative;
+  z-index: 2;
 }
 
 .feature-card-content {
