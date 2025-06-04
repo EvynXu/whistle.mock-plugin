@@ -1,70 +1,57 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useHistory } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
-import { Table, Button, Modal, Form, Input, Select, message, Switch, Popconfirm, Alert, Space, Tabs, Card, Divider, Badge, Tooltip, Row, Col } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined, PlayCircleOutlined, FormatPainterOutlined, EyeOutlined, CopyOutlined, CodeOutlined, CheckCircleOutlined, CloseCircleOutlined, MenuOutlined, PlusCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { 
+  Table, Button, Modal, Form, Input, Select, message, Switch, 
+  Popconfirm, Alert, Space, Card, Badge, Tooltip, Row, Col 
+} from 'antd';
+import { 
+  PlusOutlined, EditOutlined, DeleteOutlined, 
+  PlayCircleOutlined, FileTextOutlined, PlusCircleOutlined 
+} from '@ant-design/icons';
 import '../styles/interface-management.css';
 import axios from 'axios';
 
+// 导入拆分后的组件
+import {
+  ResponseContentEditor,
+  InterfaceTestModal,
+  PreviewModal,
+  contentTypes,
+  proxyTypes,
+  statusCodes,
+  httpMethods,
+  refreshCacheAfterUpdate,
+  formatResponseContent,
+  generateResponseId
+} from '../components/interface-management';
+
 const { Option } = Select;
-const { TextArea } = Input;
-const { TabPane } = Tabs;
 
 const InterfaceManagement = () => {
   const { featureId } = useParams();
   const history = useHistory();
+  
+  // 基础状态
   const [features, setFeatures] = useState([]);
   const [interfaces, setInterfaces] = useState([]);
   const [loading, setLoading] = useState(false);
   const [featuresLoading, setFeaturesLoading] = useState(false);
   const [interfacesLoading, setInterfacesLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingInterface, setEditingInterface] = useState(null);
-  const [testModalVisible, setTestModalVisible] = useState(false);
-  const [testUrl, setTestUrl] = useState('');
-  const [testResult, setTestResult] = useState(null);
-  const [testLoading, setTestLoading] = useState(false);
   const [selectedFeatureId, setSelectedFeatureId] = useState(null);
-  const [form] = Form.useForm();
-  const [testForm] = Form.useForm();
-  const [previewContent, setPreviewContent] = useState(null);
+  
+  // 模态框状态
+  const [modalVisible, setModalVisible] = useState(false);
+  const [testModalVisible, setTestModalVisible] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
-
-  const contentTypes = [
-    { value: 'application/json; charset=utf-8', label: 'JSON' },
-    { value: 'text/plain; charset=utf-8', label: '纯文本' },
-    { value: 'text/html; charset=utf-8', label: 'HTML' },
-    { value: 'application/xml; charset=utf-8', label: 'XML' },
-    { value: 'application/javascript; charset=utf-8', label: 'JavaScript' },
-  ];
-
-  const proxyTypes = [
-    { value: 'response', label: '模拟响应' },
-    { value: 'redirect', label: '重定向' },
-    { value: 'url_redirect', label: 'URL重定向' },
-  ];
-
-  const statusCodes = [
-    { value: '200', label: '200 OK' },
-    { value: '201', label: '201 Created' },
-    { value: '204', label: '204 No Content' },
-    { value: '400', label: '400 Bad Request' },
-    { value: '401', label: '401 Unauthorized' },
-    { value: '403', label: '403 Forbidden' },
-    { value: '404', label: '404 Not Found' },
-    { value: '500', label: '500 Internal Server Error' },
-  ];
-
-  const httpMethods = [
-    { value: 'ALL', label: '所有方法' },
-    { value: 'GET', label: 'GET' },
-    { value: 'POST', label: 'POST' },
-    { value: 'PUT', label: 'PUT' },
-    { value: 'DELETE', label: 'DELETE' },
-    { value: 'PATCH', label: 'PATCH' },
-    { value: 'HEAD', label: 'HEAD' },
-    { value: 'OPTIONS', label: 'OPTIONS' },
-  ];
+  
+  // 编辑状态
+  const [editingInterface, setEditingInterface] = useState(null);
+  const [previewContent, setPreviewContent] = useState(null);
+  const [currentResponseId, setCurrentResponseId] = useState(null);
+  
+  // 表单实例
+  const [form] = Form.useForm();
 
   useEffect(() => {
     fetchFeatures();
@@ -110,9 +97,38 @@ const InterfaceManagement = () => {
     try {
       setInterfacesLoading(true);
       const response = await axios.get(`/cgi-bin/interfaces?featureId=${selectedFeatureId}`);
+      
+      console.log('获取接口列表响应:', response.data);
+      
       if (response.data && response.data.code === 0 && Array.isArray(response.data.data)) {
-        setInterfaces(response.data.data);
+        // 确保每个接口的响应数据格式正确
+        const processedInterfaces = response.data.data.map(item => {
+          console.log(`处理接口 ${item.name}:`, {
+            hasResponses: !!item.responses,
+            responsesLength: item.responses ? item.responses.length : 0,
+            activeResponseId: item.activeResponseId
+          });
+          
+          // 确保 responses 是数组
+          if (!Array.isArray(item.responses)) {
+            item.responses = [];
+          }
+          
+          // 确保每个响应都有必要的字段
+          item.responses = item.responses.map((resp, index) => ({
+            id: resp.id || `resp-${index}-${Date.now()}`,
+            name: resp.name || `响应 ${index + 1}`,
+            description: resp.description || '',
+            content: resp.content || '{}'
+          }));
+          
+          return item;
+        });
+        
+        setInterfaces(processedInterfaces);
+        console.log('处理后的接口列表:', processedInterfaces);
       } else {
+        console.warn('接口数据格式不正确:', response.data);
         setInterfaces([]);
         message.warning('获取接口配置数据格式不正确');
       }
@@ -131,11 +147,35 @@ const InterfaceManagement = () => {
       return;
     }
     form.resetFields();
+    
+    // 创建默认响应
+    const defaultResponseId = generateResponseId();
+    const defaultResponses = [{
+      id: defaultResponseId,
+      name: '默认响应',
+      description: '',
+      content: '{\n  "code": 0,\n  "message": "success",\n  "data": {}\n}'
+    }];
+    
+    console.log('创建新接口，初始化响应数据:', defaultResponses);
+    
+    form.setFieldsValue({
+      proxyType: 'response',
+      statusCode: '200',
+      contentType: 'application/json; charset=utf-8',
+      responses: defaultResponses,
+      activeResponseId: defaultResponseId,
+      httpMethod: 'ALL',
+      headerItems: [] // 初始化为空数组
+    });
+    
+    setCurrentResponseId(defaultResponseId);
     setEditingInterface(null);
     setModalVisible(true);
   };
 
   const handleEditInterface = (record) => {
+    console.log('开始编辑接口:', record.name, '原始数据:', record);
     setEditingInterface(record);
     
     // 将自定义请求头转换为数组格式，用于动态表单项
@@ -146,6 +186,42 @@ const InterfaceManagement = () => {
         headerValue: value
       }));
     }
+
+    // 处理多响应数据
+    let initialResponses = [];
+    let initialResponseId = null;
+
+    // 深拷贝记录中的响应数据，避免引用问题
+    if (record.responses && Array.isArray(record.responses) && record.responses.length > 0) {
+      console.log('使用现有响应数据, 数量:', record.responses.length);
+      
+      initialResponses = JSON.parse(JSON.stringify(record.responses));
+      initialResponseId = record.activeResponseId || record.responses[0].id;
+      
+      // 确保每个响应都有名称
+      initialResponses = initialResponses.map((resp, index) => ({
+        id: resp.id || generateResponseId(),
+        name: resp.name || `响应 ${index + 1}`,
+        description: resp.description || '',
+        content: resp.content || '{}'
+      }));
+    } else if (record.responseContent) {
+      // 向后兼容：如果只有传统的 responseContent 字段，创建一个默认响应
+      console.log('创建默认响应，使用responseContent字段');
+      const defaultResponseId = generateResponseId();
+      initialResponses = [
+        {
+          id: defaultResponseId,
+          name: '默认响应',
+          description: '',
+          content: record.responseContent
+        }
+      ];
+      initialResponseId = defaultResponseId;
+    }
+    
+    console.log('编辑接口，设置响应数据:', initialResponses);
+    setCurrentResponseId(initialResponseId);
     
     form.setFieldsValue({
       name: record.name,
@@ -153,7 +229,8 @@ const InterfaceManagement = () => {
       proxyType: record.proxyType || 'response',
       statusCode: record.httpStatus?.toString() || '200',
       contentType: record.contentType || 'application/json; charset=utf-8',
-      responseBody: record.responseContent || '',
+      responses: initialResponses,
+      activeResponseId: initialResponseId,
       httpMethod: record.httpMethod || 'ALL',
       targetUrl: record.targetUrl || '',
       headerItems: headersArray // 使用数组存储表单项
@@ -196,61 +273,91 @@ const InterfaceManagement = () => {
     }
   };
 
-  const cleanJsonResponse = (jsonStr) => {
-    try {
-      const parsed = JSON.parse(jsonStr);
-      return JSON.stringify(parsed);
-    } catch (e) {
-      return jsonStr;
-    }
-  };
-
-  // 验证URL是否合法
-  const isValidUrl = (url) => {
-    if (!url) return false;
-    
-    try {
-      new URL(url);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  };
-
-  // 缓存刷新服务
-  const flushCache = async () => {
-    try {
-      const response = await axios.get('/_flush_cache');
-      return response.data;
-    } catch (error) {
-      console.error('刷新缓存失败:', error);
-      throw error;
-    }
-  };
-
-  // 更新成功后刷新缓存
-  const refreshCacheAfterUpdate = async () => {
-    try {
-      await flushCache();
-      // 这里不需要显示提示，因为主要操作会有自己的提示
-    } catch (error) {
-      // 如果刷新缓存失败，记录错误但不影响用户体验
-      console.error('刷新缓存失败，可能需要等待缓存自动过期:', error);
-    }
-  };
-
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      console.log('=== 开始表单提交 ===');
+      console.log('表单提交，原始值:', JSON.stringify(values, null, 2));
+      
+      // 获取当前激活的响应ID和所有响应
+      const activeResponseId = values.activeResponseId;
+      let responses = values.responses || [];
+      
+      console.log('提取的原始响应数据:', responses);
+      console.log('响应数据类型:', typeof responses);
+      console.log('是否为数组:', Array.isArray(responses));
+      
+      // 确保responses是数组格式
+      if (!Array.isArray(responses)) {
+        console.log('响应数据不是数组，尝试解析...');
+        try {
+          if (typeof responses === 'string') {
+            responses = JSON.parse(responses);
+            if (!Array.isArray(responses)) {
+              responses = [];
+            }
+          } else {
+            responses = [];
+          }
+        } catch (e) {
+          console.error('解析响应数据失败:', e);
+          responses = [];
+        }
+      }
+      
+      console.log('处理前的响应数据:', JSON.stringify(responses, null, 2));
+      
+      // 确保每个响应都有名称、描述和内容
+      const cleanedResponses = responses.map((resp, index) => {
+        console.log(`处理响应 ${index}:`, resp);
+        const cleaned = {
+          id: resp.id || generateResponseId(),
+          name: resp.name || `响应 ${index + 1}`,
+          description: resp.description || '',
+          content: resp.content || '{}'
+        };
+        console.log(`处理后的响应 ${index}:`, cleaned);
+        return cleaned;
+      });
+      
+      // 如果没有响应，创建一个默认响应
+      if (cleanedResponses.length === 0) {
+        console.log('没有响应数据，创建默认响应');
+        const defaultId = generateResponseId();
+        cleanedResponses.push({
+          id: defaultId,
+          name: '默认响应',
+          description: '',
+          content: '{\n  "code": 0,\n  "message": "success",\n  "data": {}\n}'
+        });
+        setCurrentResponseId(defaultId);
+      }
+      
+      // 确保有一个激活的响应ID
+      const validActiveResponseId = activeResponseId && cleanedResponses.some(r => r.id === activeResponseId) 
+        ? activeResponseId 
+        : cleanedResponses[0].id;
+      
+      // 获取激活的响应
+      const activeResponse = cleanedResponses.find(r => r.id === validActiveResponseId) || cleanedResponses[0];
+      
+      console.log('=== 清理后的响应数据 ===');
+      console.log('清理后的响应数据:', JSON.stringify(cleanedResponses, null, 2));
+      console.log('激活的响应ID:', validActiveResponseId);
+      console.log('激活的响应:', activeResponse);
       
       // 检查responseBody是否是有效的JSON
       if (values.proxyType === 'response' && values.contentType.includes('application/json')) {
-        try {
-          JSON.parse(values.responseBody);
-        } catch (e) {
-          message.error('响应体不是有效的JSON格式');
-          return;
-        }
+        cleanedResponses.forEach(response => {
+          try {
+            if (response.content) {
+              JSON.parse(response.content);
+            }
+          } catch (e) {
+            message.error(`响应 "${response.name}" 不是有效的JSON格式`);
+            throw new Error(`响应 "${response.name}" 不是有效的JSON格式`);
+          }
+        });
       }
       
       // 处理自定义请求头，将表单项数组转换为对象格式
@@ -271,7 +378,11 @@ const InterfaceManagement = () => {
         featureId: selectedFeatureId,
         urlPattern: values.pattern,
         proxyType: values.proxyType,
-        responseContent: values.proxyType === 'response' ? values.responseBody : '',
+        // 同时保存所有响应和当前活跃的响应
+        responses: cleanedResponses,
+        activeResponseId: validActiveResponseId,
+        // 兼容性保留：将当前活跃响应的内容保存到 responseContent
+        responseContent: activeResponse ? activeResponse.content : '',
         targetUrl: (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') ? values.targetUrl : '',
         customHeaders: (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') ? customHeaders : {},
         httpStatus: parseInt(values.statusCode, 10), // 转换为数字
@@ -281,16 +392,24 @@ const InterfaceManagement = () => {
         active: true
       };
       
+      console.log('=== 最终提交的接口数据 ===');
+      console.log('提交的接口数据:', JSON.stringify(interfaceData, null, 2));
+      
       let response;
       if (editingInterface) {
         // 更新现有接口
+        console.log('执行接口更新，ID:', editingInterface.id);
         response = await axios.put(`/cgi-bin/interfaces?id=${editingInterface.id}`, interfaceData);
       } else {
         // 创建新接口
+        console.log('执行接口创建');
         response = await axios.post('/cgi-bin/interfaces', interfaceData);
       }
 
+      console.log('服务器响应:', response.data);
+
       if (response.data && response.data.code === 0) {
+        console.log('=== 接口操作成功 ===');
         message.success(editingInterface ? '接口更新成功' : '接口创建成功');
         setModalVisible(false);
         fetchInterfaces();
@@ -301,6 +420,11 @@ const InterfaceManagement = () => {
         throw new Error(response.data?.message || '操作失败');
       }
     } catch (error) {
+      if (error.message && error.message.includes('JSON格式')) {
+        // 已经显示了错误信息，不需要再显示
+        return;
+      }
+      console.error('=== 接口操作失败 ===');
       console.error('操作失败:', error);
       message.error(error.response?.data?.message || error.message || '操作失败');
     }
@@ -312,188 +436,41 @@ const InterfaceManagement = () => {
 
   const handleTestInterface = async (record) => {
     setEditingInterface(record);
-    setTestUrl('');
-    setTestResult(null);
-    setTestLoading(false);
     setTestModalVisible(true);
-    testForm.resetFields();
-  };
-
-  // 检查 URL 是否匹配模式
-  const isUrlMatchPattern = (url, pattern, proxyType) => {
-    if (!url || !pattern) return false;
-    
-    try {
-      // 对于url_redirect类型，需要完全匹配
-      if (proxyType === 'url_redirect') {
-        return url === pattern;
-      }
-      
-      // 对于redirect类型，只要url以pattern开头即可命中（前缀匹配）
-      if (proxyType === 'redirect') {
-        return url.indexOf(pattern) === 0;
-      }
-      
-      // 以下是默认的匹配逻辑（用于response类型等）
-      // 如果是正则表达式
-      if (pattern.startsWith('/') && pattern.endsWith('/')) {
-        const regex = new RegExp(pattern.slice(1, -1));
-        return regex.test(url);
-      }
-      
-      // 如果是通配符模式
-      if (pattern.includes('*')) {
-        const regexPattern = pattern
-          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-          .replace(/\*/g, '.*');
-        const regex = new RegExp(`^${regexPattern}$`);
-        return regex.test(url);
-      }
-      
-      // 精确匹配
-      return url === pattern;
-    } catch (e) {
-      console.error('URL匹配检查失败:', e);
-      return false;
-    }
-  };
-
-  const handleTestSubmit = async () => {
-    try {
-      const values = await testForm.validateFields();
-      const { testUrl } = values;
-      
-      if (!testUrl) {
-        message.error('请输入测试URL');
-        return;
-      }
-      
-      setTestLoading(true);
-      
-      try {
-        // 测试前刷新缓存，确保使用最新的接口定义
-        await refreshCacheAfterUpdate();
-      } catch (error) {
-        // 即使刷新缓存失败，也继续测试
-        console.warn('刷新缓存失败，将使用现有的缓存数据:', error);
-      }
-      
-      try {
-        // 验证测试 URL 是否匹配当前接口的匹配规则
-        if (!isUrlMatchPattern(testUrl, editingInterface.urlPattern, editingInterface.proxyType)) {
-          let errorMessage = '测试URL与接口匹配规则不匹配';
-          
-          // 根据不同的代理类型提供更具体的错误信息
-          if (editingInterface.proxyType === 'url_redirect') {
-            errorMessage = `测试URL必须完全匹配 ${editingInterface.urlPattern}`;
-          } else if (editingInterface.proxyType === 'redirect') {
-            errorMessage = `测试URL必须以 ${editingInterface.urlPattern} 开头`;
-          }
-          
-          setTestResult({
-            success: false,
-            error: errorMessage
-          });
-          message.error(errorMessage);
-          setTestLoading(false);
-          return;
-        }
-
-        // 调用实际测试接口
-        const response = await axios.post(`/cgi-bin/test-interface`, {
-          url: testUrl,
-          interfaceId: editingInterface.id
-        });
-        
-        if (response.data && response.data.code === 0) {
-          // 设置测试结果
-          setTestResult({
-            success: true,
-            ...response.data.data,
-            matchedRule: editingInterface.urlPattern,
-            httpMethod: editingInterface.httpMethod,
-            requestUrl: testUrl,
-            mockInfo: response.data.data.mockInfo
-          });
-        } else {
-          throw new Error(response.data?.message || '测试响应格式不正确');
-        }
-      } catch (error) {
-        setTestResult({
-          success: false,
-          error: error.response?.data?.message || error.message || '测试失败'
-        });
-        message.error(error.response?.data?.message || error.message || '测试失败');
-      }
-      
-      setTestLoading(false);
-    } catch (error) {
-      if (error.errorFields) {
-        return; // 表单验证错误
-      }
-      console.error('测试失败:', error);
-      message.error(error.message || '测试失败');
-      setTestLoading(false);
-    }
   };
 
   const handleSelectFeature = (featureId) => {
     setSelectedFeatureId(featureId);
   };
 
-  const formatResponseContent = (content, contentType) => {
-    if (contentType && contentType.includes('json')) {
-      try {
-        const parsed = JSON.parse(content);
-        return JSON.stringify(parsed, null, 2);
-      } catch (e) {
-        return content;
-      }
-    }
-    return content;
-  };
-
-  const formatJsonContent = () => {
-    const proxyType = form.getFieldValue('proxyType');
-    if (proxyType !== 'response') {
-      return;
-    }
-    
-    const responseBody = form.getFieldValue('responseBody');
-    if (responseBody) {
-      try {
-        const formattedJson = JSON.stringify(JSON.parse(responseBody), null, 2);
-        form.setFieldsValue({ responseBody: formattedJson });
-        message.success('JSON格式化成功');
-      } catch (error) {
-        message.error('JSON格式不正确，无法格式化');
-      }
-    }
-  };
-
+  // 预览响应内容
   const handlePreview = () => {
-    const proxyType = form.getFieldValue('proxyType');
-    if (proxyType !== 'response') {
+    // 获取当前选中的响应内容
+    const responses = form.getFieldValue('responses') || [];
+    const activeResponseId = form.getFieldValue('activeResponseId');
+    const activeResponse = responses.find(r => r.id === activeResponseId);
+    
+    if (!activeResponse) {
+      message.error('未找到有效的响应内容');
       return;
     }
+
+    // 根据内容类型格式化响应内容
+    const contentType = form.getFieldValue('contentType') || '';
+    const formattedContent = formatResponseContent(activeResponse.content, contentType);
     
-    const responseBody = form.getFieldValue('responseBody');
-    if (responseBody) {
-      try {
-        // 如果是JSON，格式化显示
-        const contentType = form.getFieldValue('contentType');
-        if (contentType && contentType.includes('json')) {
-          setPreviewContent(JSON.stringify(JSON.parse(responseBody), null, 2));
-        } else {
-          setPreviewContent(responseBody);
-        }
-        setPreviewVisible(true);
-      } catch (error) {
-        message.error('内容格式不正确，无法预览');
-      }
-    } else {
-      message.warning('响应内容为空，无法预览');
-    }
+    // 设置预览内容，包含响应名称
+    setPreviewContent({
+      title: `预览: ${activeResponse.name || '未命名响应'}`,
+      content: formattedContent,
+      description: '',
+      contentType
+    });
+    setPreviewVisible(true);
+  };
+
+  const handleResponseSelect = (responseId) => {
+    setCurrentResponseId(responseId);
   };
 
   const filteredInterfaces = interfaces.filter(item => 
@@ -678,6 +655,7 @@ const InterfaceManagement = () => {
             添加接口
           </Button>
         </div>
+        
         {!features.length && (
           <Alert
             message="未找到功能模块"
@@ -709,6 +687,7 @@ const InterfaceManagement = () => {
           />
         </div>
 
+        {/* 接口编辑/创建模态框 */}
         <Modal
           title={editingInterface ? '编辑接口' : '添加接口'}
           open={modalVisible}
@@ -729,12 +708,13 @@ const InterfaceManagement = () => {
               proxyType: 'response',
               statusCode: '200',
               contentType: 'application/json; charset=utf-8',
-              responseBody: '{\n  "code": 0,\n  "message": "success",\n  "data": {}\n}',
+              responses: [],
               httpMethod: 'ALL',
               targetUrl: '',
               headerItems: []
             }}
           >
+            {/* 基础信息表单项保持原样 */}
             <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
               <div style={{ flex: 1 }}>
                 <Form.Item
@@ -885,7 +865,7 @@ const InterfaceManagement = () => {
 
             {/* 根据proxyType显示不同的表单项 */}
             <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.proxyType !== currentValues.proxyType}>
-              {({ getFieldValue }) => {
+              {({ getFieldValue, setFieldsValue }) => {
                 const proxyType = getFieldValue('proxyType');
                 
                 if (proxyType === 'response') {
@@ -920,43 +900,48 @@ const InterfaceManagement = () => {
                         </div>
                       </div>
 
-                      <Form.Item
-                        name="responseBody"
-                        labelCol={{
-                          span: 8,          /* 宽度比例 */
-                        }}
-                        label={
-                          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                            <span>响应内容</span>
-                            <Space>
-                              <Button 
-                                type="link" 
-                                icon={<EyeOutlined />} 
-                                onClick={handlePreview}
-                                style={{ padding: 0 }}
-                              >
-                                预览
-                              </Button>
-                              <Button 
-                                type="link" 
-                                icon={<FormatPainterOutlined />} 
-                                onClick={formatJsonContent}
-                                style={{ padding: 0 }}
-                              >
-                                格式化JSON
-                              </Button>
-                            </Space>
-                          </div>
-                        }
-                        rules={[{ required: true, message: '请输入响应内容' }]}
+                      {/* 隐藏的表单字段用于存储响应数据 */}
+                      <Form.Item 
+                        name="responses" 
+                        initialValue={[]}
+                        hidden
                       >
-                        <TextArea rows={12} placeholder="请输入响应内容" style={{ fontFamily: 'monospace' }} />
+                        <Input />
+                      </Form.Item>
+                      <Form.Item name="activeResponseId" hidden>
+                        <Input />
+                      </Form.Item>
+
+                      {/* 使用新的合并组件 */}
+                      <Form.Item noStyle shouldUpdate>
+                        {({ getFieldValue }) => {
+                          let responses = getFieldValue('responses') || [];
+                          const activeResponseId = getFieldValue('activeResponseId');
+                          
+                          // 确保是数组
+                          if (!Array.isArray(responses)) {
+                            try {
+                              if (typeof responses === 'string') {
+                                responses = JSON.parse(responses);
+                              }
+                            } catch (e) {
+                              responses = [];
+                            }
+                          }
+                          
+                          return (
+                            <ResponseContentEditor
+                              form={form}
+                              responses={responses}
+                              activeResponseId={activeResponseId}
+                              onPreview={handlePreview}
+                            />
+                          );
+                        }}
                       </Form.Item>
                     </>
                   );
-                }
-                
-                if (proxyType === 'redirect' || proxyType === 'url_redirect') {
+                } else if (proxyType === 'redirect' || proxyType === 'url_redirect') {
                   return (
                     <>
                       <Form.Item
@@ -964,172 +949,64 @@ const InterfaceManagement = () => {
                         label="重定向目标URL"
                         rules={[
                           { required: true, message: '请输入重定向目标URL' },
-                          { 
-                            validator: (_, value) => {
+                          {
+                            validator(_, value) {
                               if (!value) return Promise.resolve();
-                              
                               try {
                                 new URL(value);
                                 return Promise.resolve();
                               } catch (e) {
-                                return Promise.reject(new Error('请输入有效的URL，必须包含http://或https://'));
+                                return Promise.reject(new Error('请输入有效的URL格式（包括http://或https://）'));
                               }
                             }
                           }
                         ]}
-                        tooltip={proxyType === 'redirect' ? 
-                          "重定向模式：输入完整的目标URL。匹配时使用前缀匹配，只要请求URL以匹配规则开头即命中。例如：https://example.com/api" : 
-                          "URL重定向模式：输入完整的目标URL。匹配时要求完全匹配URL，必须与匹配规则完全一致才命中。例如：https://example.com/api/users"
-                        }
+                        tooltip="重定向的目标URL，必须是完整的URL格式"
                       >
                         <Input 
-                          placeholder={proxyType === 'redirect' ? 
-                            "例如：https://example.com/api" : 
-                            "例如：https://example.com/api/users"
-                          } 
-                          addonBefore={
-                            <Select 
-                              defaultValue="https://" 
-                              className="select-before" 
-                              style={{ width: 100 }}
-                              onChange={(value) => {
-                                const currentUrl = form.getFieldValue('targetUrl') || '';
-                                const urlWithoutProtocol = currentUrl.replace(/^https?:\/\//, '');
-                                form.setFieldsValue({ targetUrl: value + urlWithoutProtocol });
-                              }}
-                            >
-                              <Option value="http://">http://</Option>
-                              <Option value="https://">https://</Option>
-                            </Select>
-                          }
+                          placeholder="例如：https://api.example.com/users"
                         />
                       </Form.Item>
-                      
-                      <Form.Item
-                        label="自定义请求头"
-                        tooltip="为请求添加或替换HTTP请求头"
-                        className="custom-headers-container"
-                      >
+
+                      {/* 自定义请求头设置 */}
+                      <Form.Item label="自定义请求头">
                         <Form.List name="headerItems">
                           {(fields, { add, remove }) => (
                             <>
                               {fields.map(({ key, name, ...restField }) => (
-                                <Row key={key} gutter={8} style={{ marginBottom: 8 }}>
-                                  <Col span={10}>
-                                    <Form.Item
-                                      {...restField}
-                                      name={[name, 'headerName']}
-                                      noStyle
-                                      rules={[
-                                        { 
-                                          required: true, 
-                                          message: '请输入请求头名称' 
-                                        },
-                                        {
-                                          pattern: /^[^:]+$/,
-                                          message: '请求头名称不能包含冒号'
-                                        }
-                                      ]}
-                                    >
-                                      <Input placeholder="Header-Name" />
-                                    </Form.Item>
-                                  </Col>
-                                  <Col span={12}>
-                                    <Form.Item
-                                      {...restField}
-                                      name={[name, 'headerValue']}
-                                      noStyle
-                                      rules={[
-                                        {
-                                          validator: (_, value) => {
-                                            if (!value) return Promise.resolve();
-                                            
-                                            // 检查是否是随机数格式 @xxxx-xxx
-                                            if (value.startsWith('@')) {
-                                              const randomPattern = value.substring(1);
-                                              // 验证格式: 只能包含x和-，且首尾不能是-
-                                              if (!/^[x][-x]*[x]$/.test(randomPattern) || 
-                                                  randomPattern.startsWith('-') || 
-                                                  randomPattern.endsWith('-')) {
-                                                return Promise.reject(
-                                                  new Error('随机数格式错误，应为@xxxx-xxx格式，只能包含x和-，且首尾不能是-')
-                                                );
-                                              }
-                                            }
-                                            return Promise.resolve();
-                                          }
-                                        }
-                                      ]}
-                                    >
-                                      <Input placeholder="Header-Value" />
-                                    </Form.Item>
-                                  </Col>
-                                  <Col span={2}>
-                                    <Button 
-                                      type="text" 
-                                      icon={<MinusCircleOutlined />} 
-                                      onClick={() => remove(name)}
-                                      style={{ color: '#ff4d4f' }}
-                                    />
-                                  </Col>
-                                </Row>
+                                <div key={key} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                                  <Form.Item
+                                    {...restField}
+                                    name={[name, 'headerName']}
+                                    rules={[{ required: true, message: '请输入请求头名称' }]}
+                                    style={{ flex: 1, margin: 0 }}
+                                  >
+                                    <Input placeholder="请求头名称（如：Authorization）" />
+                                  </Form.Item>
+                                  <Form.Item
+                                    {...restField}
+                                    name={[name, 'headerValue']}
+                                    rules={[{ required: true, message: '请输入请求头值' }]}
+                                    style={{ flex: 1, margin: 0 }}
+                                  >
+                                    <Input placeholder="请求头值（如：Bearer token123）" />
+                                  </Form.Item>
+                                  <Button 
+                                    type="text" 
+                                    danger 
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => remove(name)}
+                                  />
+                                </div>
                               ))}
-                              
-                              <Form.Item>
-                                <Button 
-                                  type="dashed" 
-                                  onClick={() => add()} 
-                                  block 
-                                  icon={<PlusOutlined />}
-                                >
-                                  添加请求头
-                                </Button>
-                              </Form.Item>
-                              
-                              <div style={{ marginTop: 8 }}>
-                                <Button 
-                                  type="link" 
-                                  onClick={() => {
-                                    add({ headerName: 'Content-Type', headerValue: 'application/json' });
-                                  }}
-                                >
-                                  添加 Content-Type
-                                </Button>
-                                <Button 
-                                  type="link" 
-                                  onClick={() => {
-                                    add({ headerName: 'Authorization', headerValue: 'Bearer ' });
-                                  }}
-                                >
-                                  添加 Authorization
-                                </Button>
-                                <Button 
-                                  type="link" 
-                                  onClick={() => {
-                                    add({ headerName: 'User-Agent', headerValue: 'Mozilla/5.0' });
-                                  }}
-                                >
-                                  添加 User-Agent
-                                </Button>
-                                <Button
-                                  type="link"
-                                  onClick={() => {
-                                    add({ headerName: 'X-Random-ID', headerValue: '@xxxx-xxxx' });
-                                  }}
-                                >
-                                  添加随机ID
-                                </Button>
-                              </div>
-                              
-                              <div style={{ marginTop: 8, background: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>随机数格式说明：</div>
-                                <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                                  <li>使用 <code>@</code> 开头表示这是一个随机数值</li>
-                                  <li>格式示例：<code>@xxxx-xxxx</code> 将生成如 <code>a1b2-c3d4</code> 的随机值</li>
-                                  <li>每个 <code>x</code> 将替换为随机字母或数字</li>
-                                  <li><code>-</code> 将保留在输出中作为分隔符</li>
-                                </ul>
-                              </div>
+                              <Button
+                                type="dashed"
+                                onClick={() => add()}
+                                icon={<PlusOutlined />}
+                                style={{ width: '100%', marginTop: '8px' }}
+                              >
+                                添加请求头
+                              </Button>
                             </>
                           )}
                         </Form.List>
@@ -1144,229 +1021,19 @@ const InterfaceManagement = () => {
           </Form>
         </Modal>
 
-        <Modal
-          title="测试接口"
-          open={testModalVisible}
+        {/* 使用拆分后的测试模态框组件 */}
+        <InterfaceTestModal
+          visible={testModalVisible}
           onCancel={() => setTestModalVisible(false)}
-          footer={[
-            <Button key="back" onClick={() => setTestModalVisible(false)}>
-              关闭
-            </Button>,
-            <Button key="submit" type="primary" loading={testLoading} onClick={handleTestSubmit}>
-              测试
-            </Button>
-          ]}
-          width={800}
-        >
-          {editingInterface && (
-            <div className="test-interface-container">
-              <Alert
-                message="URL匹配规则说明"
-                description={
-                  <div>
-                    <p>当前接口匹配规则：<code>{editingInterface.urlPattern}</code></p>
-                    <p>代理类型：{
-                      proxyTypes.find(item => item.value === editingInterface.proxyType)?.label || 
-                      editingInterface.proxyType || '模拟响应'
-                    }</p>
-                    
-                    {editingInterface.proxyType === 'url_redirect' && (
-                      <div>
-                        <p><b>URL重定向模式规则：</b></p>
-                        <ul>
-                          <li>URL匹配规则必须是完整URL（包括http://或https://）</li>
-                          <li>需要完全匹配URL路径，测试URL必须与匹配规则<b>完全一致</b></li>
-                          <li>命中后将直接跳转到目标URL: {editingInterface.targetUrl}</li>
-                        </ul>
-                      </div>
-                    )}
-                    
-                    {editingInterface.proxyType === 'redirect' && (
-                      <div>
-                        <p><b>重定向模式规则：</b></p>
-                        <ul>
-                          <li>URL匹配规则必须以http://或https://开头</li>
-                          <li>测试URL必须以匹配规则开头（<b>前缀匹配</b>）</li>
-                          <li>命中后将直接跳转到目标URL: {editingInterface.targetUrl}</li>
-                        </ul>
-                      </div>
-                    )}
-                    
-                    {editingInterface.proxyType === 'response' && (
-                      <div>
-                        <p>在Whistle规则中，您需要配置完整URL或域名指向whistle.mock-plugins://，然后插件会根据接口的匹配规则处理请求。</p>
-                        <p>插件支持以下匹配方式：</p>
-                        <ul>
-                          <li>精确匹配：完全匹配URL路径部分</li>
-                          <li>通配符匹配：使用*代表任意字符（例如：/api/users/*）</li>
-                          <li>正则表达式：使用/pattern/格式（例如：/\/api\/users\/\d+/）</li>
-                        </ul>
-                      </div>
-                    )}
-                    
-                    <p>请在下方输入完整测试URL进行测试</p>
-                  </div>
-                }
-                type="info"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
+          editingInterface={editingInterface}
+        />
 
-              <Form
-                form={testForm}
-                layout="vertical"
-              >
-                <Form.Item
-                  name="testUrl"
-                  label="测试URL"
-                  rules={[{ required: true, message: '请输入测试URL' }]}
-                >
-                  <Input
-                    placeholder="输入完整URL，例如：https://example.com/api/users"
-                    onChange={(e) => setTestUrl(e.target.value)}
-                  />
-                </Form.Item>
-              </Form>
-
-              {testResult && (
-                <div className="test-result">
-                  <div className="result-header">
-                    <h3>测试结果</h3>
-                    {testResult.success ? (
-                      <span className="status success">成功</span>
-                    ) : (
-                      <span className="status error">失败</span>
-                    )}
-                  </div>
-
-                  {testResult.success ? (
-                    <div className="result-content">
-                      <div className="result-item">
-                        <span className="label">请求URL：</span>
-                        <span className="value">{testResult.requestUrl}</span>
-                      </div>
-                      <div className="result-item">
-                        <span className="label">匹配规则：</span>
-                        <span className="value">{testResult.matchedRule}</span>
-                      </div>
-                      <div className="result-item">
-                        <span className="label">请求方法：</span>
-                        <span className="value">{testResult.httpMethod || 'ALL'}</span>
-                      </div>
-                      <div className="result-item">
-                        <span className="label">处理方式：</span>
-                        <span className="value">
-                          {(() => {
-                            const found = proxyTypes.find(item => item.value === editingInterface.proxyType);
-                            return found ? found.label : editingInterface.proxyType || '模拟响应';
-                          })()}
-                        </span>
-                      </div>
-                      
-                      {(editingInterface.proxyType === 'redirect' || editingInterface.proxyType === 'url_redirect') && (
-                        <div className="result-item">
-                          <span className="label">重定向目标：</span>
-                          <span className="value">{testResult.targetUrl || editingInterface.targetUrl}</span>
-                        </div>
-                      )}
-                      
-                      {(editingInterface.proxyType === 'redirect' || editingInterface.proxyType === 'url_redirect') && 
-                       testResult.formattedHeaders && (
-                        <div className="result-item">
-                          <span className="label">自定义请求头：</span>
-                          <div className="value" style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-                            {
-                              editingInterface.customHeaders && 
-                              Object.entries(editingInterface.customHeaders)
-                                .map(([key, value]) => {
-                                  const generatedValue = testResult.customHeaders[key];
-                                  return (
-                                    <div key={key}>
-                                      {key}: {value.startsWith('@') ? (
-                                        <span>
-                                          <span style={{ color: '#d9d9d9' }}>{value}</span>
-                                          {' '} → {' '}
-                                          <span style={{ color: '#52c41a', fontWeight: 'bold' }}>{generatedValue}</span>
-                                          <span style={{ color: '#8c8c8c', fontSize: '12px' }}> (随机生成)</span>
-                                        </span>
-                                      ) : generatedValue}
-                                    </div>
-                                  );
-                                })
-                            }
-                          </div>
-                        </div>
-                      )}
-                      
-                      {editingInterface.proxyType === 'response' && (
-                        <>
-                          <div className="result-item">
-                            <span className="label">状态码：</span>
-                            <span className="value">{testResult.statusCode}</span>
-                          </div>
-                          <div className="result-item">
-                            <span className="label">内容类型：</span>
-                            <span className="value">{testResult.contentType}</span>
-                          </div>
-                        </>
-                      )}
-                      
-                      {testResult.mockInfo && (
-                        <>
-                          <div className="result-item">
-                            <span className="label">模拟延迟：</span>
-                            <span className="value">{testResult.mockInfo.delay}ms</span>
-                          </div>
-                          <div className="result-item">
-                            <span className="label">响应时间：</span>
-                            <span className="value">{new Date(testResult.mockInfo.timestamp).toLocaleString()}</span>
-                          </div>
-                        </>
-                      )}
-                      
-                      {editingInterface.proxyType === 'response' && (
-                        <div className="result-body">
-                          <div className="label">响应内容：</div>
-                          <pre>{formatResponseContent(testResult.responseBody, testResult.contentType)}</pre>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="result-error">
-                      <ExclamationCircleOutlined /> {testResult.error}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </Modal>
-
-        {/* 预览内容弹窗 */}
-        <Modal
-          title="预览响应内容"
-          open={previewVisible}
+        {/* 使用拆分后的预览模态框组件 */}
+        <PreviewModal
+          visible={previewVisible}
           onCancel={() => setPreviewVisible(false)}
-          footer={[
-            <Button key="close" onClick={() => setPreviewVisible(false)}>
-              关闭
-            </Button>
-          ]}
-          width={600}
-        >
-          <div style={{ 
-            maxHeight: '60vh', 
-            overflow: 'auto', 
-            backgroundColor: '#f5f5f5', 
-            padding: '16px',
-            borderRadius: '4px',
-            fontFamily: 'monospace'
-          }}>
-            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
-              {previewContent}
-            </pre>
-          </div>
-        </Modal>
+          previewContent={previewContent}
+        />
       </div>
     </AppLayout>
   );

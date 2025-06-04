@@ -372,7 +372,29 @@ const ruleManager = {
   async handleDataTemplate(interfaceObj, req, res) {
     // 兼容不同的字段命名
     const config = interfaceObj.config || interfaceObj;
-    const template = config.responseContent || config.template || '{}';
+    
+    // 支持多响应系统
+    let template = '';
+    
+    // 检查是否有多响应配置
+    if (config.responses && Array.isArray(config.responses) && config.responses.length > 0) {
+      // 获取当前激活的响应
+      const activeResponseId = config.activeResponseId;
+      const activeResponse = activeResponseId 
+        ? config.responses.find(r => r.id === activeResponseId)
+        : config.responses[0];
+      
+      if (activeResponse) {
+        this.log(`[规则处理器] 使用响应: ${activeResponse.name || '未命名'}`);
+        template = activeResponse.content;
+      }
+    }
+    
+    // 如果没有找到响应内容，回退到传统字段
+    if (!template) {
+      template = config.responseContent || config.template || '{}';
+      this.log(`[规则处理器] 使用传统响应内容`);
+    }
     
     if (!template) {
       res.end(JSON.stringify({ error: 'No template specified' }));
@@ -390,8 +412,20 @@ const ruleManager = {
       
       // 发送数据
       res.end(JSON.stringify(mockData));
-      return { mockData };
+      
+      // 返回处理结果，包含响应信息
+      return { 
+        mockData,
+        mockInfo: {
+          delay: parseInt(config.responseDelay || config.delay || 0, 10),
+          timestamp: new Date().toISOString(),
+          responseName: config.responses && config.activeResponseId 
+            ? (config.responses.find(r => r.id === config.activeResponseId)?.name || '未命名')
+            : '默认响应'
+        }
+      };
     } catch (err) {
+      this.log(`[规则处理器] 模板解析错误: ${err.message}`);
       res.end(JSON.stringify({ error: 'Template parsing error', message: err.message }));
       return { error: 'Template parsing error', message: err.message };
     }

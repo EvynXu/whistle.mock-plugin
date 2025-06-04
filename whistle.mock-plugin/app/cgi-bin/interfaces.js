@@ -75,6 +75,17 @@ module.exports = function(req, res) {
       
       const filteredInterfaces = interfacesData.interfaces.filter(item => item.featureId === featureId);
       
+      console.log('GET获取接口列表:', {
+        featureId,
+        totalCount: filteredInterfaces.length,
+        interfacesWithResponses: filteredInterfaces.map(item => ({
+          name: item.name,
+          hasResponses: !!item.responses,
+          responsesCount: item.responses ? item.responses.length : 0,
+          activeResponseId: item.activeResponseId
+        }))
+      });
+      
       return res.json({
         code: 0,
         message: '成功',
@@ -175,6 +186,8 @@ module.exports = function(req, res) {
           urlPattern: interfaceData.urlPattern,
           proxyType: interfaceData.proxyType,
           responseContent: interfaceData.responseContent,
+          responses: interfaceData.responses || interfacesData.interfaces[index].responses || [],
+          activeResponseId: interfaceData.activeResponseId !== undefined ? interfaceData.activeResponseId : interfacesData.interfaces[index].activeResponseId,
           targetUrl: interfaceData.targetUrl,
           customHeaders: interfaceData.customHeaders || {},
           filePath: interfaceData.filePath,
@@ -183,6 +196,12 @@ module.exports = function(req, res) {
           httpMethod: interfaceData.httpMethod || 'ALL',
           active: interfaceData.active !== false
         };
+        
+        console.log('更新接口，包含多响应数据:', {
+          name: interfacesData.interfaces[index].name,
+          responsesCount: interfacesData.interfaces[index].responses.length,
+          activeResponseId: interfacesData.interfaces[index].activeResponseId
+        });
         
         fs.writeJsonSync(interfacesFile, interfacesData, { spaces: 2 });
         
@@ -200,6 +219,8 @@ module.exports = function(req, res) {
           urlPattern: interfaceData.urlPattern,
           proxyType: interfaceData.proxyType || 'response',
           responseContent: interfaceData.responseContent || '',
+          responses: interfaceData.responses || [],
+          activeResponseId: interfaceData.activeResponseId || null,
           targetUrl: interfaceData.targetUrl || '',
           customHeaders: interfaceData.customHeaders || {},
           filePath: interfaceData.filePath || '',
@@ -209,6 +230,12 @@ module.exports = function(req, res) {
           active: interfaceData.active !== false,
           contentType: interfaceData.contentType || 'text/plain'
         };
+        
+        console.log('创建新接口，包含多响应数据:', {
+          name: newInterface.name,
+          responsesCount: newInterface.responses.length,
+          activeResponseId: newInterface.activeResponseId
+        });
         
         // 确保interfaces数组存在
         if (!Array.isArray(interfacesData.interfaces)) {
@@ -317,6 +344,8 @@ module.exports = function(req, res) {
         urlPattern: interfaceData.urlPattern || interfacesData.interfaces[index].urlPattern,
         proxyType: interfaceData.proxyType || interfacesData.interfaces[index].proxyType,
         responseContent: interfaceData.responseContent !== undefined ? interfaceData.responseContent : interfacesData.interfaces[index].responseContent,
+        responses: interfaceData.responses !== undefined ? interfaceData.responses : (interfacesData.interfaces[index].responses || []),
+        activeResponseId: interfaceData.activeResponseId !== undefined ? interfaceData.activeResponseId : interfacesData.interfaces[index].activeResponseId,
         targetUrl: interfaceData.targetUrl !== undefined ? interfaceData.targetUrl : interfacesData.interfaces[index].targetUrl,
         customHeaders: interfaceData.customHeaders !== undefined ? interfaceData.customHeaders : interfacesData.interfaces[index].customHeaders || {},
         filePath: interfaceData.filePath !== undefined ? interfaceData.filePath : interfacesData.interfaces[index].filePath,
@@ -327,6 +356,12 @@ module.exports = function(req, res) {
         contentType: interfaceData.contentType || interfacesData.interfaces[index].contentType,
         updatedAt: new Date().toISOString()
       };
+      
+      console.log('PUT更新接口，包含多响应数据:', {
+        name: updatedInterface.name,
+        responsesCount: updatedInterface.responses.length,
+        activeResponseId: updatedInterface.activeResponseId
+      });
       
       interfacesData.interfaces[index] = updatedInterface;
       fs.writeJsonSync(interfacesFile, interfacesData, { spaces: 2 });

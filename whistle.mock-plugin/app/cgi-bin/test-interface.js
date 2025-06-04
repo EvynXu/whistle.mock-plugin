@@ -44,7 +44,7 @@ const regexCache = new Map();
 // URL匹配函数，提取为纯函数减少重复代码
 const isUrlMatchPattern = (url, pattern, proxyType) => {
   if (!url || !pattern) return false;
-  
+  console.log(`isUrlMatchPattern ${url} - ${pattern}`);
   try {
     // 对于url_redirect类型，需要完全匹配
     if (proxyType === 'url_redirect') {
@@ -241,14 +241,9 @@ module.exports = async function(req, res) {
       // 使用URL匹配检查
       const isMatch = isUrlMatchPattern(url, pattern, proxyType);
       
-      // 如果存在method配置，检查HTTP方法是否匹配
-      const methodMatch = !targetInterface.method || 
-                          targetInterface.method === 'all' || 
-                          targetInterface.method.toLowerCase() === 'all' ||
-                          req.method.toLowerCase() === targetInterface.method.toLowerCase();
-      
-      // 确定匹配结果
-      const matchResult = isMatch && methodMatch;
+      // 测试接口只验证URL模式匹配，不验证HTTP方法
+      // 因为这里的req.method是测试请求的POST方法，与接口配置的HTTP方法无关
+      const matchResult = isMatch;
       
       // 构建测试结果
       const result = {
@@ -260,7 +255,7 @@ module.exports = async function(req, res) {
         isMatch: matchResult,
         matchDetail: {
           urlMatch: isMatch,
-          methodMatch: methodMatch
+          note: 'HTTP方法匹配在测试模式下不进行验证，仅验证URL模式匹配'
         }
       };
       

@@ -16,6 +16,15 @@
  */
 
 /**
+ * 响应内容数据模型
+ * @typedef {Object} Response
+ * @property {string} id - 响应唯一标识符
+ * @property {string} name - 响应名称
+ * @property {string} description - 响应描述
+ * @property {string} content - 响应内容，使用 Mock.js 语法
+ */
+
+/**
  * 接口数据模型
  * @typedef {Object} Interface
  * @property {string} id - 接口唯一标识符
@@ -23,7 +32,9 @@
  * @property {string} name - 接口名称
  * @property {string} urlPattern - URL 匹配规则，支持精确匹配、通配符和正则表达式
  * @property {string} proxyType - 代理类型，可选值: 'response'(数据模板), 'redirect'(URL重定向), 'file'(文件代理)
- * @property {string} responseContent - 响应内容，使用 Mock.js 语法
+ * @property {string} responseContent - 响应内容，使用 Mock.js 语法（向后兼容）
+ * @property {Array<Response>} responses - 多个响应内容，可选择不同响应
+ * @property {string} activeResponseId - 当前激活的响应ID
  * @property {string} targetUrl - 重定向目标 URL，仅在 proxyType='redirect' 时有效
  * @property {string} filePath - 文件路径，仅在 proxyType='file' 时有效
  * @property {number} httpStatus - HTTP 状态码
