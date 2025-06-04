@@ -13,7 +13,7 @@ const FEATURES_FILE = path.join(DATA_DIR, 'features.json');
 // 配置项
 const CONFIG = {
   // 日志级别：0=NONE, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG
-  LOG_LEVEL: process.env.MOCK_PLUGIN_LOG_LEVEL || 3,
+  LOG_LEVEL: process.env.MOCK_PLUGIN_LOG_LEVEL || 4,
   // 缓存有效期（毫秒），默认 60 秒
   CACHE_INTERVAL: process.env.MOCK_PLUGIN_CACHE_INTERVAL || 60000,
   // 是否在控制台输出详细日志
@@ -268,12 +268,7 @@ const generateRandomValue = (pattern) => {
 // 构建重定向规则
 const buildRedirectRule = (fullUrl, targetUrl, customHeaders, pattern, isUrlRedirect = 0) => {
   // 构建目标URL
-  let finalTargetUrl;
-  if(!isUrlRedirect){
-    finalTargetUrl = fullUrl.replace(pattern, targetUrl);
-  }else{
-    finalTargetUrl = `redirect://${targetUrl}`;
-  }
+  let finalTargetUrl = fullUrl.replace(pattern, targetUrl);
 
   // 定义结果数组，避免多次字符串拼接
   const rules = [`${fullUrl} ${finalTargetUrl}`];
@@ -507,7 +502,8 @@ module.exports = (server, options) => {
       // 处理 url_redirect 类型：完全匹配 fullPath 并直接返回目标URL
       if (proxyType === 'url_redirect') {
         const targetUrl = matchedInterface.targetUrl.trim();
-        logDebug(`接口 "${matchedInterface.name}" 使用URL重定向模式，目标URL: ${targetUrl}`);
+        const pattern = matchedInterface.urlPattern.trim();
+        logDebug(`接口 "${matchedInterface.name}" 使用URL重定向模式，模式: ${pattern}, 目标URL: ${targetUrl}`);
         
         // 确保目标URL合法
         if (!isValidTargetUrl(targetUrl)) {

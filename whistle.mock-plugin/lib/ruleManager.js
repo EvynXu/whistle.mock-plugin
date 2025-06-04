@@ -222,7 +222,7 @@ const ruleManager = {
     // 收集所有URL匹配的接口
     const urlMatchedInterfaces = [];
     
-    // 先收集所有URL匹配的接口（包括精确匹配和正则匹配）
+    // 先收集所有URL匹配的接口（根据proxyType采用不同匹配策略）
     for (const intf of interfaces) {
       if (!intf || !intf.urlPattern) {
         continue;
@@ -240,39 +240,19 @@ const ruleManager = {
         continue;
       }
       
-      // 检查URL是否匹配
+      // 根据proxyType选择匹配策略
+      const proxyType = intf.proxyType || 'response';
       let urlMatches = false;
       
-      // 精确匹配
-      if (intf.urlPattern === requestPath) {
-        urlMatches = true;
-      } else {
-        // 正则表达式匹配
-        try {
-          // 从缓存获取或创建正则表达式
-          if (!this.regexCache) {
-            this.regexCache = new Map();
-          }
-          
-          let regex;
-          if (this.regexCache.has(intf.urlPattern)) {
-            regex = this.regexCache.get(intf.urlPattern);
-          } else {
-            // 将通配符转换为正则表达式
-            const pattern = this.convertPatternToRegex(intf.urlPattern);
-            regex = new RegExp(pattern);
-            // 缓存正则表达式，避免重复创建
-            this.regexCache.set(intf.urlPattern, regex);
-          }
-          
-          urlMatches = regex.test(requestPath);
-        } catch (err) {
-          this.log(`[规则处理器] 正则匹配接口 ${intf.name} 时出错: ${err.message}`);
-          continue;
-        }
+      try {
+        urlMatches = this.isUrlMatchByProxyType(requestPath, intf.urlPattern, proxyType, req);
+      } catch (err) {
+        this.log(`[规则处理器] 匹配接口 ${intf.name} 时出错: ${err.message}`);
+        continue;
       }
       
       if (urlMatches) {
+        this.log(`[规则处理器] 接口 ${intf.name} URL匹配成功 (${proxyType}模式)`);
         urlMatchedInterfaces.push(intf);
       }
     }
@@ -310,18 +290,109 @@ const ruleManager = {
   },
 
   /**
-   * 将URL模式中的通配符转换为正则表达式
-   * @param {string} pattern URL模式
-   * @returns {string} 正则表达式字符串
+   * 根据代理类型进行URL匹配
+   * @param {string} requestPath 请求路径
+   * @param {string} pattern URL匹配模式
+   * @param {string} proxyType 代理类型
+   * @param {object} req 请求对象（用于获取完整URL）
+   * @returns {boolean} 是否匹配
    */
-  convertPatternToRegex(pattern) {
-    if (pattern.startsWith('/') && pattern.endsWith('/') && pattern.length > 2) {
-      // 已经是正则表达式格式：/pattern/
-      return pattern.slice(1, -1);
+  isUrlMatchByProxyType(requestPath, pattern, proxyType, req) {
+    if (!pattern) return false;
+    // 获取完整URL（如果需要）
+    const fullUrl = req.protocol + '://' + req.get('host') + req.originalUrl;
+
+    switch (proxyType) {
+      case 'url_redirect':
+        // URL重定向：需要完全匹配完整URL
+        this.log(`[规则处理器] url_redirect模式 - 完全匹配: ${fullUrl} === ${pattern}`);
+        return pattern === fullUrl;
+        
+      case 'redirect':
+        // 重定向：前缀匹配
+        this.log(`[规则处理器] redirect模式 - 前缀匹配: ${fullUrl}.startsWith(${pattern})`);
+        return fullUrl.startsWith(pattern);
+        
+      case 'response':
+      case 'file':
+      default:
+        // 模拟响应和文件代理：支持多种匹配方式
+        return this.isUrlMatchForResponse(requestPath, pattern);
     }
-    
-    // 转换通配符 * 为 .*
-    return pattern.replace(/\*/g, '.*').replace(/\//g, '\\/');
+  },
+
+  /**
+   * 响应类型的URL匹配（支持精确匹配、通配符、正则表达式）
+   * @param {string} requestPath 请求路径
+   * @param {string} pattern URL匹配模式
+   * @returns {boolean} 是否匹配
+   */
+  isUrlMatchForResponse(requestPath, pattern) {
+    // 精确匹配
+    if (pattern === requestPath) {
+      this.log(`[规则处理器] response模式 - 精确匹配成功: ${requestPath}`);
+      return true;
+    }
+
+    // 通配符匹配
+    if (pattern.includes('*')) {
+      try {
+        // 从缓存获取或创建正则表达式
+        if (!this.regexCache) {
+          this.regexCache = new Map();
+        }
+        
+        const cacheKey = `wildcard:${pattern}`;
+        let regex = this.regexCache.get(cacheKey);
+        
+        if (!regex) {
+          // 转换通配符为正则表达式
+          const regexPattern = pattern
+            .replace(/[-\/\\^$+?.()|[\]{}]/g, '\\$&') // 转义特殊字符
+            .replace(/\*/g, '.*'); // 将 * 替换为 .*
+          
+          regex = new RegExp('^' + regexPattern + '$');
+          this.regexCache.set(cacheKey, regex);
+        }
+        
+        const matches = regex.test(requestPath);
+        this.log(`[规则处理器] response模式 - 通配符匹配${matches ? '成功' : '失败'}: ${requestPath} ~ ${pattern}`);
+        return matches;
+      } catch (err) {
+        this.log(`[规则处理器] 通配符匹配错误: ${err.message}`);
+        return false;
+      }
+    }
+
+    // 正则表达式匹配
+    if (pattern.startsWith('/') && pattern.length > 2 && pattern.endsWith('/')) {
+      try {
+        // 从缓存获取或创建正则表达式
+        if (!this.regexCache) {
+          this.regexCache = new Map();
+        }
+        
+        const cacheKey = `regex:${pattern}`;
+        let regex = this.regexCache.get(cacheKey);
+        
+        if (!regex) {
+          const regexStr = pattern.slice(1, -1);
+          regex = new RegExp(regexStr);
+          this.regexCache.set(cacheKey, regex);
+        }
+        
+        const matches = regex.test(requestPath);
+        this.log(`[规则处理器] response模式 - 正则匹配${matches ? '成功' : '失败'}: ${requestPath} ~ ${pattern}`);
+        return matches;
+      } catch (err) {
+        this.log(`[规则处理器] 正则表达式匹配错误: ${err.message}`);
+        return false;
+      }
+    }
+
+    // 都不匹配
+    this.log(`[规则处理器] response模式 - 所有匹配方式都失败: ${requestPath} != ${pattern}`);
+    return false;
   },
 
   /**
@@ -438,37 +509,60 @@ const ruleManager = {
     const config = interfaceObj.config || interfaceObj;
     const targetUrl = config.targetUrl || '';
     const preserveParams = config.preserveParams || false;
-    
+    const proxyType = interfaceObj.proxyType || config.proxyType || '';
+
     if (!targetUrl) {
       res.end(JSON.stringify({ error: 'No target URL specified' }));
       return { error: 'No target URL specified' };
     }
-    
-    // 构建重定向URL
+
     let redirectUrl = targetUrl;
-    
-    // 如果需要保留参数，则将原请求的查询参数附加到重定向URL
-    if (preserveParams) {
-      const parsedUrl = url.parse(req.url, true);
-      const parsedTargetUrl = url.parse(targetUrl, true);
-      
-      // 合并查询参数
-      const mergedQuery = { ...parsedTargetUrl.query, ...parsedUrl.query };
-      
-      // 重建URL
-      const redirectUrlObj = new url.URL(targetUrl);
-      Object.entries(mergedQuery).forEach(([key, value]) => {
-        redirectUrlObj.searchParams.set(key, value);
-      });
-      
-      redirectUrl = redirectUrlObj.toString();
+
+    if (proxyType === 'url_redirect') {
+      // url_redirect 只跳转到 targetUrl，不附加原始请求的 query 参数
+      redirectUrl = targetUrl;
+    } else if (proxyType === 'redirect') {
+      // redirect 类型：将 pattern 部分替换为 targetUrl
+      const pattern = config.urlPattern || interfaceObj.urlPattern || '';
+      const fullUrl = req.protocol + '://' + req.get('host') + req.originalUrl;
+      this.log(`[规则处理器] fullUrl : ${fullUrl}`);
+      if (pattern && fullUrl && fullUrl.startsWith(pattern)) {
+        redirectUrl = targetUrl + fullUrl.slice(pattern.length);
+        this.log(`[规则处理器] redirectUrl : ${redirectUrl}`);
+        // 保留参数
+        if (preserveParams) {
+          const parsedReqUrl = url.parse(fullUrl, true);
+          const parsedTargetUrl = url.parse(redirectUrl, true);
+          const mergedQuery = { ...parsedTargetUrl.query, ...parsedReqUrl.query };
+          const redirectUrlObj = new url.URL(redirectUrl);
+          Object.entries(mergedQuery).forEach(([key, value]) => {
+            redirectUrlObj.searchParams.set(key, value);
+          });
+          redirectUrl = redirectUrlObj.toString();
+        }
+      } else {
+        // pattern 不匹配，直接跳转到 targetUrl
+        redirectUrl = targetUrl;
+      }
+    } else {
+      // 其他类型，默认直接跳转到 targetUrl
+      if (preserveParams) {
+        const parsedReqUrl = url.parse(req.url, true);
+        const parsedTargetUrl = url.parse(targetUrl, true);
+        const mergedQuery = { ...parsedTargetUrl.query, ...parsedReqUrl.query };
+        const redirectUrlObj = new url.URL(targetUrl);
+        Object.entries(mergedQuery).forEach(([key, value]) => {
+          redirectUrlObj.searchParams.set(key, value);
+        });
+        redirectUrl = redirectUrlObj.toString();
+      }
     }
-    
-    // 执行重定向
+
+    // TODO krollxw 执行重定向
     res.setHeader('Location', redirectUrl);
     res.statusCode = 302;
     res.end();
-    
+
     return { redirectUrl };
   },
 

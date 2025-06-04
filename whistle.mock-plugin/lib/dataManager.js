@@ -319,7 +319,6 @@ const dataManager = {
     try {
       // 读取所有接口数据
       const data = await this.getInterfaces();
-      this.log(`读取到接口数据: ${JSON.stringify(data.filter(item => item.enabled === true || item.active === true))}`);
       // 过滤出启用状态的接口
       const enabledInterfaces = data.filter(item => item.enabled === true || item.active === true);
       
