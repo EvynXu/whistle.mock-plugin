@@ -170,6 +170,99 @@ if (!fs.existsSync(INTERFACES_FILE)) {
 const RULE_VALUE_HEADER = 'x-whistle-rule-value';
 const MOCK_PREFIX = 'mock://';
 
+// 获取嵌套对象属性值的工具函数
+const getNestedValue = (obj, path) => {
+  return path.split('.').reduce((current, key) => {
+    return current && current[key] !== undefined ? current[key] : undefined;
+  }, obj);
+};
+
+// 参数匹配功能
+const isParamMatch = (req, paramMatchers) => {
+  if (!paramMatchers || !Array.isArray(paramMatchers) || paramMatchers.length === 0) {
+    return true; // 如果没有参数匹配规则，视为匹配成功
+  }
+
+  try {
+    // 合并所有可能的参数来源
+    let requestParams = {};
+    
+    // URL查询参数
+    if (req.query) {
+      requestParams = { ...requestParams, ...req.query };
+    }
+    
+    // POST请求体参数
+    if (req.body && typeof req.body === 'object') {
+      requestParams = { ...requestParams, ...req.body };
+    }
+    
+    // URL路径参数（如果有的话）
+    if (req.params) {
+      requestParams = { ...requestParams, ...req.params };
+    }
+
+    logMessage(`参数匹配检查 - 请求参数: ${JSON.stringify(requestParams)}`);
+    logMessage(`参数匹配检查 - 匹配规则: ${JSON.stringify(paramMatchers)}`);
+
+    // 检查每个匹配规则
+    for (const matcher of paramMatchers) {
+      const { paramPath, paramValue, matchType = 'exact' } = matcher;
+      
+      if (!paramPath) {
+        continue; // 跳过无效的匹配规则
+      }
+
+      // 获取实际参数值
+      const actualValue = getNestedValue(requestParams, paramPath);
+      
+      logMessage(`参数匹配检查 - 路径: ${paramPath}, 期望值: ${paramValue}, 实际值: ${actualValue}, 匹配类型: ${matchType}`);
+
+      // 如果参数不存在，视为不匹配
+      if (actualValue === undefined || actualValue === null) {
+        logMessage(`参数匹配失败 - 参数 ${paramPath} 不存在`);
+        return false;
+      }
+
+      // 根据匹配类型进行比较
+      let isMatch = false;
+      const actualStr = String(actualValue);
+      const expectedStr = String(paramValue);
+
+      switch (matchType) {
+        case 'exact':
+          isMatch = actualStr === expectedStr;
+          break;
+        case 'contains':
+          isMatch = actualStr.includes(expectedStr);
+          break;
+        case 'regex':
+          try {
+            const regex = new RegExp(expectedStr);
+            isMatch = regex.test(actualStr);
+          } catch (e) {
+            logMessage(`参数匹配失败 - 正则表达式无效: ${expectedStr}`);
+            return false;
+          }
+          break;
+        default:
+          isMatch = actualStr === expectedStr;
+      }
+
+      if (!isMatch) {
+        logMessage(`参数匹配失败 - ${paramPath}: ${actualStr} 不匹配 ${expectedStr} (${matchType})`);
+        return false;
+      }
+    }
+
+    logMessage('参数匹配成功 - 所有规则都匹配');
+    return true;
+  } catch (error) {
+    logMessage(`参数匹配检查出错: ${error.message}`);
+    return false;
+  }
+};
+
 // 创建 Express 应用
 const app = express();
 
@@ -576,6 +669,33 @@ const handleLegacyRequest = (req, res, next) => {
 const handleResponse = (interfaceItem, req, res) => {
   logMessage(`匹配到接口: ${interfaceItem.name}, ID: ${interfaceItem.id}`);
   logMessage(`URL匹配规则: ${interfaceItem.urlPattern}`);
+  
+  // 检查参数匹配规则
+  if (!isParamMatch(req, interfaceItem.paramMatchers)) {
+    logMessage(`参数匹配失败，跳过接口: ${interfaceItem.name}`);
+    
+    // 记录参数匹配失败的日志
+    addToJsonLog({
+      eventType: 'param_mismatch',
+      url: req.url,
+      method: req.method,
+      message: `参数匹配失败: ${interfaceItem.name}`,
+      pattern: interfaceItem.urlPattern,
+      status: 'skipped',
+      paramMatchers: interfaceItem.paramMatchers || []
+    });
+    
+    // 返回404，表示没有匹配的接口
+    return res.status(404).json({
+      code: 404,
+      message: '参数匹配失败，未找到符合条件的接口',
+      data: {
+        interfaceName: interfaceItem.name,
+        urlPattern: interfaceItem.urlPattern,
+        paramMatchers: interfaceItem.paramMatchers || []
+      }
+    });
+  }
   
   // 记录请求详情
   logMessage(`请求方法: ${req.method}`);

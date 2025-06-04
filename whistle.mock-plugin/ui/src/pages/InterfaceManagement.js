@@ -166,7 +166,8 @@ const InterfaceManagement = () => {
       responses: defaultResponses,
       activeResponseId: defaultResponseId,
       httpMethod: 'ALL',
-      headerItems: [] // 初始化为空数组
+      headerItems: [], // 初始化为空数组
+      paramMatchers: [] // 初始化为空数组
     });
     
     setCurrentResponseId(defaultResponseId);
@@ -184,6 +185,16 @@ const InterfaceManagement = () => {
       headersArray = Object.entries(record.customHeaders).map(([key, value]) => ({
         headerName: key,
         headerValue: value
+      }));
+    }
+
+    // 处理参数匹配规则，转换为数组格式
+    let paramMatchersArray = [];
+    if (record.paramMatchers && Array.isArray(record.paramMatchers)) {
+      paramMatchersArray = record.paramMatchers.map(matcher => ({
+        paramPath: matcher.paramPath || '',
+        paramValue: matcher.paramValue || '',
+        matchType: matcher.matchType || 'exact'
       }));
     }
 
@@ -233,7 +244,8 @@ const InterfaceManagement = () => {
       activeResponseId: initialResponseId,
       httpMethod: record.httpMethod || 'ALL',
       targetUrl: record.targetUrl || '',
-      headerItems: headersArray // 使用数组存储表单项
+      headerItems: headersArray, // 使用数组存储表单项
+      paramMatchers: paramMatchersArray
     });
     setModalVisible(true);
   };
@@ -373,6 +385,22 @@ const InterfaceManagement = () => {
         }
       }
 
+      // 处理参数匹配规则，清理无效的规则
+      let paramMatchers = [];
+      if (values.proxyType === 'response' && values.paramMatchers && values.paramMatchers.length > 0) {
+        paramMatchers = values.paramMatchers
+          .filter(item => item && item.paramPath && item.paramPath.trim() && item.paramValue !== undefined)
+          .map(item => ({
+            paramPath: item.paramPath.trim(),
+            paramValue: item.paramValue,
+            matchType: item.matchType || 'exact'
+          }));
+      }
+
+      console.log('=== 参数匹配规则处理 ===');
+      console.log('原始参数匹配规则:', values.paramMatchers);
+      console.log('清理后的参数匹配规则:', paramMatchers);
+
       const interfaceData = {
         name: values.name,
         featureId: selectedFeatureId,
@@ -385,6 +413,7 @@ const InterfaceManagement = () => {
         responseContent: activeResponse ? activeResponse.content : '',
         targetUrl: (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') ? values.targetUrl : '',
         customHeaders: (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') ? customHeaders : {},
+        paramMatchers: paramMatchers, // 添加参数匹配规则
         httpStatus: parseInt(values.statusCode, 10), // 转换为数字
         contentType: values.contentType,
         responseDelay: 0,
@@ -585,6 +614,43 @@ const InterfaceManagement = () => {
       }
     },
     {
+      title: '参数匹配',
+      dataIndex: 'paramMatchers',
+      key: 'paramMatchers',
+      width: 100,
+      render: (_, record) => {
+        if (record.proxyType !== 'response') {
+          return '-';
+        }
+        
+        const matchers = record.paramMatchers || [];
+        const count = matchers.length;
+        
+        if (count === 0) {
+          return '-';
+        }
+        
+        return (
+          <Tooltip title={
+            <div>
+              {matchers.map((matcher, index) => (
+                <div key={index}>
+                  {matcher.paramPath}: {matcher.paramValue}
+                  <span style={{ color: '#52c41a', marginLeft: 4 }}>
+                    ({matcher.matchType === 'exact' ? '精确' : matcher.matchType === 'contains' ? '包含' : '正则'})
+                  </span>
+                </div>
+              ))}
+            </div>
+          }>
+            <span style={{ color: '#1890ff' }}>
+              {count}条规则
+            </span>
+          </Tooltip>
+        );
+      }
+    },
+    {
       title: '请求方法',
       dataIndex: 'httpMethod',
       key: 'httpMethod',
@@ -711,7 +777,8 @@ const InterfaceManagement = () => {
               responses: [],
               httpMethod: 'ALL',
               targetUrl: '',
-              headerItems: []
+              headerItems: [],
+              paramMatchers: []
             }}
           >
             {/* 基础信息表单项保持原样 */}
@@ -899,6 +966,87 @@ const InterfaceManagement = () => {
                           </Form.Item>
                         </div>
                       </div>
+
+                      {/* 请求入参匹配设置 */}
+                      <Form.Item 
+                        label="请求入参匹配"
+                        tooltip="设置请求参数的匹配条件，只有当请求参数满足条件时才返回对应的响应。支持嵌套属性路径，如：a.b.c"
+                      >
+                        <Form.List name="paramMatchers">
+                          {(fields, { add, remove }) => (
+                            <>
+                              {fields.map(({ key, name, ...restField }) => (
+                                <div key={key} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                                  <Form.Item
+                                    {...restField}
+                                    name={[name, 'paramPath']}
+                                    rules={[
+                                      { required: true, message: '请输入参数路径' },
+                                      {
+                                        pattern: /^[a-zA-Z_$][a-zA-Z0-9_$.]*$/,
+                                        message: '请输入有效的参数路径，如：userId 或 data.user.id'
+                                      }
+                                    ]}
+                                    style={{ flex: 1, margin: 0 }}
+                                  >
+                                    <Input placeholder="参数路径（如：userId 或 data.user.id）" />
+                                  </Form.Item>
+                                  <Form.Item
+                                    {...restField}
+                                    name={[name, 'paramValue']}
+                                    rules={[{ required: true, message: '请输入期望值' }]}
+                                    style={{ flex: 1, margin: 0 }}
+                                  >
+                                    <Input placeholder="期望值（如：123 或 admin）" />
+                                  </Form.Item>
+                                  <Form.Item
+                                    {...restField}
+                                    name={[name, 'matchType']}
+                                    style={{ width: 100, margin: 0 }}
+                                    initialValue="exact"
+                                  >
+                                    <Select placeholder="匹配类型">
+                                      <Option value="exact">精确匹配</Option>
+                                      <Option value="contains">包含</Option>
+                                      <Option value="regex">正则</Option>
+                                    </Select>
+                                  </Form.Item>
+                                  <Button 
+                                    type="text" 
+                                    danger 
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => remove(name)}
+                                  />
+                                </div>
+                              ))}
+                              <Button
+                                type="dashed"
+                                onClick={() => add()}
+                                icon={<PlusOutlined />}
+                                style={{ width: '100%', marginTop: '8px' }}
+                              >
+                                添加参数匹配规则
+                              </Button>
+                              {fields.length > 0 && (
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  color: '#666', 
+                                  marginTop: '8px',
+                                  padding: '8px',
+                                  backgroundColor: '#f5f5f5',
+                                  borderRadius: '4px'
+                                }}>
+                                  <div><strong>说明：</strong></div>
+                                  <div>• <strong>精确匹配</strong>：参数值完全相等</div>
+                                  <div>• <strong>包含</strong>：参数值包含指定内容</div>
+                                  <div>• <strong>正则</strong>：参数值符合正则表达式</div>
+                                  <div>• <strong>嵌套路径</strong>：使用点号分隔，如 data.user.id</div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </Form.List>
+                      </Form.Item>
 
                       {/* 隐藏的表单字段用于存储响应数据 */}
                       <Form.Item 

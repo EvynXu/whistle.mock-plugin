@@ -3,6 +3,113 @@ const path = require('path');
 const url = require('url');
 const Mock = require('mockjs');
 
+// 获取嵌套对象属性值的工具函数
+const getNestedValue = (obj, path) => {
+  return path.split('.').reduce((current, key) => {
+    return current && current[key] !== undefined ? current[key] : undefined;
+  }, obj);
+};
+
+// 参数匹配功能
+const isParamMatch = (req, paramMatchers, log) => {
+  if (!paramMatchers || !Array.isArray(paramMatchers) || paramMatchers.length === 0) {
+    return true; // 如果没有参数匹配规则，视为匹配成功
+  }
+
+  try {
+    // 合并所有可能的参数来源
+    let requestParams = {};
+    
+    // URL查询参数
+    if (req.query) {
+      requestParams = { ...requestParams, ...req.query };
+    }
+    
+    // POST请求体参数
+    if (req.body && typeof req.body === 'object') {
+      requestParams = { ...requestParams, ...req.body };
+    }
+    
+    // URL路径参数（如果有的话）
+    if (req.params) {
+      requestParams = { ...requestParams, ...req.params };
+    }
+
+    if (log) {
+      log(`参数匹配检查 - 请求参数: ${JSON.stringify(requestParams)}`);
+      log(`参数匹配检查 - 匹配规则: ${JSON.stringify(paramMatchers)}`);
+    }
+
+    // 检查每个匹配规则
+    for (const matcher of paramMatchers) {
+      const { paramPath, paramValue, matchType = 'exact' } = matcher;
+      
+      if (!paramPath) {
+        continue; // 跳过无效的匹配规则
+      }
+
+      // 获取实际参数值
+      const actualValue = getNestedValue(requestParams, paramPath);
+      
+      if (log) {
+        log(`参数匹配检查 - 路径: ${paramPath}, 期望值: ${paramValue}, 实际值: ${actualValue}, 匹配类型: ${matchType}`);
+      }
+
+      // 如果参数不存在，视为不匹配
+      if (actualValue === undefined || actualValue === null) {
+        if (log) {
+          log(`参数匹配失败 - 参数 ${paramPath} 不存在`);
+        }
+        return false;
+      }
+
+      // 根据匹配类型进行比较
+      let isMatch = false;
+      const actualStr = String(actualValue);
+      const expectedStr = String(paramValue);
+
+      switch (matchType) {
+        case 'exact':
+          isMatch = actualStr === expectedStr;
+          break;
+        case 'contains':
+          isMatch = actualStr.includes(expectedStr);
+          break;
+        case 'regex':
+          try {
+            const regex = new RegExp(expectedStr);
+            isMatch = regex.test(actualStr);
+          } catch (e) {
+            if (log) {
+              log(`参数匹配失败 - 正则表达式无效: ${expectedStr}`);
+            }
+            return false;
+          }
+          break;
+        default:
+          isMatch = actualStr === expectedStr;
+      }
+
+      if (!isMatch) {
+        if (log) {
+          log(`参数匹配失败 - ${paramPath}: ${actualStr} 不匹配 ${expectedStr} (${matchType})`);
+        }
+        return false;
+      }
+    }
+
+    if (log) {
+      log('参数匹配成功 - 所有规则都匹配');
+    }
+    return true;
+  } catch (error) {
+    if (log) {
+      log(`参数匹配检查出错: ${error.message}`);
+    }
+    return false;
+  }
+};
+
 /**
  * 规则管理模块，负责处理 Whistle 规则和代理请求
  */
@@ -60,7 +167,7 @@ const ruleManager = {
     const requestPath = parsedUrl.pathname;
     
     // 查找匹配的接口
-    const matchedInterface = this.findMatchingInterface(enabledInterfaces, requestPath, req.method);
+    const matchedInterface = this.findMatchingInterface(enabledInterfaces, requestPath, req.method, req);
     
     if (!matchedInterface) {
       this.log(`[规则处理器] 未找到匹配的接口，请求将透传: ${req.method} ${requestPath}`);
@@ -93,9 +200,10 @@ const ruleManager = {
    * @param {Array} interfaces 接口列表
    * @param {string} requestPath 请求路径
    * @param {string} method 请求方法
+   * @param {object} req 完整的请求对象，用于参数匹配
    * @returns {object|null} 匹配的接口对象，如果没有匹配则返回 null
    */
-  findMatchingInterface(interfaces, requestPath, method) {
+  findMatchingInterface(interfaces, requestPath, method, req) {
     // 简化日志，只记录正在进行匹配的操作
     this.log(`[规则处理器] 尝试匹配接口，路径: ${requestPath}, 方法: ${method}`);
     
@@ -111,17 +219,16 @@ const ruleManager = {
       return null;
     }
     
-    // 先尝试完全匹配，效率更高
-    let matchedInterface = interfaces.find(intf => {
-      // 检查接口对象是否有效
+    // 收集所有URL匹配的接口
+    const urlMatchedInterfaces = [];
+    
+    // 先收集所有URL匹配的接口（包括精确匹配和正则匹配）
+    for (const intf of interfaces) {
       if (!intf || !intf.urlPattern) {
-        return false;
+        continue;
       }
       
-      // 检查URL和方法是否匹配
-      const urlMatches = intf.urlPattern === requestPath;
-      
-      // 修复: 兼容不同的方法名称和值
+      // 检查HTTP方法是否匹配
       const methodField = intf.httpMethod || intf.method;
       const methodValue = methodField && methodField.toUpperCase();
       const methodMatches = !methodValue || 
@@ -129,32 +236,24 @@ const ruleManager = {
                             methodValue === 'ANY' || 
                             methodValue === method;
       
-      // 移除中间匹配过程的日志
-      return urlMatches && methodMatches;
-    });
-
-    if (matchedInterface) {
-      this.log(`[规则处理器] 找到完全匹配的接口: ${matchedInterface.name}`);
-      return matchedInterface;
-    }
-
-    // 如果没有完全匹配，尝试正则表达式匹配
-    this.log(`[规则处理器] 未找到完全匹配，尝试正则表达式匹配...`);
-    
-    // 使用正则表达式缓存优化性能
-    if (!this.regexCache) {
-      this.regexCache = new Map();
-    }
-    
-    try {
-      matchedInterface = interfaces.find(intf => {
+      if (!methodMatches) {
+        continue;
+      }
+      
+      // 检查URL是否匹配
+      let urlMatches = false;
+      
+      // 精确匹配
+      if (intf.urlPattern === requestPath) {
+        urlMatches = true;
+      } else {
+        // 正则表达式匹配
         try {
-          // 验证接口对象
-          if (!intf || !intf.urlPattern) {
-            return false;
+          // 从缓存获取或创建正则表达式
+          if (!this.regexCache) {
+            this.regexCache = new Map();
           }
           
-          // 从缓存获取或创建正则表达式
           let regex;
           if (this.regexCache.has(intf.urlPattern)) {
             regex = this.regexCache.get(intf.urlPattern);
@@ -166,37 +265,48 @@ const ruleManager = {
             this.regexCache.set(intf.urlPattern, regex);
           }
           
-          // 获取方法值，兼容不同的字段名
-          const methodField = intf.httpMethod || intf.method;
-          const methodValue = methodField && methodField.toUpperCase();
-          
-          // 检查URL和方法是否匹配
-          const urlMatches = regex.test(requestPath);
-          const methodMatches = !methodValue || 
-                                methodValue === 'ALL' || 
-                                methodValue === 'ANY' || 
-                                methodValue === method;
-          
-          return urlMatches && methodMatches;
+          urlMatches = regex.test(requestPath);
         } catch (err) {
-          // 记录特定接口的错误，但继续处理其他接口
-          this.log(`[规则处理器] 匹配接口 ${intf?.name || 'unknown'} 时出错: ${err.message}`);
-          return false;
+          this.log(`[规则处理器] 正则匹配接口 ${intf.name} 时出错: ${err.message}`);
+          continue;
         }
-      });
-    } catch (err) {
-      // 记录整体匹配过程的错误
-      this.log(`[规则处理器] 正则匹配过程出错: ${err.message}`);
-      return null;
-    }
-
-    if (matchedInterface) {
-      this.log(`[规则处理器] 找到正则匹配的接口: ${matchedInterface.name}`);
-    } else {
-      this.log(`[规则处理器] 未找到匹配的接口`);
+      }
+      
+      if (urlMatches) {
+        urlMatchedInterfaces.push(intf);
+      }
     }
     
-    return matchedInterface;
+    this.log(`[规则处理器] 找到 ${urlMatchedInterfaces.length} 个URL匹配的接口`);
+    
+    if (urlMatchedInterfaces.length === 0) {
+      this.log(`[规则处理器] 未找到匹配的接口`);
+      return null;
+    }
+    
+    // 在URL匹配的接口中，查找参数也匹配的接口
+    for (const intf of urlMatchedInterfaces) {
+      // 检查参数匹配
+      if (isParamMatch(req, intf.paramMatchers, this.log)) {
+        this.log(`[规则处理器] 找到完全匹配的接口: ${intf.name} (URL + 参数匹配)`);
+        return intf;
+      } else {
+        this.log(`[规则处理器] 接口 ${intf.name} URL匹配但参数不匹配，继续查找...`);
+      }
+    }
+    
+    // 如果没有参数匹配的接口，返回第一个没有参数匹配规则的接口
+    const fallbackInterface = urlMatchedInterfaces.find(intf => 
+      !intf.paramMatchers || !Array.isArray(intf.paramMatchers) || intf.paramMatchers.length === 0
+    );
+    
+    if (fallbackInterface) {
+      this.log(`[规则处理器] 使用回退接口: ${fallbackInterface.name} (无参数匹配规则)`);
+      return fallbackInterface;
+    }
+    
+    this.log(`[规则处理器] 所有URL匹配的接口都有参数匹配规则且都不满足，未找到合适的接口`);
+    return null;
   },
 
   /**
