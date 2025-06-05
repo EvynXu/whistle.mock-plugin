@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
-import { Card, Row, Col, Button, Modal, Form, Input, message, Switch, Empty, Spin, Typography, Tooltip, Badge } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined, ExportOutlined, InfoCircleOutlined, CalendarOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Button, Modal, Form, Input, message, Switch, Empty, Spin, Typography, Tooltip, Badge, Select, Pagination } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined, ExportOutlined, InfoCircleOutlined, CalendarOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import '../styles/mock-data.css';
 import axios from 'axios';
 
@@ -32,6 +32,24 @@ const MockData = () => {
   });
   const [loading, setLoading] = useState(true);
   const [form] = Form.useForm();
+
+  // 排序和分页配置（支持缓存）
+  const [listConfig, setListConfig] = useState(() => {
+    const cached = localStorage.getItem('feature-list-config');
+    return cached ? JSON.parse(cached) : {
+      sortBy: 'name', // name, createdAt, interfaceCount, active
+      sortOrder: 'ascend', // ascend, descend
+      pageSize: 12,
+      current: 1
+    };
+  });
+
+  // 保存列表配置到localStorage
+  const saveListConfig = (config) => {
+    const newConfig = { ...listConfig, ...config };
+    setListConfig(newConfig);
+    localStorage.setItem('feature-list-config', JSON.stringify(newConfig));
+  };
 
   // 加载功能列表
   useEffect(() => {
@@ -333,6 +351,67 @@ const MockData = () => {
     input.click();
   };
 
+  // 排序处理
+  const handleSortChange = (value) => {
+    saveListConfig({ sortBy: value, current: 1 });
+  };
+
+  const handleSortOrderChange = (value) => {
+    saveListConfig({ sortOrder: value, current: 1 });
+  };
+
+  const handlePageSizeChange = (value) => {
+    saveListConfig({ pageSize: value, current: 1 });
+  };
+
+  const handlePageChange = (page, pageSize) => {
+    saveListConfig({ current: page, pageSize });
+  };
+
+  // 获取排序后的功能列表
+  const getSortedFeatures = () => {
+    const sorted = [...mockFeatures].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (listConfig.sortBy) {
+        case 'name':
+          aValue = a.name || '';
+          bValue = b.name || '';
+          return listConfig.sortOrder === 'ascend' 
+            ? aValue.localeCompare(bValue, 'zh-CN')
+            : bValue.localeCompare(aValue, 'zh-CN');
+            
+        case 'createdAt':
+          aValue = new Date(a.createdAt || 0).getTime();
+          bValue = new Date(b.createdAt || 0).getTime();
+          return listConfig.sortOrder === 'ascend' ? aValue - bValue : bValue - aValue;
+          
+        case 'interfaceCount':
+          aValue = a.interfaceCount || 0;
+          bValue = b.interfaceCount || 0;
+          return listConfig.sortOrder === 'ascend' ? aValue - bValue : bValue - aValue;
+          
+        case 'active':
+          aValue = a.active ? 1 : 0;
+          bValue = b.active ? 1 : 0;
+          return listConfig.sortOrder === 'ascend' ? aValue - bValue : bValue - aValue;
+          
+        default:
+          return 0;
+      }
+    });
+    
+    return sorted;
+  };
+
+  // 获取分页后的功能列表
+  const getPaginatedFeatures = () => {
+    const sortedFeatures = getSortedFeatures();
+    const startIndex = (listConfig.current - 1) * listConfig.pageSize;
+    const endIndex = startIndex + listConfig.pageSize;
+    return sortedFeatures.slice(startIndex, endIndex);
+  };
+
   // 渲染功能模块卡片
   const renderFeatureCard = (feature) => {
     const formattedDate = feature.createdAt 
@@ -424,6 +503,65 @@ const MockData = () => {
             </Button>
           </div>
         </div>
+
+        {/* 排序和分页控制栏 */}
+        {mockFeatures.length > 0 && !loading && (
+          <div style={{ 
+            marginBottom: 16, 
+            padding: '12px 16px', 
+            background: '#fafafa', 
+            borderRadius: '6px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '14px', color: '#666' }}>
+                <SortAscendingOutlined /> 排序：
+              </span>
+              <Select
+                value={listConfig.sortBy}
+                onChange={handleSortChange}
+                style={{ width: 120 }}
+                size="small"
+              >
+                <Select.Option value="name">名称</Select.Option>
+                <Select.Option value="createdAt">创建时间</Select.Option>
+                <Select.Option value="interfaceCount">接口数量</Select.Option>
+                <Select.Option value="active">状态</Select.Option>
+              </Select>
+              <Select
+                value={listConfig.sortOrder}
+                onChange={handleSortOrderChange}
+                style={{ width: 80 }}
+                size="small"
+              >
+                <Select.Option value="ascend">升序</Select.Option>
+                <Select.Option value="descend">降序</Select.Option>
+              </Select>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '14px', color: '#666' }}>每页显示：</span>
+              <Select
+                value={listConfig.pageSize}
+                onChange={handlePageSizeChange}
+                style={{ width: 80 }}
+                size="small"
+              >
+                <Select.Option value={8}>8</Select.Option>
+                <Select.Option value={12}>12</Select.Option>
+                <Select.Option value={16}>16</Select.Option>
+                <Select.Option value={24}>24</Select.Option>
+              </Select>
+              <span style={{ fontSize: '14px', color: '#999' }}>
+                共 {mockFeatures.length} 个功能模块
+              </span>
+            </div>
+          </div>
+        )}
         
         <div className="feature-list-container">
           {loading ? (
@@ -432,9 +570,36 @@ const MockData = () => {
               <div>正在加载功能模块...</div>
             </div>
           ) : mockFeatures.length > 0 ? (
-            <Row gutter={[16, 16]}>
-              {mockFeatures.map(feature => renderFeatureCard(feature))}
-            </Row>
+            <>
+              <Row gutter={[16, 16]}>
+                {getPaginatedFeatures().map(feature => renderFeatureCard(feature))}
+              </Row>
+              
+              {/* 分页组件 */}
+              {mockFeatures.length > listConfig.pageSize && (
+                <div style={{ 
+                  marginTop: 24, 
+                  textAlign: 'center',
+                  padding: '16px',
+                  borderTop: '1px solid #f0f0f0'
+                }}>
+                  <Pagination
+                    current={listConfig.current}
+                    pageSize={listConfig.pageSize}
+                    total={mockFeatures.length}
+                    onChange={handlePageChange}
+                    onShowSizeChange={handlePageChange}
+                    showSizeChanger={true}
+                    showQuickJumper={true}
+                    showTotal={(total, range) => 
+                      `第 ${range[0]}-${range[1]} 条，共 ${total} 个功能模块`
+                    }
+                    pageSizeOptions={['8', '12', '16', '24']}
+                    size="default"
+                  />
+                </div>
+              )}
+            </>
           ) : (
             <div className="empty-data">
               <div className="empty-icon">📂</div>
