@@ -1,5 +1,7 @@
 const path = require('path');
+const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const packageJson = require('./package.json');
 
 module.exports = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
@@ -34,6 +36,9 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: './ui/src/index.html',
       filename: 'index.html'
+    }),
+    new webpack.DefinePlugin({
+      __APP_VERSION__: JSON.stringify(packageJson.version)
     })
   ],
   devServer: {

@@ -99,7 +99,7 @@ const AppLayout = ({ children }) => {
         </div>
         <div className="header-right">
           <Space>
-            <Text type="secondary">v0.1.0</Text>
+            <Text type="secondary">v{__APP_VERSION__}</Text>
           </Space>
         </div>
       </Header>

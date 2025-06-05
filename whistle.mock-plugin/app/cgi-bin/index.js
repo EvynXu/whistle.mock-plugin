@@ -18,7 +18,7 @@ module.exports = function(req, res) {
     code: 0,
     message: '成功',
     data: {
-      version: '0.2.0',
+      version: require('../../package.json').version,
       name: 'whistle.mock-plugin',
       features: [
         '支持Mock.js语法',
