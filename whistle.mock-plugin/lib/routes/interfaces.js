@@ -168,22 +168,22 @@ const initRouter = () => {
           allInterfaces = processedInterfaces;
         }
       } else {
-        // 读取每个功能的接口
-        features.forEach(feature => {
-          const interfacesFile = path.join(DATA_DIR, `interfaces-${feature.id}.json`);
-          if (fs.existsSync(interfacesFile)) {
-            const interfaces = fs.readJsonSync(interfacesFile);
+      // 读取每个功能的接口
+      features.forEach(feature => {
+        const interfacesFile = path.join(DATA_DIR, `interfaces-${feature.id}.json`);
+        if (fs.existsSync(interfacesFile)) {
+          const interfaces = fs.readJsonSync(interfacesFile);
             // 确保每个接口都经过数据处理
             const processedInterfaces = interfaces.map(item => {
               const processed = processInterfaceData(item);
               return {
                 ...processed,
-                featureName: feature.name
+            featureName: feature.name
               };
             });
             allInterfaces = allInterfaces.concat(processedInterfaces);
-          }
-        });
+        }
+      });
       }
       
       console.log(`获取接口列表成功，共 ${allInterfaces.length} 个接口`);

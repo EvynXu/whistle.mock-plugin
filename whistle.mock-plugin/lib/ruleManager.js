@@ -558,12 +558,143 @@ const ruleManager = {
       }
     }
 
-    // TODO krollxw 执行重定向
-    res.setHeader('Location', redirectUrl);
-    res.statusCode = 302;
-    res.end();
+    this.log(`[规则处理器] 准备模拟请求到: ${redirectUrl}`);
 
+    // 调用模拟请求方法
+    await this.simulateRequest(redirectUrl, req, res);
+    
     return { redirectUrl };
+  },
+
+  /**
+   * 模拟请求到目标URL并返回响应数据
+   * @param {string} targetUrl 目标URL
+   * @param {object} req 原始请求对象
+   * @param {object} res 响应对象
+   * @returns {Promise<object>} 请求结果
+   */
+  async simulateRequest(targetUrl, req, res) {
+    try {
+      const http = require('http');
+      const https = require('https');
+      
+      // 解析目标URL
+      const urlObj = new URL(targetUrl);
+      const isHttps = urlObj.protocol === 'https:';
+      
+      // 准备请求选项
+      const options = {
+        protocol: urlObj.protocol,
+        hostname: urlObj.hostname,
+        port: urlObj.port || (isHttps ? 443 : 80),
+        path: urlObj.pathname + urlObj.search,
+        method: req.method,
+        headers: {...req.headers}
+      };
+      
+      // 删除可能导致问题的请求头
+      delete options.headers.host;
+      delete options.headers['x-whistle-real-url'];
+      delete options.headers['x-whistle-rule-value'];
+      delete options.headers['x-forwarded-url'];
+      
+      // 设置正确的Host头
+      options.headers.host = urlObj.host;
+      
+      this.log(`[规则处理器] 发送 ${req.method} 请求到: ${targetUrl}`);
+      
+      // 选择http或https模块
+      const httpModule = isHttps ? https : http;
+      
+      // 创建请求并返回Promise
+      return new Promise((resolve, reject) => {
+        const proxyReq = httpModule.request(options, (proxyRes) => {
+          this.log(`[规则处理器] 收到响应，状态码: ${proxyRes.statusCode}`);
+          
+          // 复制响应头
+          Object.keys(proxyRes.headers).forEach(key => {
+            res.setHeader(key, proxyRes.headers[key]);
+          });
+          
+          // 设置状态码
+          res.statusCode = proxyRes.statusCode;
+          
+          // 传输响应体
+          proxyRes.pipe(res);
+          
+          // 收集响应数据用于返回结果
+          let responseData = '';
+          proxyRes.on('data', chunk => {
+            responseData += chunk;
+          });
+          
+          proxyRes.on('end', () => {
+            this.log(`[规则处理器] 请求完成，响应大小: ${responseData.length} 字节`);
+            resolve({ 
+              statusCode: proxyRes.statusCode,
+              responseSize: responseData.length,
+              contentType: proxyRes.headers['content-type']
+            });
+          });
+        });
+        
+        // 错误处理
+        proxyReq.on('error', (error) => {
+          this.log(`[规则处理器] 请求 ${targetUrl} 时出错: ${error.message}`);
+          
+          // 如果响应尚未发送，返回错误信息
+          if (!res.headersSent) {
+            res.statusCode = 502;
+            res.end(JSON.stringify({
+              error: '转发请求失败',
+              message: error.message,
+              targetUrl: targetUrl
+            }));
+          }
+          
+          reject(error);
+        });
+        
+        // 处理超时
+        proxyReq.setTimeout(30000, () => {
+          this.log(`[规则处理器] 请求 ${targetUrl} 超时`);
+          const timeoutError = new Error('请求超时');
+          proxyReq.destroy(timeoutError);
+          reject(timeoutError);
+        });
+        
+        // 转发请求体
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+          // 如果请求有体，则转发
+          if (req.readable) {
+            req.pipe(proxyReq);
+          } else {
+            // 如果请求体已被读取，尝试重建并发送
+            if (req.body) {
+              const bodyStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+              proxyReq.write(bodyStr);
+              proxyReq.end();
+            } else {
+              proxyReq.end();
+            }
+          }
+        } else {
+          // 对于GET和HEAD请求，直接结束请求
+          proxyReq.end();
+        }
+      });
+      
+    } catch (error) {
+      this.log(`[规则处理器] 准备请求时发生错误: ${error.message}`);
+      res.statusCode = 500;
+      res.end(JSON.stringify({
+        error: '内部服务器错误',
+        message: error.message,
+        targetUrl: targetUrl
+      }));
+      
+      return { error: 'Internal server error', message: error.message };
+    }
   },
 
   /**

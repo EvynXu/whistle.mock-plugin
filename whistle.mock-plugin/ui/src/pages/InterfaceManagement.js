@@ -44,7 +44,7 @@ const InterfaceManagement = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
-  
+
   // 编辑状态
   const [editingInterface, setEditingInterface] = useState(null);
   const [previewContent, setPreviewContent] = useState(null);
@@ -311,14 +311,14 @@ const InterfaceManagement = () => {
           } else {
             responses = [];
           }
-        } catch (e) {
+    } catch (e) {
           console.error('解析响应数据失败:', e);
           responses = [];
-        }
+    }
       }
       
       console.log('处理前的响应数据:', JSON.stringify(responses, null, 2));
-      
+
       // 确保每个响应都有名称、描述和内容
       const cleanedResponses = responses.map((resp, index) => {
         console.log(`处理响应 ${index}:`, resp);
@@ -331,7 +331,7 @@ const InterfaceManagement = () => {
         console.log(`处理后的响应 ${index}:`, cleaned);
         return cleaned;
       });
-      
+
       // 如果没有响应，创建一个默认响应
       if (cleanedResponses.length === 0) {
         console.log('没有响应数据，创建默认响应');
@@ -361,14 +361,14 @@ const InterfaceManagement = () => {
       // 检查responseBody是否是有效的JSON
       if (values.proxyType === 'response' && values.contentType.includes('application/json')) {
         cleanedResponses.forEach(response => {
-          try {
+        try {
             if (response.content) {
               JSON.parse(response.content);
             }
-          } catch (e) {
+        } catch (e) {
             message.error(`响应 "${response.name}" 不是有效的JSON格式`);
             throw new Error(`响应 "${response.name}" 不是有效的JSON格式`);
-          }
+        }
         });
       }
       
@@ -483,7 +483,7 @@ const InterfaceManagement = () => {
       message.error('未找到有效的响应内容');
       return;
     }
-
+    
     // 根据内容类型格式化响应内容
     const contentType = form.getFieldValue('contentType') || '';
     const formattedContent = formatResponseContent(activeResponse.content, contentType);
@@ -495,7 +495,7 @@ const InterfaceManagement = () => {
       description: '',
       contentType
     });
-    setPreviewVisible(true);
+        setPreviewVisible(true);
   };
 
   const handleResponseSelect = (responseId) => {
@@ -968,7 +968,7 @@ const InterfaceManagement = () => {
                       </div>
 
                       {/* 请求入参匹配设置 */}
-                      <Form.Item 
+                      <Form.Item
                         label="请求入参匹配"
                         tooltip="设置请求参数的匹配条件，只有当请求参数满足条件时才返回对应的响应。支持嵌套属性路径，如：a.b.c"
                       >
@@ -1011,7 +1011,7 @@ const InterfaceManagement = () => {
                                       <Option value="regex">正则</Option>
                                     </Select>
                                   </Form.Item>
-                                  <Button 
+                              <Button 
                                     type="text" 
                                     danger 
                                     icon={<DeleteOutlined />}
@@ -1041,7 +1041,7 @@ const InterfaceManagement = () => {
                                   <div>• <strong>包含</strong>：参数值包含指定内容</div>
                                   <div>• <strong>正则</strong>：参数值符合正则表达式</div>
                                   <div>• <strong>嵌套路径</strong>：使用点号分隔，如 data.user.id</div>
-                                </div>
+                          </div>
                               )}
                             </>
                           )}
@@ -1071,7 +1071,7 @@ const InterfaceManagement = () => {
                             try {
                               if (typeof responses === 'string') {
                                 responses = JSON.parse(responses);
-                              }
+                }
                             } catch (e) {
                               responses = [];
                             }
@@ -1097,7 +1097,7 @@ const InterfaceManagement = () => {
                         label="重定向目标URL"
                         rules={[
                           { required: true, message: '请输入重定向目标URL' },
-                          {
+                          { 
                             validator(_, value) {
                               if (!value) return Promise.resolve();
                               try {
@@ -1115,7 +1115,7 @@ const InterfaceManagement = () => {
                           placeholder="例如：https://api.example.com/users"
                         />
                       </Form.Item>
-
+                      
                       {/* 自定义请求头设置 */}
                       <Form.Item label="自定义请求头">
                         <Form.List name="headerItems">
@@ -1123,38 +1123,38 @@ const InterfaceManagement = () => {
                             <>
                               {fields.map(({ key, name, ...restField }) => (
                                 <div key={key} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                                  <Form.Item
-                                    {...restField}
-                                    name={[name, 'headerName']}
+                                    <Form.Item
+                                      {...restField}
+                                      name={[name, 'headerName']}
                                     rules={[{ required: true, message: '请输入请求头名称' }]}
                                     style={{ flex: 1, margin: 0 }}
-                                  >
+                                    >
                                     <Input placeholder="请求头名称（如：Authorization）" />
-                                  </Form.Item>
-                                  <Form.Item
-                                    {...restField}
-                                    name={[name, 'headerValue']}
+                                    </Form.Item>
+                                    <Form.Item
+                                      {...restField}
+                                      name={[name, 'headerValue']}
                                     rules={[{ required: true, message: '请输入请求头值' }]}
                                     style={{ flex: 1, margin: 0 }}
-                                  >
+                                    >
                                     <Input placeholder="请求头值（如：Bearer token123）" />
-                                  </Form.Item>
-                                  <Button 
-                                    type="text" 
+                                    </Form.Item>
+                                    <Button 
+                                      type="text" 
                                     danger 
                                     icon={<DeleteOutlined />}
-                                    onClick={() => remove(name)}
-                                  />
+                                      onClick={() => remove(name)}
+                                    />
                                 </div>
                               ))}
-                              <Button
-                                type="dashed"
-                                onClick={() => add()}
-                                icon={<PlusOutlined />}
+                                <Button 
+                                  type="dashed" 
+                                  onClick={() => add()} 
+                                  icon={<PlusOutlined />}
                                 style={{ width: '100%', marginTop: '8px' }}
-                              >
-                                添加请求头
-                              </Button>
+                                >
+                                  添加请求头
+                                </Button>
                             </>
                           )}
                         </Form.List>
@@ -1175,7 +1175,7 @@ const InterfaceManagement = () => {
           onCancel={() => setTestModalVisible(false)}
           editingInterface={editingInterface}
         />
-
+                    
         {/* 使用拆分后的预览模态框组件 */}
         <PreviewModal
           visible={previewVisible}
