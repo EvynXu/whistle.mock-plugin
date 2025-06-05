@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Card, Button, Space, Badge, Row, Col, Input, Select, Tooltip, message, AutoComplete } from 'antd';
 import { 
   CodeOutlined, 
@@ -8,7 +9,9 @@ import {
   PlusCircleOutlined,
   DeleteOutlined,
   CheckCircleOutlined,
-  EditOutlined 
+  EditOutlined,
+  FullscreenOutlined,
+  FullscreenExitOutlined 
 } from '@ant-design/icons';
 import { generateResponseId } from './utils';
 
@@ -24,10 +27,25 @@ const ResponseContentEditor = ({
   const { getFieldValue, setFieldsValue } = form;
   const [isEditing, setIsEditing] = useState(false);
   const [editingName, setEditingName] = useState('');
+  const [isTextareaFullscreen, setIsTextareaFullscreen] = useState(false);
 
   // 查找激活的响应
   const activeResponseIndex = responses.findIndex(r => r.id === activeResponseId);
   const activeResponse = activeResponseIndex >= 0 ? responses[activeResponseIndex] : null;
+
+  // 全屏切换函数
+  const toggleTextareaFullscreen = () => {
+    setIsTextareaFullscreen(!isTextareaFullscreen);
+  };
+
+  // ESC键退出全屏 - 移到全屏覆盖层内部处理
+  const handleFullscreenEscKey = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsTextareaFullscreen(false);
+    }
+  };
 
   // 添加新响应
   const handleAddResponse = () => {
@@ -162,6 +180,39 @@ const ResponseContentEditor = ({
     if (onPreview) {
       onPreview();
     }
+  };
+
+  // 渲染全屏TextArea
+  const renderFullscreenTextarea = () => {
+    if (!isTextareaFullscreen || !activeResponse) return null;
+
+    return ReactDOM.createPortal(
+      <div 
+        className="textarea-fullscreen-overlay"
+        onKeyDown={handleFullscreenEscKey}
+        tabIndex={-1}
+      >
+        <div className="textarea-fullscreen-header">
+          <Button 
+            icon={<FullscreenExitOutlined />}
+            onClick={toggleTextareaFullscreen}
+            size="small"
+            type="text"
+            style={{ color: '#ffffff' }}
+          >
+            退出全屏 (ESC)
+          </Button>
+        </div>
+        <TextArea 
+          className="textarea-fullscreen-editor"
+          autoFocus
+          placeholder="请输入响应内容..." 
+          value={activeResponse.content || ''}
+          onChange={(e) => updateActiveResponseContent(e.target.value)}
+        />
+      </div>,
+      document.body
+    );
   };
 
   // 如果没有响应数据，显示创建按钮
@@ -404,22 +455,27 @@ const ResponseContentEditor = ({
               value={activeResponse.content || ''}
               onChange={(e) => updateActiveResponseContent(e.target.value)}
             />
-            <div style={{
-              position: 'absolute',
-              top: '8px',
-              right: '8px',
-              background: 'rgba(0, 0, 0, 0.1)',
-              borderRadius: '4px',
-              padding: '2px 6px',
-              fontSize: '11px',
-              color: '#666',
-              pointerEvents: 'none'
-            }}>
-              JSON
-            </div>
+            <Button 
+              className="textarea-fullscreen-btn"
+              icon={<FullscreenOutlined />}
+              onClick={toggleTextareaFullscreen}
+              size="small"
+              style={{
+                position: 'absolute',
+                top: '8px',
+                right: '12px',
+                background: 'rgba(255, 255, 255, 0.9)',
+                border: '1px solid #d9d9d9',
+                zIndex: 10
+              }}
+              title="全屏编辑"
+            />
           </div>
         </>
       )}
+      
+      {/* 渲染全屏编辑器 */}
+      {renderFullscreenTextarea()}
     </Card>
   );
 };

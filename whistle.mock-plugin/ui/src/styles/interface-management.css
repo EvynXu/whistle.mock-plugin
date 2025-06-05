@@ -691,4 +691,59 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
+}
+
+/* 全屏TextArea样式 */
+.textarea-fullscreen-btn {
+  position: absolute;
+  top: 8px;
+  right: 32px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #d9d9d9;
+  z-index: 10;
+}
+
+.textarea-fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: #40a9ff;
+}
+
+.textarea-fullscreen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #1f1f1f;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.textarea-fullscreen-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #333;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.textarea-fullscreen-editor {
+  flex: 1;
+  border: none !important;
+  background: #1f1f1f !important;
+  color: #ffffff !important;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  resize: none !important;
+  padding: 16px !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.textarea-fullscreen-editor:focus {
+  background: #1f1f1f !important;
+  border: none !important;
+  box-shadow: none !important;
 } 
