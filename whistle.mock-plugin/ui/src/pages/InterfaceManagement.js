@@ -53,6 +53,24 @@ const InterfaceManagement = () => {
   // 表单实例
   const [form] = Form.useForm();
 
+  // 表格配置状态（支持缓存）
+  const [tableConfig, setTableConfig] = useState(() => {
+    const cached = localStorage.getItem('interface-table-config');
+    return cached ? JSON.parse(cached) : {
+      sortOrder: null,
+      sortField: null,
+      pageSize: 10,
+      current: 1
+    };
+  });
+
+  // 保存表格配置到localStorage
+  const saveTableConfig = (config) => {
+    const newConfig = { ...tableConfig, ...config };
+    setTableConfig(newConfig);
+    localStorage.setItem('interface-table-config', JSON.stringify(newConfig));
+  };
+
   useEffect(() => {
     fetchFeatures();
   }, []);
@@ -470,6 +488,8 @@ const InterfaceManagement = () => {
 
   const handleSelectFeature = (featureId) => {
     setSelectedFeatureId(featureId);
+    // 切换功能模块时重置分页到第一页，但保留其他配置
+    saveTableConfig({ current: 1 });
   };
 
   // 预览响应内容
@@ -506,12 +526,32 @@ const InterfaceManagement = () => {
     !selectedFeatureId || item.featureId === selectedFeatureId
   );
 
+  // 处理表格变化（排序、分页）
+  const handleTableChange = (pagination, filters, sorter) => {
+    console.log('表格变化:', { pagination, filters, sorter });
+    
+    // 保存排序配置
+    const sortConfig = {
+      sortField: sorter.field || null,
+      sortOrder: sorter.order || null,
+      current: pagination.current,
+      pageSize: pagination.pageSize
+    };
+    
+    saveTableConfig(sortConfig);
+  };
+
   const columns = [
     {
       title: '状态',
       dataIndex: 'active',
       key: 'active',
       width: 80,
+      sorter: (a, b) => {
+        // true排在前面，false排在后面
+        return Number(b.active) - Number(a.active);
+      },
+      sortDirections: ['descend', 'ascend'],
       render: (active, record) => (
         <Switch
           checked={active}
@@ -524,18 +564,28 @@ const InterfaceManagement = () => {
       dataIndex: 'name',
       key: 'name',
       ellipsis: true,
+      sorter: (a, b) => a.name.localeCompare(b.name, 'zh-CN'),
+      sortDirections: ['ascend', 'descend'],
     },
     {
       title: 'URL匹配规则',
       dataIndex: 'urlPattern',
       key: 'urlPattern',
       ellipsis: true,
+      sorter: (a, b) => a.urlPattern.localeCompare(b.urlPattern),
+      sortDirections: ['ascend', 'descend'],
     },
     {
       title: '处理方式',
       dataIndex: 'proxyType',
       key: 'proxyType',
       width: 120,
+      sorter: (a, b) => {
+        const aType = a.proxyType || 'response';
+        const bType = b.proxyType || 'response';
+        return aType.localeCompare(bType);
+      },
+      sortDirections: ['ascend', 'descend'],
       render: (text) => {
         const found = proxyTypes.find(item => item.value === text);
         return found ? found.label : text || '模拟响应';
@@ -546,6 +596,12 @@ const InterfaceManagement = () => {
       dataIndex: 'httpStatus',
       key: 'httpStatus',
       width: 100,
+      sorter: (a, b) => {
+        const aStatus = parseInt(a.httpStatus) || 0;
+        const bStatus = parseInt(b.httpStatus) || 0;
+        return aStatus - bStatus;
+      },
+      sortDirections: ['ascend', 'descend'],
       render: (text, record) => {
         return record.proxyType === 'response' ? text : '-';
       }
@@ -555,6 +611,12 @@ const InterfaceManagement = () => {
       dataIndex: 'contentType',
       key: 'contentType',
       width: 120,
+      sorter: (a, b) => {
+        const aType = a.contentType || '';
+        const bType = b.contentType || '';
+        return aType.localeCompare(bType);
+      },
+      sortDirections: ['ascend', 'descend'],
       render: (text, record) => {
         if (record.proxyType !== 'response') {
           return '-';
@@ -568,6 +630,12 @@ const InterfaceManagement = () => {
       dataIndex: 'targetUrl',
       key: 'targetUrl',
       ellipsis: true,
+      sorter: (a, b) => {
+        const aUrl = a.targetUrl || '';
+        const bUrl = b.targetUrl || '';
+        return aUrl.localeCompare(bUrl);
+      },
+      sortDirections: ['ascend', 'descend'],
       render: (text, record) => {
         return (record.proxyType === 'redirect' || record.proxyType === 'url_redirect') ? text : '-';
       }
@@ -577,6 +645,12 @@ const InterfaceManagement = () => {
       dataIndex: 'customHeaders',
       key: 'customHeaders',
       width: 100,
+      sorter: (a, b) => {
+        const aCount = Object.keys(a.customHeaders || {}).length;
+        const bCount = Object.keys(b.customHeaders || {}).length;
+        return aCount - bCount;
+      },
+      sortDirections: ['ascend', 'descend'],
       render: (_, record) => {
         if (record.proxyType !== 'redirect' && record.proxyType !== 'url_redirect') {
           return '-';
@@ -655,6 +729,12 @@ const InterfaceManagement = () => {
       dataIndex: 'httpMethod',
       key: 'httpMethod',
       width: 120,
+      sorter: (a, b) => {
+        const aMethod = a.httpMethod || '';
+        const bMethod = b.httpMethod || '';
+        return aMethod.localeCompare(bMethod);
+      },
+      sortDirections: ['ascend', 'descend'],
       render: (text) => {
         const found = httpMethods.find(item => item.value === text);
         return found ? found.label : text;
@@ -742,14 +822,52 @@ const InterfaceManagement = () => {
           />
         )}
 
+        {/* 接口列表状态栏 */}
+        {filteredInterfaces.length > 0 && !interfacesLoading && (
+          <div style={{ 
+            marginBottom: 16, 
+            padding: '8px 12px', 
+            background: '#f8f9fa', 
+            borderRadius: '4px',
+            fontSize: '13px',
+            color: '#666',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <span>
+              当前功能模块：<strong>{selectedFeature?.name}</strong>
+            </span>
+            <span>
+              共 {filteredInterfaces.length} 个接口，每页显示 {tableConfig.pageSize} 个
+              {tableConfig.sortField && (
+                <span style={{ marginLeft: 8 }}>
+                  | 按"{columns.find(col => col.key === tableConfig.sortField)?.title || tableConfig.sortField}"
+                  {tableConfig.sortOrder === 'ascend' ? '升序' : '降序'}排列
+                </span>
+              )}
+            </span>
+          </div>
+        )}
+
         <div className="interface-list-container">
           <Table
             columns={columns}
             dataSource={filteredInterfaces}
             rowKey="id"
             loading={interfacesLoading}
-            pagination={{ pageSize: 10 }}
+            onChange={handleTableChange}
+            pagination={{
+              current: tableConfig.current,
+              pageSize: tableConfig.pageSize,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => `共 ${total} 个接口，显示第 ${range[0]}-${range[1]} 个`,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              size: 'default'
+            }}
             locale={{ emptyText: '暂无接口配置' }}
+            sortDirections={['ascend', 'descend']}
           />
         </div>
 
