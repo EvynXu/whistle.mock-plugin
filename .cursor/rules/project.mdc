@@ -7,6 +7,7 @@ alwaysApply: true
 
 ## 项目概述
 
+
 Whistle.mock-plugins 是一个 Whistle 插件，用于快速创建 API 模拟数据，提供友好的用户界面和丰富的功能。主要功能包括接口模拟、URL 重定向、文件代理等，支持功能模块管理和规则匹配。
 
 ## 目录结构与功能

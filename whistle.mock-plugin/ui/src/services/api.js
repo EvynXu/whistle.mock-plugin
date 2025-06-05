@@ -182,5 +182,11 @@ export const ProxyAPI = {
   testMockTemplate: (template) => request(`${API_BASE_URL}/proxy/test`, {
     method: 'POST',
     body: JSON.stringify({ template })
-  })
+  }),
+  
+  /**
+   * 获取版本信息
+   * @returns {Promise<object>} 版本信息文件内容
+   */
+  getVersionInfo: () => request('/cgi-bin/version')
 }; 

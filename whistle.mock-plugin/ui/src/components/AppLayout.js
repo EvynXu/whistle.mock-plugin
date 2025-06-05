@@ -10,6 +10,7 @@ import {
   DashboardOutlined
 } from '@ant-design/icons';
 import { Link, useLocation } from 'react-router-dom';
+import VersionModal from './VersionModal';
 import '../styles/app-layout.css';
 
 const { Header, Content, Sider } = Layout;
@@ -19,7 +20,12 @@ const AppLayout = ({ children }) => {
   const location = useLocation();
   const currentPath = location.pathname;
   const [collapsed, setCollapsed] = useState(false);
+  const [versionModalVisible, setVersionModalVisible] = useState(false);
   const { token } = theme.useToken();
+  
+  // 版本弹窗控制方法
+  const showVersionModal = () => setVersionModalVisible(true);
+  const hideVersionModal = () => setVersionModalVisible(false);
   
   // 根据当前路径获取选中的菜单项和面包屑
   const getSelectedKeys = () => {
@@ -99,7 +105,14 @@ const AppLayout = ({ children }) => {
         </div>
         <div className="header-right">
           <Space>
-            <Text type="secondary">v{__APP_VERSION__}</Text>
+            <Button 
+              type="text" 
+              size="small"
+              className="version-button"
+              onClick={showVersionModal}
+            >
+              <Text type="secondary">v{__APP_VERSION__}</Text>
+            </Button>
           </Space>
         </div>
       </Header>
@@ -142,6 +155,12 @@ const AppLayout = ({ children }) => {
           </Content>
         </Layout>
       </Layout>
+      
+      {/* 版本信息弹窗 */}
+      <VersionModal 
+        visible={versionModalVisible}
+        onCancel={hideVersionModal}
+      />
     </Layout>
   );
 };

@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Project Rule
 
+- 这是一个whistle插件，需要通过whistle的方式来运行和测试
+
 ## 目录结构
 
 - ./whistle.mock-plugin/ 创建的项目代码
