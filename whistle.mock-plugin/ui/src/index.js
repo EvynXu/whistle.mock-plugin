@@ -12,9 +12,6 @@ import MockData from './pages/MockData';
 import InterfaceManagement from './pages/InterfaceManagement';
 import Settings from './pages/Settings';
 
-// 导入布局组件
-import AppLayout from './components/AppLayout';
-
 const App = () => {
   return (
     <Router>
