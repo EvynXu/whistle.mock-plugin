@@ -6,7 +6,7 @@ const fs = require('fs-extra');
 const storage = require('./storage');
 
 // 引入工具函数
-const util = require('../app/util');
+const util = require('./util');
 
 // 设置app路径
 const APP_ROOT = util.formatPath(path.join(__dirname, '../app'));

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Spin, Alert } from 'antd';
-import { ProxyAPI } from '../services/api';
 import '../styles/version-modal.css';
 
 /**
@@ -44,6 +43,26 @@ const SimpleMarkdownRenderer = ({ children }) => {
 };
 
 /**
+ * 获取版本信息的请求函数
+ * @returns {Promise<Object>} 版本信息
+ */
+const getVersionInfo = async () => {
+  const response = await fetch('/cgi-bin/version', {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.message || '请求失败');
+  }
+  
+  return data;
+};
+
+/**
  * 版本信息模态框组件
  * @param {Object} props - 组件属性
  * @param {boolean} props.visible - 是否显示模态框
@@ -64,15 +83,15 @@ const VersionModal = ({ visible, onCancel }) => {
     setLoading(true);
     setError(null);
     
-          try {
-        const response = await ProxyAPI.getVersionInfo();
-        if (response.code === 0) {
-          setVersionContent(response.data.content);
-        } else {
-          setError(response.message);
-        }
-      } catch (err) {
-        setError(`获取版本信息失败: ${err.message}`);
+    try {
+      const response = await getVersionInfo();
+      if (response.code === 0) {
+        setVersionContent(response.data.content);
+      } else {
+        setError(response.message);
+      }
+    } catch (err) {
+      setError(`获取版本信息失败: ${err.message}`);
     } finally {
       setLoading(false);
     }
