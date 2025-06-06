@@ -7,7 +7,7 @@ import {
 } from 'antd';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, 
-  PlayCircleOutlined, FileTextOutlined, PlusCircleOutlined 
+  FileTextOutlined, PlusCircleOutlined 
 } from '@ant-design/icons';
 import '../styles/interface-management.css';
 import axios from 'axios';
@@ -15,7 +15,6 @@ import axios from 'axios';
 // 导入拆分后的组件
 import {
   ResponseContentEditor,
-  InterfaceTestModal,
   PreviewModal,
   contentTypes,
   proxyTypes,
@@ -42,7 +41,6 @@ const InterfaceManagement = () => {
   
   // 模态框状态
   const [modalVisible, setModalVisible] = useState(false);
-  const [testModalVisible, setTestModalVisible] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
 
   // 编辑状态
@@ -481,11 +479,6 @@ const InterfaceManagement = () => {
     setModalVisible(false);
   };
 
-  const handleTestInterface = async (record) => {
-    setEditingInterface(record);
-    setTestModalVisible(true);
-  };
-
   const handleSelectFeature = (featureId) => {
     setSelectedFeatureId(featureId);
     // 切换功能模块时重置分页到第一页，但保留其他配置
@@ -520,6 +513,37 @@ const InterfaceManagement = () => {
 
   const handleResponseSelect = (responseId) => {
     setCurrentResponseId(responseId);
+  };
+
+  // 在列表页面直接切换响应数据
+  const handleResponseSwitch = async (interfaceId, responseId) => {
+    try {
+      const response = await axios.patch(`/cgi-bin/interfaces?id=${interfaceId}`, {
+        activeResponseId: responseId
+      });
+      
+      if (response.data.code === 0) {
+        // 更新本地状态
+        setInterfaces(interfaces.map(item => 
+          item.id === interfaceId 
+            ? { ...item, activeResponseId: responseId }
+            : item
+        ));
+        
+        const activeResponse = interfaces
+          .find(item => item.id === interfaceId)
+          ?.responses
+          ?.find(resp => resp.id === responseId);
+        
+        message.success(`已切换到响应: ${activeResponse?.name || '未命名'}`);
+        
+        // 刷新缓存以立即生效
+        await refreshCacheAfterUpdate();
+      }
+    } catch (error) {
+      console.error('切换响应失败:', error);
+      message.error('切换响应失败: ' + (error.response?.data?.message || error.message));
+    }
   };
 
   const filteredInterfaces = interfaces.filter(item => 
@@ -589,6 +613,71 @@ const InterfaceManagement = () => {
       render: (text) => {
         const found = proxyTypes.find(item => item.value === text);
         return found ? found.label : text || '模拟响应';
+      }
+    },
+    {
+      title: '当前响应',
+      dataIndex: 'responses',
+      key: 'currentResponse',
+      width: 160,
+      render: (responses, record) => {
+        // 仅在模拟响应类型时显示
+        if (record.proxyType !== 'response') {
+          return '-';
+        }
+        
+        // 如果没有响应数据
+        if (!responses || !Array.isArray(responses) || responses.length === 0) {
+          return <span style={{ color: '#999' }}>无响应数据</span>;
+        }
+        
+        // 如果只有一个响应，直接显示名称
+        if (responses.length === 1) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span>{responses[0].name || '默认响应'}</span>
+              <Badge count="1" style={{ backgroundColor: '#52c41a' }} />
+            </div>
+          );
+        }
+        
+        // 多个响应时显示选择器
+        const activeResponse = responses.find(r => r.id === record.activeResponseId) || responses[0];
+        
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Select
+              size="small"
+              value={record.activeResponseId || activeResponse.id}
+              onChange={(responseId) => handleResponseSwitch(record.id, responseId)}
+              style={{ width: '110px' }}
+              optionLabelProp="label"
+              disabled={record.active === false}
+            >
+              {responses.map(resp => (
+                <Option 
+                  key={resp.id} 
+                  value={resp.id} 
+                  label={resp.name || '未命名'}
+                >
+                  <Tooltip title={resp.description || resp.name}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>{resp.name || '未命名'}</span>
+                      {resp.id === (record.activeResponseId || activeResponse.id) && (
+                        <Badge status="processing" />
+                      )}
+                    </div>
+                  </Tooltip>
+                </Option>
+              ))}
+            </Select>
+            <Badge 
+              count={responses.length} 
+              style={{ backgroundColor: '#1890ff' }}
+              title={`共${responses.length}个响应`}
+            />
+          </div>
+        );
       }
     },
     {
@@ -746,11 +835,6 @@ const InterfaceManagement = () => {
       width: 180,
       render: (_, record) => (
         <div className="action-buttons">
-          <Button 
-            type="text" 
-            icon={<PlayCircleOutlined />} 
-            onClick={() => handleTestInterface(record)}
-          />
           <Button 
             type="text" 
             icon={<EditOutlined />} 
@@ -1286,13 +1370,6 @@ const InterfaceManagement = () => {
             </Form.Item>
           </Form>
         </Modal>
-
-        {/* 使用拆分后的测试模态框组件 */}
-        <InterfaceTestModal
-          visible={testModalVisible}
-          onCancel={() => setTestModalVisible(false)}
-          editingInterface={editingInterface}
-        />
                     
         {/* 使用拆分后的预览模态框组件 */}
         <PreviewModal
