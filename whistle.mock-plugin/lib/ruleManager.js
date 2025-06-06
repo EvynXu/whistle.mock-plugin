@@ -192,7 +192,11 @@ const ruleManager = {
     const result = await this.processRequest(matchedInterface, req, res);
     this.log(`[规则处理器] 请求处理完成，状态: ${result.error ? '失败' : '成功'}`);
     
-    return { handled: true, result };
+    return { 
+      handled: true, 
+      result,
+      matchedInterface: matchedInterface  // 返回匹配到的接口信息
+    };
   },
 
   /**
@@ -412,6 +416,36 @@ const ruleManager = {
     // 只记录关键信息
     this.log(`[规则处理器] 处理请求，接口: ${interfaceObj.name}, 代理类型: ${proxyType}`);
     
+    // 添加Whistle Mock插件标识响应头（检查环境变量控制开关，默认启用）
+    const enableMockHeaders = process.env.WHISTLE_MOCK_HEADERS !== 'false';
+    if (enableMockHeaders) {
+      res.setHeader('X-Whistle-Mock', 'true');
+      res.setHeader('X-Whistle-Mock-Mode', this.normalizeProxyType(proxyType));
+      res.setHeader('X-Whistle-Mock-Rule', interfaceObj.name || 'unknown');
+      res.setHeader('X-Whistle-Mock-Interface', interfaceObj.id || 'unknown');
+      
+      // 添加功能模块信息
+      if (interfaceObj.featureId) {
+        try {
+          const features = await this.dataManager.getFeatures();
+          const feature = features.find(f => f.id === interfaceObj.featureId);
+          if (feature && feature.name) {
+            res.setHeader('X-Whistle-Mock-Feature', feature.name);
+          }
+        } catch (err) {
+          this.log(`[规则处理器] 获取功能模块信息失败: ${err.message}`);
+        }
+      }
+      
+      // 对于有多个响应的接口，添加当前响应标识
+      if (config.responses && config.activeResponseId) {
+        const activeResponse = config.responses.find(r => r.id === config.activeResponseId);
+        if (activeResponse && activeResponse.name) {
+          res.setHeader('X-Whistle-Mock-Response', activeResponse.name);
+        }
+      }
+    }
+    
     // 设置响应头
     let headers = config.headers;
     if (typeof headers === 'string') {
@@ -616,6 +650,13 @@ const ruleManager = {
             res.setHeader(key, proxyRes.headers[key]);
           });
           
+          // 添加重定向特定的标识头部
+          const enableMockHeaders = process.env.WHISTLE_MOCK_HEADERS !== 'false';
+          if (enableMockHeaders) {
+            res.setHeader('X-Whistle-Mock-Data-Type', 'redirect');
+            res.setHeader('X-Whistle-Mock-Target-Url', targetUrl);
+          }
+          
           // 设置状态码
           res.statusCode = proxyRes.statusCode;
           
@@ -745,6 +786,18 @@ const ruleManager = {
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
       }
       
+      // 添加mock数据特定的标识头部
+      const enableMockHeaders = process.env.WHISTLE_MOCK_HEADERS !== 'false';
+      if (enableMockHeaders) {
+        res.setHeader('X-Whistle-Mock-Data-Type', 'template');
+        if (config.responses && config.activeResponseId) {
+          const activeResponse = config.responses.find(r => r.id === config.activeResponseId);
+          if (activeResponse) {
+            res.setHeader('X-Whistle-Mock-Template', activeResponse.name || 'unnamed');
+          }
+        }
+      }
+      
       // 发送数据
       res.end(JSON.stringify(mockData));
       
@@ -817,6 +870,14 @@ const ruleManager = {
       // 设置响应头，标识插件处理
       res.setHeader('X-Handled-By', 'whistle.mock-plugin');
       
+      // 添加文件代理特定的标识头部
+      const enableMockHeaders = process.env.WHISTLE_MOCK_HEADERS !== 'false';
+      if (enableMockHeaders) {
+        res.setHeader('X-Whistle-Mock-Data-Type', 'file');
+        res.setHeader('X-Whistle-Mock-File', path.basename(absFilePath));
+        res.setHeader('X-Whistle-Mock-File-Path', filePath);
+      }
+      
       // 发送文件内容
       res.end(fileContent);
       return { filePath: absFilePath, fileName: path.basename(absFilePath) };
@@ -880,6 +941,13 @@ const ruleManager = {
       // 设置内容类型
       if (!res.getHeader('Content-Type')) {
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      }
+      
+      // 添加动态数据特定的标识头部
+      const enableMockHeaders = process.env.WHISTLE_MOCK_HEADERS !== 'false';
+      if (enableMockHeaders) {
+        res.setHeader('X-Whistle-Mock-Data-Type', 'dynamic');
+        res.setHeader('X-Whistle-Mock-Script-Engine', 'function');
       }
       
       // 发送结果
@@ -951,6 +1019,25 @@ const ruleManager = {
     };
     
     return contentTypes[ext] || null;
+  },
+
+  /**
+   * 规范化代理类型名称
+   * @param {string} proxyType 原始代理类型
+   * @returns {string} 规范化后的代理类型
+   */
+  normalizeProxyType(proxyType) {
+    const typeMap = {
+      'response': 'mock',
+      'data_template': 'mock',
+      'redirect': 'redirect',
+      'url_redirect': 'redirect',
+      'file': 'file',
+      'file_proxy': 'file',
+      'dynamic_data': 'dynamic',
+    };
+    
+    return typeMap[proxyType] || 'proxy';
   }
 };
 

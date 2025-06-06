@@ -478,6 +478,12 @@ app.use(async (req, res, next) => {
     
     if (result && result.handled) {
       logMessage(`规则管理器成功处理了请求`);
+      
+      // 记录匹配到的接口信息用于调试
+      if (result.matchedInterface) {
+        logMessage(`匹配的接口: ${result.matchedInterface.name}, 代理类型: ${result.matchedInterface.proxyType}`);
+      }
+      
       return; // 请求已处理，无需继续
     }
     

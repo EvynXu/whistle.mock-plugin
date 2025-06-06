@@ -231,4 +231,93 @@ URL解析 →
 - **ConfigError**: 配置文件错误
 - **MatchError**: 接口匹配错误  
 - **ProxyError**: 代理转发错误
-- **ValidationError**: 参数验证错误 
+- **ValidationError**: 参数验证错误
+
+## Whistle Mock插件标识响应头
+
+### 功能概述
+为了更好地识别和调试通过whistle.mock-plugin处理的请求，插件会在所有命中的代理请求响应中添加标识响应头。
+
+### 环境变量控制
+- **WHISTLE_MOCK_HEADERS**: 控制是否启用标识响应头（默认启用）
+  - `true` 或未设置: 启用标识响应头
+  - `false`: 禁用标识响应头
+
+### 通用标识响应头
+
+#### X-Whistle-Mock
+- **值**: `true`
+- **说明**: 标识该响应是通过whistle.mock-plugin处理的
+
+#### X-Whistle-Mock-Mode
+- **值**: `mock|redirect|file|dynamic|proxy`
+- **说明**: 标识代理模式类型
+  - `mock`: 数据模板响应 (response, data_template)
+  - `redirect`: URL重定向 (redirect, url_redirect)
+  - `file`: 文件代理 (file, file_proxy)
+  - `dynamic`: 动态数据生成 (dynamic_data)
+  - `proxy`: 其他代理类型
+
+#### X-Whistle-Mock-Rule
+- **值**: 接口名称
+- **说明**: 命中的规则/接口名称
+
+#### X-Whistle-Mock-Interface
+- **值**: 接口ID
+- **说明**: 接口的唯一标识符
+
+#### X-Whistle-Mock-Feature
+- **值**: 功能模块名称
+- **说明**: 接口所属的功能模块名称（如果有）
+
+#### X-Whistle-Mock-Response
+- **值**: 响应名称
+- **说明**: 对于有多个响应的接口，显示当前使用的响应名称
+
+### 特定类型标识响应头
+
+#### 数据模板响应 (Mock Data)
+- **X-Whistle-Mock-Data-Type**: `template`
+- **X-Whistle-Mock-Template**: 模板名称（多响应时）
+
+#### 文件代理响应 (File Proxy)
+- **X-Whistle-Mock-Data-Type**: `file`
+- **X-Whistle-Mock-File**: 文件名
+- **X-Whistle-Mock-File-Path**: 相对文件路径
+
+#### 重定向响应 (Redirect)
+- **X-Whistle-Mock-Data-Type**: `redirect`
+- **X-Whistle-Mock-Target-Url**: 重定向目标URL
+
+#### 动态数据响应 (Dynamic Data)
+- **X-Whistle-Mock-Data-Type**: `dynamic`
+- **X-Whistle-Mock-Script-Engine**: `function`
+
+### 使用场景
+
+#### 开发调试
+- 在浏览器开发者工具中查看响应头，快速识别mock响应
+- 通过响应头过滤和分析特定类型的请求
+- 验证接口匹配和代理类型是否正确
+
+#### 自动化测试
+- 在测试中验证请求是否正确命中mock规则
+- 基于响应头进行测试断言
+- 监控和统计mock请求的使用情况
+
+#### 生产环境监控
+- 可通过环境变量禁用标识响应头
+- 避免在生产环境中泄露内部信息
+- 支持分环境的不同配置策略
+
+### 示例响应头
+```
+X-Whistle-Mock: true
+X-Whistle-Mock-Mode: mock
+X-Whistle-Mock-Rule: 用户列表接口
+X-Whistle-Mock-Interface: user-list-001
+X-Whistle-Mock-Feature: 用户管理
+X-Whistle-Mock-Response: 成功响应
+X-Whistle-Mock-Data-Type: template
+X-Whistle-Mock-Template: 成功响应
+``` 
