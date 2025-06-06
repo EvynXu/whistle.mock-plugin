@@ -3,11 +3,12 @@ import { useParams, useHistory } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import { 
   Table, Button, Modal, Form, Input, Select, message, Switch, 
-  Popconfirm, Alert, Space, Card, Badge, Tooltip, Row, Col 
+  Popconfirm, Alert, Space, Card, Badge, Tooltip, Row, Col,
+  Popover, Checkbox 
 } from 'antd';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, 
-  FileTextOutlined, PlusCircleOutlined 
+  FileTextOutlined, PlusCircleOutlined, SettingOutlined 
 } from '@ant-design/icons';
 import '../styles/interface-management.css';
 import axios from 'axios';
@@ -27,6 +28,22 @@ import {
 
 const { Option } = Select;
 
+// 列配置数据结构
+const COLUMN_CONFIG = [
+  { key: 'active', title: '状态', required: true },
+  { key: 'name', title: '名称', required: true },
+  { key: 'urlPattern', title: 'URL匹配规则', required: false },
+  { key: 'proxyType', title: '处理方式', required: false },
+  { key: 'currentResponse', title: '当前响应', required: false },
+  { key: 'httpStatus', title: '状态码', required: false },
+  { key: 'contentType', title: '内容类型', required: false },
+  { key: 'targetUrl', title: '目标URL', required: false },
+  { key: 'customHeaders', title: '自定义头', required: false },
+  { key: 'paramMatchers', title: '参数匹配', required: false },
+  { key: 'httpMethod', title: '请求方法', required: false },
+  { key: 'action', title: '操作', required: true }
+];
+
 const InterfaceManagement = () => {
   const { featureId } = useParams();
   const history = useHistory();
@@ -42,6 +59,9 @@ const InterfaceManagement = () => {
   // 模态框状态
   const [modalVisible, setModalVisible] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
+  
+  // 列配置状态
+  const [columnConfigVisible, setColumnConfigVisible] = useState(false);
 
   // 编辑状态
   const [editingInterface, setEditingInterface] = useState(null);
@@ -54,11 +74,13 @@ const InterfaceManagement = () => {
   // 表格配置状态（支持缓存）
   const [tableConfig, setTableConfig] = useState(() => {
     const cached = localStorage.getItem('interface-table-config');
+    const defaultVisibleColumns = COLUMN_CONFIG.map(col => col.key);
     return cached ? JSON.parse(cached) : {
       sortOrder: null,
       sortField: null,
       pageSize: 10,
-      current: 1
+      current: 1,
+      visibleColumns: defaultVisibleColumns
     };
   });
 
@@ -565,7 +587,34 @@ const InterfaceManagement = () => {
     saveTableConfig(sortConfig);
   };
 
-  const columns = [
+  // 处理列配置变更
+  const handleColumnConfigChange = (checkedValues) => {
+    // 确保必须显示的列始终被选中
+    const requiredColumns = COLUMN_CONFIG.filter(col => col.required).map(col => col.key);
+    const finalColumns = [...new Set([...requiredColumns, ...checkedValues])];
+    
+    saveTableConfig({ visibleColumns: finalColumns });
+  };
+
+  // 全选列配置
+  const handleSelectAllColumns = () => {
+    const allColumns = COLUMN_CONFIG.map(col => col.key);
+    saveTableConfig({ visibleColumns: allColumns });
+  };
+
+  // 重置列配置
+  const handleResetColumns = () => {
+    const defaultColumns = COLUMN_CONFIG.map(col => col.key);
+    saveTableConfig({ visibleColumns: defaultColumns });
+  };
+
+  // 切换列配置面板显示
+  const handleColumnConfigToggle = (visible) => {
+    setColumnConfigVisible(visible);
+  };
+
+  // 定义所有可用的列
+  const allColumns = [
     {
       title: '状态',
       dataIndex: 'active',
@@ -853,6 +902,10 @@ const InterfaceManagement = () => {
     },
   ];
 
+  // 根据配置过滤可见列
+  const visibleColumns = tableConfig.visibleColumns || COLUMN_CONFIG.map(col => col.key);
+  const columns = allColumns.filter(col => visibleColumns.includes(col.key));
+
   return (
     <AppLayout>
       <div className="interface-management-container">
@@ -926,13 +979,76 @@ const InterfaceManagement = () => {
               共 {filteredInterfaces.length} 个接口，每页显示 {tableConfig.pageSize} 个
               {tableConfig.sortField && (
                 <span style={{ marginLeft: 8 }}>
-                  | 按"{columns.find(col => col.key === tableConfig.sortField)?.title || tableConfig.sortField}"
+                  | 按"{allColumns.find(col => col.key === tableConfig.sortField)?.title || tableConfig.sortField}"
                   {tableConfig.sortOrder === 'ascend' ? '升序' : '降序'}排列
                 </span>
               )}
             </span>
           </div>
         )}
+
+        {/* 列配置区域 */}
+        <div style={{ 
+          marginBottom: 16, 
+          display: 'flex', 
+          justifyContent: 'flex-end',
+          alignItems: 'center' 
+        }}>
+          <Popover
+            title="自定义显示列"
+            trigger="click"
+            open={columnConfigVisible}
+            onOpenChange={handleColumnConfigToggle}
+            content={
+              <div style={{ width: 280 }}>
+                <div style={{ marginBottom: 12 }}>
+                  <Space>
+                    <Button size="small" onClick={handleSelectAllColumns}>
+                      全选
+                    </Button>
+                    <Button size="small" onClick={handleResetColumns}>
+                      重置
+                    </Button>
+                  </Space>
+                </div>
+                <Checkbox.Group
+                  value={tableConfig.visibleColumns || COLUMN_CONFIG.map(col => col.key)}
+                  onChange={handleColumnConfigChange}
+                  style={{ width: '100%' }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {COLUMN_CONFIG.map(col => (
+                      <Checkbox 
+                        key={col.key} 
+                        value={col.key}
+                        disabled={col.required}
+                        style={{ 
+                          width: '100%',
+                          color: col.required ? '#999' : undefined 
+                        }}
+                      >
+                        {col.title}
+                        {col.required && (
+                          <span style={{ color: '#999', fontSize: '12px', marginLeft: 4 }}>
+                            (必须)
+                          </span>
+                        )}
+                      </Checkbox>
+                    ))}
+                  </div>
+                </Checkbox.Group>
+              </div>
+            }
+          >
+            <Button 
+              icon={<SettingOutlined />} 
+              size="small"
+              type="text"
+            >
+              列设置
+            </Button>
+          </Popover>
+        </div>
 
         <div className="interface-list-container">
           <Table
