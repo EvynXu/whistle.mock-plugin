@@ -35,6 +35,7 @@ const COLUMN_CONFIG = [
   { key: 'urlPattern', title: 'URL匹配规则', required: false },
   { key: 'proxyType', title: '处理方式', required: false },
   { key: 'currentResponse', title: '当前响应', required: false },
+  { key: 'responseDelay', title: '延迟(毫秒)', required: false },
   { key: 'httpStatus', title: '状态码', required: false },
   { key: 'contentType', title: '内容类型', required: false },
   { key: 'targetUrl', title: '目标URL', required: false },
@@ -214,77 +215,62 @@ const InterfaceManagement = () => {
   };
 
   const handleEditInterface = (record) => {
-    console.log('开始编辑接口:', record.name, '原始数据:', record);
-    setEditingInterface(record);
+    if (!record) {
+      message.warning('接口数据不完整，无法编辑');
+      return;
+    }
     
-    // 将自定义请求头转换为数组格式，用于动态表单项
-    let headersArray = [];
-    if (record.customHeaders && typeof record.customHeaders === 'object') {
-      headersArray = Object.entries(record.customHeaders).map(([key, value]) => ({
-        headerName: key,
-        headerValue: value
-      }));
-    }
-
-    // 处理参数匹配规则，转换为数组格式
-    let paramMatchersArray = [];
-    if (record.paramMatchers && Array.isArray(record.paramMatchers)) {
-      paramMatchersArray = record.paramMatchers.map(matcher => ({
-        paramPath: matcher.paramPath || '',
-        paramValue: matcher.paramValue || '',
-        matchType: matcher.matchType || 'exact'
-      }));
-    }
-
-    // 处理多响应数据
-    let initialResponses = [];
-    let initialResponseId = null;
-
-    // 深拷贝记录中的响应数据，避免引用问题
+    console.log('编辑接口:', record);
+    
+    // 重置表单
+    form.resetFields();
+    
+    // 处理响应数据
+    let responses = [];
+    let activeResponseId = '';
+    
     if (record.responses && Array.isArray(record.responses) && record.responses.length > 0) {
-      console.log('使用现有响应数据, 数量:', record.responses.length);
-      
-      initialResponses = JSON.parse(JSON.stringify(record.responses));
-      initialResponseId = record.activeResponseId || record.responses[0].id;
-      
-      // 确保每个响应都有名称
-      initialResponses = initialResponses.map((resp, index) => ({
-        id: resp.id || generateResponseId(),
-        name: resp.name || `响应 ${index + 1}`,
-        description: resp.description || '',
-        content: resp.content || '{}'
-      }));
+      responses = record.responses;
+      activeResponseId = record.activeResponseId || responses[0].id;
     } else if (record.responseContent) {
-      // 向后兼容：如果只有传统的 responseContent 字段，创建一个默认响应
-      console.log('创建默认响应，使用responseContent字段');
+      // 兼容旧数据格式，创建默认响应
       const defaultResponseId = generateResponseId();
-      initialResponses = [
-        {
-          id: defaultResponseId,
-          name: '默认响应',
-          description: '',
-          content: record.responseContent
-        }
-      ];
-      initialResponseId = defaultResponseId;
+      responses = [{
+        id: defaultResponseId,
+        name: '默认响应',
+        description: '',
+        content: record.responseContent
+      }];
+      activeResponseId = defaultResponseId;
     }
     
-    console.log('编辑接口，设置响应数据:', initialResponses);
-    setCurrentResponseId(initialResponseId);
+    // 处理自定义请求头
+    let headerItems = [];
+    if (record.headers && typeof record.headers === 'object') {
+      headerItems = Object.entries(record.headers).map(([headerName, headerValue]) => ({
+        headerName,
+        headerValue
+      }));
+    }
     
+    // 设置表单值
     form.setFieldsValue({
       name: record.name,
       pattern: record.urlPattern,
       proxyType: record.proxyType || 'response',
-      statusCode: record.httpStatus?.toString() || '200',
+      statusCode: (record.httpStatus || record.statusCode || 200).toString(),
       contentType: record.contentType || 'application/json; charset=utf-8',
-      responses: initialResponses,
-      activeResponseId: initialResponseId,
-      httpMethod: record.httpMethod || 'ALL',
+      responses,
+      activeResponseId,
+      httpMethod: record.httpMethod || record.method || 'ALL',
       targetUrl: record.targetUrl || '',
-      headerItems: headersArray, // 使用数组存储表单项
-      paramMatchers: paramMatchersArray
+      headerItems,
+      paramMatchers: record.paramMatchers || [],
+      responseDelay: record.responseDelay ? record.responseDelay.toString() : '0'
     });
+    
+    setCurrentResponseId(activeResponseId);
+    setEditingInterface(record);
     setModalVisible(true);
   };
 
@@ -325,174 +311,80 @@ const InterfaceManagement = () => {
 
   const handleSubmit = async () => {
     try {
+      // 表单验证
       const values = await form.validateFields();
-      console.log('=== 开始表单提交 ===');
-      console.log('表单提交，原始值:', JSON.stringify(values, null, 2));
+      console.log('表单提交数据:', values);
       
-      // 获取当前激活的响应ID和所有响应
-      const activeResponseId = values.activeResponseId;
-      let responses = values.responses || [];
-      
-      console.log('提取的原始响应数据:', responses);
-      console.log('响应数据类型:', typeof responses);
-      console.log('是否为数组:', Array.isArray(responses));
-      
-      // 确保responses是数组格式
-      if (!Array.isArray(responses)) {
-        console.log('响应数据不是数组，尝试解析...');
-        try {
-          if (typeof responses === 'string') {
-            responses = JSON.parse(responses);
-            if (!Array.isArray(responses)) {
-              responses = [];
-            }
-          } else {
-            responses = [];
+      // 处理自定义请求头
+      let headers = {};
+      if (values.headerItems && Array.isArray(values.headerItems)) {
+        values.headerItems.forEach(item => {
+          if (item && item.headerName) {
+            headers[item.headerName] = item.headerValue;
           }
-    } catch (e) {
-          console.error('解析响应数据失败:', e);
-          responses = [];
-    }
-      }
-      
-      console.log('处理前的响应数据:', JSON.stringify(responses, null, 2));
-
-      // 确保每个响应都有名称、描述和内容
-      const cleanedResponses = responses.map((resp, index) => {
-        console.log(`处理响应 ${index}:`, resp);
-        const cleaned = {
-          id: resp.id || generateResponseId(),
-          name: resp.name || `响应 ${index + 1}`,
-          description: resp.description || '',
-          content: resp.content || '{}'
-        };
-        console.log(`处理后的响应 ${index}:`, cleaned);
-        return cleaned;
-      });
-
-      // 如果没有响应，创建一个默认响应
-      if (cleanedResponses.length === 0) {
-        console.log('没有响应数据，创建默认响应');
-        const defaultId = generateResponseId();
-        cleanedResponses.push({
-          id: defaultId,
-          name: '默认响应',
-          description: '',
-          content: '{\n  "code": 0,\n  "message": "success",\n  "data": {}\n}'
-        });
-        setCurrentResponseId(defaultId);
-      }
-      
-      // 确保有一个激活的响应ID
-      const validActiveResponseId = activeResponseId && cleanedResponses.some(r => r.id === activeResponseId) 
-        ? activeResponseId 
-        : cleanedResponses[0].id;
-      
-      // 获取激活的响应
-      const activeResponse = cleanedResponses.find(r => r.id === validActiveResponseId) || cleanedResponses[0];
-      
-      console.log('=== 清理后的响应数据 ===');
-      console.log('清理后的响应数据:', JSON.stringify(cleanedResponses, null, 2));
-      console.log('激活的响应ID:', validActiveResponseId);
-      console.log('激活的响应:', activeResponse);
-      
-      // 检查responseBody是否是有效的JSON
-      if (values.proxyType === 'response' && values.contentType.includes('application/json')) {
-        cleanedResponses.forEach(response => {
-        try {
-            if (response.content) {
-              JSON.parse(response.content);
-            }
-        } catch (e) {
-            message.error(`响应 "${response.name}" 不是有效的JSON格式`);
-            throw new Error(`响应 "${response.name}" 不是有效的JSON格式`);
-        }
         });
       }
       
-      // 处理自定义请求头，将表单项数组转换为对象格式
-      let customHeaders = {};
-      
-      if (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') {
-        if (values.headerItems && values.headerItems.length > 0) {
-          values.headerItems.forEach(item => {
-            if (item && item.headerName && item.headerName.trim()) {
-              customHeaders[item.headerName.trim()] = item.headerValue || '';
-            }
-          });
-        }
-      }
-
-      // 处理参数匹配规则，清理无效的规则
-      let paramMatchers = [];
-      if (values.proxyType === 'response' && values.paramMatchers && values.paramMatchers.length > 0) {
-        paramMatchers = values.paramMatchers
-          .filter(item => item && item.paramPath && item.paramPath.trim() && item.paramValue !== undefined)
-          .map(item => ({
-            paramPath: item.paramPath.trim(),
-            paramValue: item.paramValue,
-            matchType: item.matchType || 'exact'
-          }));
-      }
-
-      console.log('=== 参数匹配规则处理 ===');
-      console.log('原始参数匹配规则:', values.paramMatchers);
-      console.log('清理后的参数匹配规则:', paramMatchers);
-
+      // 构建接口数据
       const interfaceData = {
         name: values.name,
-        featureId: selectedFeatureId,
         urlPattern: values.pattern,
         proxyType: values.proxyType,
-        // 同时保存所有响应和当前活跃的响应
-        responses: cleanedResponses,
-        activeResponseId: validActiveResponseId,
-        // 兼容性保留：将当前活跃响应的内容保存到 responseContent
-        responseContent: activeResponse ? activeResponse.content : '',
-        targetUrl: (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') ? values.targetUrl : '',
-        customHeaders: (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') ? customHeaders : {},
-        paramMatchers: paramMatchers, // 添加参数匹配规则
+        featureId: selectedFeatureId,
+        responses: values.responses,
+        activeResponseId: values.activeResponseId,
         httpStatus: parseInt(values.statusCode, 10), // 转换为数字
         contentType: values.contentType,
-        responseDelay: 0,
+        responseDelay: parseInt(values.responseDelay, 10) || 0,
         httpMethod: values.httpMethod,
         active: true
       };
       
-      console.log('=== 最终提交的接口数据 ===');
-      console.log('提交的接口数据:', JSON.stringify(interfaceData, null, 2));
-      
-      let response;
-      if (editingInterface) {
-        // 更新现有接口
-        console.log('执行接口更新，ID:', editingInterface.id);
-        response = await axios.put(`/cgi-bin/interfaces?id=${editingInterface.id}`, interfaceData);
-      } else {
-        // 创建新接口
-        console.log('执行接口创建');
-        response = await axios.post('/cgi-bin/interfaces', interfaceData);
+      // 根据代理类型添加不同字段
+      if (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') {
+        interfaceData.targetUrl = values.targetUrl;
+        interfaceData.headers = headers;
       }
-
-      console.log('服务器响应:', response.data);
-
-      if (response.data && response.data.code === 0) {
-        console.log('=== 接口操作成功 ===');
-        message.success(editingInterface ? '接口更新成功' : '接口创建成功');
-        setModalVisible(false);
-        fetchInterfaces();
-        
-        // 刷新规则缓存
-        refreshCacheAfterUpdate();
+      
+      // 添加参数匹配规则
+      if (values.paramMatchers && Array.isArray(values.paramMatchers) && values.paramMatchers.length > 0) {
+        // 过滤掉空的匹配规则
+        interfaceData.paramMatchers = values.paramMatchers.filter(matcher => 
+          matcher && matcher.paramPath && matcher.paramValue
+        );
+      }
+      
+      console.log('提交接口数据:', interfaceData);
+      
+      if (editingInterface) {
+        // 更新接口
+        const response = await axios.put(`/cgi-bin/interfaces?id=${editingInterface.id}`, interfaceData);
+        if (response.data && response.data.code === 0) {
+          message.success('接口更新成功');
+          setModalVisible(false);
+          fetchInterfaces();
+          
+          // 刷新规则缓存
+          refreshCacheAfterUpdate();
+        } else {
+          throw new Error(response.data?.message || '接口更新失败');
+        }
       } else {
-        throw new Error(response.data?.message || '操作失败');
+        // 创建接口
+        const response = await axios.post('/cgi-bin/interfaces', interfaceData);
+        if (response.data && response.data.code === 0) {
+          message.success('接口创建成功');
+          setModalVisible(false);
+          fetchInterfaces();
+          
+          // 刷新规则缓存
+          refreshCacheAfterUpdate();
+        } else {
+          throw new Error(response.data?.message || '接口创建失败');
+        }
       }
     } catch (error) {
-      if (error.message && error.message.includes('JSON格式')) {
-        // 已经显示了错误信息，不需要再显示
-        return;
-      }
-      console.error('=== 接口操作失败 ===');
-      console.error('操作失败:', error);
+      console.error('表单提交失败:', error);
       message.error(error.response?.data?.message || error.message || '操作失败');
     }
   };
@@ -620,15 +512,11 @@ const InterfaceManagement = () => {
       dataIndex: 'active',
       key: 'active',
       width: 80,
-      sorter: (a, b) => {
-        // true排在前面，false排在后面
-        return Number(b.active) - Number(a.active);
-      },
-      sortDirections: ['descend', 'ascend'],
       render: (active, record) => (
         <Switch
-          checked={active}
+          checked={active !== false}
           onChange={() => handleToggleActive(record.id, active)}
+          size="small"
         />
       ),
     },
@@ -636,113 +524,94 @@ const InterfaceManagement = () => {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      ellipsis: true,
-      sorter: (a, b) => a.name.localeCompare(b.name, 'zh-CN'),
-      sortDirections: ['ascend', 'descend'],
+      sorter: (a, b) => a.name.localeCompare(b.name),
+      render: (text) => <span className="interface-name">{text}</span>,
     },
     {
       title: 'URL匹配规则',
       dataIndex: 'urlPattern',
       key: 'urlPattern',
       ellipsis: true,
-      sorter: (a, b) => a.urlPattern.localeCompare(b.urlPattern),
-      sortDirections: ['ascend', 'descend'],
+      render: (text) => <span className="url-pattern">{text}</span>,
     },
     {
       title: '处理方式',
       dataIndex: 'proxyType',
       key: 'proxyType',
       width: 120,
-      sorter: (a, b) => {
-        const aType = a.proxyType || 'response';
-        const bType = b.proxyType || 'response';
-        return aType.localeCompare(bType);
-      },
-      sortDirections: ['ascend', 'descend'],
       render: (text) => {
-        const found = proxyTypes.find(item => item.value === text);
-        return found ? found.label : text || '模拟响应';
-      }
+        const proxyType = proxyTypes.find(item => item.value === text);
+        return (
+          <Badge 
+            color={proxyType?.color || '#999'} 
+            text={proxyType?.label || text} 
+          />
+        );
+      },
     },
     {
       title: '当前响应',
-      dataIndex: 'responses',
+      dataIndex: 'activeResponseId',
       key: 'currentResponse',
-      width: 160,
-      render: (responses, record) => {
-        // 仅在模拟响应类型时显示
-        if (record.proxyType !== 'response') {
-          return '-';
+      width: 180,
+      render: (activeResponseId, record) => {
+        // 如果没有响应数据，返回空
+        if (!record.responses || !Array.isArray(record.responses) || record.responses.length === 0) {
+          return <span className="no-response">无响应数据</span>;
         }
         
-        // 如果没有响应数据
-        if (!responses || !Array.isArray(responses) || responses.length === 0) {
-          return <span style={{ color: '#999' }}>无响应数据</span>;
-        }
+        // 找到当前激活的响应
+        const activeResponse = record.responses.find(resp => resp.id === activeResponseId);
         
-        // 如果只有一个响应，直接显示名称
-        if (responses.length === 1) {
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span>{responses[0].name || '默认响应'}</span>
-              <Badge count="1" style={{ backgroundColor: '#52c41a' }} />
-            </div>
-          );
-        }
-        
-        // 多个响应时显示选择器
-        const activeResponse = responses.find(r => r.id === record.activeResponseId) || responses[0];
+        // 如果没有找到激活的响应，使用第一个
+        const currentResponse = activeResponse || record.responses[0];
         
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Select
-              size="small"
-              value={record.activeResponseId || activeResponse.id}
-              onChange={(responseId) => handleResponseSwitch(record.id, responseId)}
-              style={{ width: '110px' }}
-              optionLabelProp="label"
-              disabled={record.active === false}
-            >
-              {responses.map(resp => (
-                <Option 
-                  key={resp.id} 
-                  value={resp.id} 
-                  label={resp.name || '未命名'}
-                >
-                  <Tooltip title={resp.description || resp.name}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>{resp.name || '未命名'}</span>
-                      {resp.id === (record.activeResponseId || activeResponse.id) && (
-                        <Badge status="processing" />
-                      )}
-                    </div>
-                  </Tooltip>
-                </Option>
-              ))}
-            </Select>
-            <Badge 
-              count={responses.length} 
-              style={{ backgroundColor: '#1890ff' }}
-              title={`共${responses.length}个响应`}
-            />
-          </div>
+          <Select
+            value={activeResponseId || record.responses[0]?.id}
+            style={{ width: '100%' }}
+            onChange={(value) => handleResponseSwitch(record.id, value)}
+            disabled={record.proxyType !== 'response'}
+          >
+            {record.responses.map(resp => (
+              <Option key={resp.id} value={resp.id}>
+                {resp.name}
+              </Option>
+            ))}
+          </Select>
         );
-      }
+      },
+    },
+    {
+      title: '延迟(毫秒)',
+      dataIndex: 'responseDelay',
+      key: 'responseDelay',
+      width: 100,
+      sorter: (a, b) => (a.responseDelay || 0) - (b.responseDelay || 0),
+      render: (delay) => {
+        const delayValue = parseInt(delay, 10) || 0;
+        return (
+          <span className={delayValue > 0 ? 'delay-active' : 'delay-inactive'}>
+            {delayValue > 0 ? delayValue : '无延迟'}
+          </span>
+        );
+      },
     },
     {
       title: '状态码',
       dataIndex: 'httpStatus',
       key: 'httpStatus',
       width: 100,
-      sorter: (a, b) => {
-        const aStatus = parseInt(a.httpStatus) || 0;
-        const bStatus = parseInt(b.httpStatus) || 0;
-        return aStatus - bStatus;
+      render: (status) => {
+        const statusCode = status || 200;
+        let statusClass = 'status-success';
+        if (statusCode >= 400) {
+          statusClass = 'status-error';
+        } else if (statusCode >= 300) {
+          statusClass = 'status-warning';
+        }
+        return <span className={statusClass}>{statusCode}</span>;
       },
-      sortDirections: ['ascend', 'descend'],
-      render: (text, record) => {
-        return record.proxyType === 'response' ? text : '-';
-      }
     },
     {
       title: '内容类型',
@@ -1096,7 +965,8 @@ const InterfaceManagement = () => {
               httpMethod: 'ALL',
               targetUrl: '',
               headerItems: [],
-              paramMatchers: []
+              paramMatchers: [],
+              responseDelay: '0'
             }}
           >
             {/* 基础信息表单项保持原样 */}
@@ -1281,6 +1151,29 @@ const InterfaceManagement = () => {
                                 <Option key={item.value} value={item.value}>{item.label}</Option>
                               ))}
                             </Select>
+                          </Form.Item>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <Form.Item
+                            name="responseDelay"
+                            label="延迟响应(毫秒)"
+                            tooltip="设置接口响应延迟时间，单位为毫秒"
+                            rules={[
+                              { 
+                                pattern: /^\d*$/, 
+                                message: '请输入有效的数字' 
+                              },
+                              {
+                                validator: (_, value) => {
+                                  if (!value || parseInt(value, 10) <= 60000) {
+                                    return Promise.resolve();
+                                  }
+                                  return Promise.reject(new Error('延迟时间不能超过60秒(60000毫秒)'));
+                                }
+                              }
+                            ]}
+                          >
+                            <Input placeholder="例如：500" />
                           </Form.Item>
                         </div>
                       </div>

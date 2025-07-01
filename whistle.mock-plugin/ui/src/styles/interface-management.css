@@ -746,4 +746,48 @@
   background: #1f1f1f !important;
   border: none !important;
   box-shadow: none !important;
+}
+
+/* 延迟时间样式 */
+.delay-active {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.delay-inactive {
+  color: #999;
+  font-style: italic;
+}
+
+/* 状态码样式 */
+.status-success {
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.status-warning {
+  color: #faad14;
+  font-weight: 500;
+}
+
+.status-error {
+  color: #f5222d;
+  font-weight: 500;
+}
+
+/* 接口名称样式 */
+.interface-name {
+  font-weight: 500;
+}
+
+/* URL模式样式 */
+.url-pattern {
+  font-family: monospace;
+  color: #333;
+}
+
+/* 无响应数据样式 */
+.no-response {
+  color: #999;
+  font-style: italic;
 } 
