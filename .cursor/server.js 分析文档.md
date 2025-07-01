@@ -231,7 +231,7 @@ URL解析 →
 - **ConfigError**: 配置文件错误
 - **MatchError**: 接口匹配错误  
 - **ProxyError**: 代理转发错误
-- **ValidationError**: 参数验证错误
+- **ValidationError**: 参数验证错误 
 
 ## Whistle Mock插件标识响应头
 

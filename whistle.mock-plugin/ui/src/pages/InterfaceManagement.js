@@ -4,7 +4,7 @@ import AppLayout from '../components/AppLayout';
 import { 
   Table, Button, Modal, Form, Input, Select, message, Switch, 
   Popconfirm, Alert, Space, Card, Badge, Tooltip, Row, Col,
-  Popover, Checkbox 
+  Popover, Checkbox, Tag 
 } from 'antd';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, 
@@ -32,6 +32,7 @@ const { Option } = Select;
 const COLUMN_CONFIG = [
   { key: 'active', title: '状态', required: true },
   { key: 'name', title: '名称', required: true },
+  { key: 'group', title: '分组', required: false },
   { key: 'urlPattern', title: 'URL匹配规则', required: false },
   { key: 'proxyType', title: '处理方式', required: false },
   { key: 'currentResponse', title: '当前响应', required: false },
@@ -56,6 +57,11 @@ const InterfaceManagement = () => {
   const [featuresLoading, setFeaturesLoading] = useState(false);
   const [interfacesLoading, setInterfacesLoading] = useState(false);
   const [selectedFeatureId, setSelectedFeatureId] = useState(null);
+  
+  // 分组状态
+  const [groups, setGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [groupActionLoading, setGroupActionLoading] = useState(false);
   
   // 模态框状态
   const [modalVisible, setModalVisible] = useState(false);
@@ -166,6 +172,10 @@ const InterfaceManagement = () => {
         
         setInterfaces(processedInterfaces);
         console.log('处理后的接口列表:', processedInterfaces);
+        console.log('接口分组信息:', processedInterfaces.map(item => ({ id: item.id, name: item.name, group: item.group })));
+        
+        // 提取并更新分组列表
+        updateGroups(processedInterfaces);
       } else {
         console.warn('接口数据格式不正确:', response.data);
         setInterfaces([]);
@@ -178,6 +188,41 @@ const InterfaceManagement = () => {
     } finally {
       setInterfacesLoading(false);
     }
+  };
+  
+  // 提取并更新分组列表
+  const updateGroups = (interfaces) => {
+    // 从接口列表中提取所有分组
+    const groupSet = new Set();
+    interfaces.forEach(item => {
+      if (item.group) {
+        groupSet.add(item.group);
+      }
+    });
+    
+    // 转换为数组并排序
+    const groupArray = Array.from(groupSet).sort();
+    setGroups(groupArray);
+    
+    // 如果当前选中的分组不在列表中，重置选中的分组
+    if (selectedGroup && !groupArray.includes(selectedGroup)) {
+      setSelectedGroup(null);
+    }
+  };
+  
+  // 根据分组筛选接口
+  const getFilteredInterfaces = () => {
+    // 首先按功能模块筛选
+    const featureFiltered = interfaces.filter(item => 
+      !selectedFeatureId || item.featureId === selectedFeatureId
+    );
+    
+    // 然后按分组筛选
+    if (selectedGroup) {
+      return featureFiltered.filter(item => item.group === selectedGroup);
+    }
+    
+    return featureFiltered;
   };
 
   const handleAddInterface = () => {
@@ -206,7 +251,8 @@ const InterfaceManagement = () => {
       activeResponseId: defaultResponseId,
       httpMethod: 'ALL',
       headerItems: [], // 初始化为空数组
-      paramMatchers: [] // 初始化为空数组
+      paramMatchers: [], // 初始化为空数组
+      group: undefined // 确保分组字段为undefined，而不是空字符串
     });
     
     setCurrentResponseId(defaultResponseId);
@@ -253,9 +299,16 @@ const InterfaceManagement = () => {
       }));
     }
     
+    // 处理分组值，确保它是字符串而不是数组
+    let groupValue = record.group;
+    if (Array.isArray(groupValue)) {
+      groupValue = groupValue.length > 0 ? groupValue[0] : undefined;
+    }
+    
     // 设置表单值
     form.setFieldsValue({
       name: record.name,
+      group: groupValue || undefined, // 使用undefined而不是空字符串
       pattern: record.urlPattern,
       proxyType: record.proxyType || 'response',
       statusCode: (record.httpStatus || record.statusCode || 200).toString(),
@@ -268,6 +321,8 @@ const InterfaceManagement = () => {
       paramMatchers: record.paramMatchers || [],
       responseDelay: record.responseDelay ? record.responseDelay.toString() : '0'
     });
+    
+    console.log('编辑接口时设置的分组值:', groupValue);
     
     setCurrentResponseId(activeResponseId);
     setEditingInterface(record);
@@ -294,12 +349,15 @@ const InterfaceManagement = () => {
 
   const handleToggleActive = async (id, currentActive) => {
     try {
-      const response = await axios.patch(`/cgi-bin/interfaces?id=${id}`, {
+      const response = await axios.patch(`/cgi-bin/interfaces/${id}`, {
         active: !currentActive
       });
       if (response.data && response.data.code === 0) {
         message.success(`接口${!currentActive ? '启用' : '禁用'}成功`);
         fetchInterfaces();
+        
+        // 刷新规则缓存
+        refreshCacheAfterUpdate();
       } else {
         throw new Error(response.data?.message || `接口${!currentActive ? '启用' : '禁用'}失败`);
       }
@@ -325,9 +383,16 @@ const InterfaceManagement = () => {
         });
       }
       
+      // 处理分组值，确保它是字符串而不是数组
+      let groupValue = values.group;
+      if (Array.isArray(groupValue)) {
+        groupValue = groupValue.length > 0 ? groupValue[0] : '';
+      }
+      
       // 构建接口数据
       const interfaceData = {
         name: values.name,
+        group: groupValue || '', // 确保group不为undefined
         urlPattern: values.pattern,
         proxyType: values.proxyType,
         featureId: selectedFeatureId,
@@ -339,6 +404,8 @@ const InterfaceManagement = () => {
         httpMethod: values.httpMethod,
         active: true
       };
+      
+      console.log('提交的分组值:', groupValue);
       
       // 根据代理类型添加不同字段
       if (values.proxyType === 'redirect' || values.proxyType === 'url_redirect') {
@@ -374,6 +441,8 @@ const InterfaceManagement = () => {
         const response = await axios.post('/cgi-bin/interfaces', interfaceData);
         if (response.data && response.data.code === 0) {
           message.success('接口创建成功');
+          console.log('接口创建成功，返回数据:', response.data);
+          console.log('返回的接口数据中的分组信息:', response.data.data?.group);
           setModalVisible(false);
           fetchInterfaces();
           
@@ -460,9 +529,7 @@ const InterfaceManagement = () => {
     }
   };
 
-  const filteredInterfaces = interfaces.filter(item => 
-    !selectedFeatureId || item.featureId === selectedFeatureId
-  );
+  const filteredInterfaces = getFilteredInterfaces();
 
   // 处理表格变化（排序、分页）
   const handleTableChange = (pagination, filters, sorter) => {
@@ -526,6 +593,27 @@ const InterfaceManagement = () => {
       key: 'name',
       sorter: (a, b) => a.name.localeCompare(b.name),
       render: (text) => <span className="interface-name">{text}</span>,
+    },
+    {
+      title: '分组',
+      dataIndex: 'group',
+      key: 'group',
+      width: 120,
+      sorter: (a, b) => {
+        const groupA = a.group || '';
+        const groupB = b.group || '';
+        return groupA.localeCompare(groupB);
+      },
+      render: (group) => {
+        if (!group) {
+          return <span style={{ color: '#999', fontStyle: 'italic' }}>未分组</span>;
+        }
+        return (
+          <Tag color="blue" style={{ cursor: 'pointer' }} onClick={() => setSelectedGroup(group)}>
+            {group}
+          </Tag>
+        );
+      },
     },
     {
       title: 'URL匹配规则',
@@ -775,6 +863,28 @@ const InterfaceManagement = () => {
   const visibleColumns = tableConfig.visibleColumns || COLUMN_CONFIG.map(col => col.key);
   const columns = allColumns.filter(col => visibleColumns.includes(col.key));
 
+  // 分组筛选和操作区域
+  const handleBatchToggleActive = async (active) => {
+    try {
+      setGroupActionLoading(true);
+      const response = await axios.patch(`/cgi-bin/interfaces?active=${active}`, {
+        featureId: selectedFeatureId,
+        group: selectedGroup
+      });
+      if (response.data && response.data.code === 0) {
+        message.success(`分组 "${selectedGroup}" 中的接口已成功${active ? '启用' : '禁用'}`);
+        fetchInterfaces();
+      } else {
+        throw new Error(response.data?.message || '批量操作失败');
+      }
+    } catch (error) {
+      console.error('批量操作失败:', error);
+      message.error(error.response?.data?.message || error.message || '批量操作失败');
+    } finally {
+      setGroupActionLoading(false);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="interface-management-container">
@@ -828,6 +938,77 @@ const InterfaceManagement = () => {
           />
         )}
 
+        {/* 分组筛选和操作区域 */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: 16,
+          padding: '12px 16px',
+          backgroundColor: '#f5f5f5',
+          borderRadius: '4px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span>分组筛选：</span>
+            <Select
+              value={selectedGroup}
+              onChange={value => setSelectedGroup(value)}
+              style={{ width: 200 }}
+              placeholder="选择分组"
+              allowClear
+              showSearch
+              loading={interfacesLoading}
+            >
+              {groups.map(group => (
+                <Option key={group} value={group}>{group}</Option>
+              ))}
+            </Select>
+            {selectedGroup && (
+              <Button 
+                type="link" 
+                onClick={() => setSelectedGroup(null)}
+                size="small"
+              >
+                清除筛选
+              </Button>
+            )}
+          </div>
+          
+          {selectedGroup && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Popconfirm
+                title={`确定要启用分组 "${selectedGroup}" 中的所有接口吗？`}
+                onConfirm={() => handleBatchToggleActive(true)}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button 
+                  type="primary" 
+                  size="small"
+                  loading={groupActionLoading}
+                >
+                  批量启用
+                </Button>
+              </Popconfirm>
+              
+              <Popconfirm
+                title={`确定要禁用分组 "${selectedGroup}" 中的所有接口吗？`}
+                onConfirm={() => handleBatchToggleActive(false)}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button 
+                  danger 
+                  size="small"
+                  loading={groupActionLoading}
+                >
+                  批量禁用
+                </Button>
+              </Popconfirm>
+            </div>
+          )}
+        </div>
+
         {/* 接口列表状态栏 */}
         {filteredInterfaces.length > 0 && !interfacesLoading && (
           <div style={{ 
@@ -843,6 +1024,11 @@ const InterfaceManagement = () => {
           }}>
             <span>
               当前功能模块：<strong>{selectedFeature?.name}</strong>
+              {selectedGroup && (
+                <span style={{ marginLeft: 8 }}>
+                  | 分组：<Tag color="blue">{selectedGroup}</Tag>
+                </span>
+              )}
             </span>
             <span>
               共 {filteredInterfaces.length} 个接口，每页显示 {tableConfig.pageSize} 个
@@ -957,6 +1143,7 @@ const InterfaceManagement = () => {
             layout="vertical"
             initialValues={{
               name: '',
+              group: '',
               pattern: '',
               proxyType: 'response',
               statusCode: '200',
@@ -969,7 +1156,7 @@ const InterfaceManagement = () => {
               responseDelay: '0'
             }}
           >
-            {/* 基础信息表单项保持原样 */}
+            {/* 基础信息表单项 */}
             <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
               <div style={{ flex: 1 }}>
                 <Form.Item
@@ -980,6 +1167,44 @@ const InterfaceManagement = () => {
                   <Input placeholder="请输入接口名称" />
                 </Form.Item>
               </div>
+              <div style={{ flex: 1 }}>
+                <Form.Item
+                  name="group"
+                  label="分组"
+                  tooltip="为接口设置分组，便于管理和批量操作"
+                >
+                  <Select
+                    placeholder="选择或创建分组"
+                    showSearch
+                    allowClear
+                    style={{ width: '100%' }}
+                    mode="tags"
+                    maxTagCount="responsive"
+                    maxTagTextLength={10}
+                    onChange={(value) => {
+                      // 如果值是数组（tags模式），只取第一个元素
+                      if (Array.isArray(value) && value.length > 0) {
+                        // 如果第一个元素是空字符串，则设置为undefined
+                        const groupValue = value[0] === '' ? undefined : value[0];
+                        form.setFieldsValue({ group: groupValue });
+                      }
+                    }}
+                    onInputKeyDown={(e) => {
+                      // 防止回车键提交表单
+                      if (e.key === 'Enter') {
+                        e.stopPropagation();
+                      }
+                    }}
+                  >
+                    {Array.from(new Set(interfaces.map(item => item.group).filter(Boolean))).map(group => (
+                      <Option key={group} value={group}>{group}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
               <div style={{ flex: 1 }}>
                 <Form.Item
                   name="pattern"
@@ -1059,9 +1284,6 @@ const InterfaceManagement = () => {
                   />
                 </Form.Item>
               </div>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
               <div style={{ flex: 1 }}>
                 <Form.Item
                   name="proxyType"
@@ -1089,7 +1311,7 @@ const InterfaceManagement = () => {
                     const patternInput = document.querySelector('input[placeholder="根据选择的处理方式输入相应格式的URL"]');
                     if (patternInput) {
                       if (value === 'response') {
-                        patternInput.placeholder = "例如：/api/users，/api/users/*，/api\/users\/\d+/";
+                        patternInput.placeholder = "例如：/api/users，/api/users/*，/api\\/users\\/\\d+/";
                       } else if (value === 'redirect') {
                         patternInput.placeholder = "例如：https://example.com/api";
                       } else if (value === 'url_redirect') {
@@ -1103,6 +1325,9 @@ const InterfaceManagement = () => {
                   </Select>
                 </Form.Item>
               </div>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
               <div style={{ flex: 1 }}>
                 <Form.Item
                   name="httpMethod"
@@ -1115,6 +1340,9 @@ const InterfaceManagement = () => {
                     ))}
                   </Select>
                 </Form.Item>
+              </div>
+              <div style={{ flex: 1 }}>
+                {/* 这里可以留空或添加其他字段 */}
               </div>
             </div>
 

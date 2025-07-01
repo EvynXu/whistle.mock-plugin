@@ -23,6 +23,7 @@ const processInterfaceData = (data) => {
   console.log('=== 开始处理接口数据 ===');
   console.log('原始数据:', JSON.stringify({
     name: result.name,
+    group: result.group, // 添加分组信息的日志
     hasResponses: !!result.responses,
     responsesType: typeof result.responses,
     responsesLength: result.responses ? result.responses.length : 0,
@@ -108,6 +109,7 @@ const processInterfaceData = (data) => {
   console.log('=== 处理后的最终接口数据 ===');
   console.log('最终数据:', JSON.stringify({
     name: result.name,
+    group: result.group, // 添加分组信息的日志
     responsesLength: result.responses.length,
     responses: result.responses,
     activeResponseId: result.activeResponseId,
@@ -513,6 +515,175 @@ const initRouter = () => {
     } catch (err) {
       console.error('测试接口失败:', err);
       res.status(500).json({ error: '测试接口失败' });
+    }
+  });
+  
+  // 批量更新接口状态
+  router.patch('/interfaces', (req, res) => {
+    try {
+      const { active } = req.query;
+      const { featureId, group } = req.body;
+      
+      if (active === undefined) {
+        return res.status(400).json({ 
+          code: 1,
+          message: '状态参数为必填项' 
+        });
+      }
+      
+      if (!featureId) {
+        return res.status(400).json({ 
+          code: 1,
+          message: '功能ID为必填项' 
+        });
+      }
+      
+      // 检查功能是否存在
+      const featuresFile = path.join(DATA_DIR, 'features.json');
+      if (!fs.existsSync(featuresFile)) {
+        return res.status(404).json({ 
+          code: 1,
+          message: '功能不存在' 
+        });
+      }
+      
+      const features = fs.readJsonSync(featuresFile);
+      const feature = features.find(f => f.id === featureId);
+      if (!feature) {
+        return res.status(404).json({ 
+          code: 1,
+          message: '功能不存在' 
+        });
+      }
+      
+      // 读取接口列表
+      const interfacesFile = path.join(DATA_DIR, `interfaces-${featureId}.json`);
+      if (!fs.existsSync(interfacesFile)) {
+        return res.status(404).json({ 
+          code: 1,
+          message: '接口列表不存在' 
+        });
+      }
+      
+      const interfaces = fs.readJsonSync(interfacesFile);
+      
+      // 根据分组筛选要更新的接口
+      let updatedCount = 0;
+      const updatedInterfaces = interfaces.map(item => {
+        // 如果指定了分组，只更新该分组下的接口
+        if (group && item.group !== group) {
+          return item;
+        }
+        
+        // 更新接口状态
+        if (item.active !== (active === 'true')) {
+          updatedCount++;
+          return {
+            ...item,
+            active: active === 'true',
+            updatedAt: new Date().toISOString()
+          };
+        }
+        
+        return item;
+      });
+      
+      // 保存更新后的接口列表
+      fs.writeJsonSync(interfacesFile, updatedInterfaces, { spaces: 2 });
+      
+      res.json({
+        code: 0,
+        message: `成功${active === 'true' ? '启用' : '禁用'} ${updatedCount} 个接口`,
+        data: { updatedCount }
+      });
+    } catch (err) {
+      console.error('批量更新接口状态失败:', err);
+      res.status(500).json({ 
+        code: 1,
+        message: '批量更新接口状态失败: ' + err.message 
+      });
+    }
+  });
+
+  // 部分更新接口
+  router.patch('/interfaces/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      if (!id) {
+        return res.status(400).json({ 
+          code: 1,
+          message: '接口ID为必填项' 
+        });
+      }
+      
+      // 检查功能是否存在
+      const featuresFile = path.join(DATA_DIR, 'features.json');
+      if (!fs.existsSync(featuresFile)) {
+        return res.status(404).json({ 
+          code: 1,
+          message: '功能不存在' 
+        });
+      }
+      
+      const features = fs.readJsonSync(featuresFile);
+      
+      // 在所有功能模块中查找接口
+      let foundInterface = null;
+      let foundFeature = null;
+      let foundInterfaceIndex = -1;
+      let interfacesFile = '';
+      
+      for (const feature of features) {
+        const featureInterfacesFile = path.join(DATA_DIR, `interfaces-${feature.id}.json`);
+        if (fs.existsSync(featureInterfacesFile)) {
+          const interfaces = fs.readJsonSync(featureInterfacesFile);
+          const index = interfaces.findIndex(item => item.id === id);
+          
+          if (index !== -1) {
+            foundInterface = interfaces[index];
+            foundFeature = feature;
+            foundInterfaceIndex = index;
+            interfacesFile = featureInterfacesFile;
+            break;
+          }
+        }
+      }
+      
+      if (!foundInterface) {
+        return res.status(404).json({ 
+          code: 1,
+          message: '接口不存在' 
+        });
+      }
+      
+      // 读取接口所在文件的所有接口
+      const interfaces = fs.readJsonSync(interfacesFile);
+      
+      // 更新接口
+      const updatedInterface = {
+        ...foundInterface,
+        ...updateData,
+        updatedAt: new Date().toISOString()
+      };
+      
+      interfaces[foundInterfaceIndex] = updatedInterface;
+      
+      // 保存更新后的接口列表
+      fs.writeJsonSync(interfacesFile, interfaces, { spaces: 2 });
+      
+      res.json({
+        code: 0,
+        message: '接口更新成功',
+        data: updatedInterface
+      });
+    } catch (err) {
+      console.error('更新接口失败:', err);
+      res.status(500).json({ 
+        code: 1,
+        message: '更新接口失败: ' + err.message 
+      });
     }
   });
   

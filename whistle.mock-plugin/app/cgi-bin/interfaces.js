@@ -183,6 +183,7 @@ module.exports = function(req, res) {
         interfacesData.interfaces[index] = {
           ...interfacesData.interfaces[index],
           name: interfaceData.name,
+          group: interfaceData.group !== undefined ? interfaceData.group : interfacesData.interfaces[index].group || '', // 添加分组字段
           urlPattern: interfaceData.urlPattern,
           proxyType: interfaceData.proxyType,
           responseContent: interfaceData.responseContent,
@@ -217,6 +218,7 @@ module.exports = function(req, res) {
           id: Date.now().toString(),
           featureId: interfaceData.featureId,
           name: interfaceData.name,
+          group: interfaceData.group || '', // 添加分组字段
           urlPattern: interfaceData.urlPattern,
           proxyType: interfaceData.proxyType || 'response',
           responseContent: interfaceData.responseContent || '',
@@ -235,6 +237,7 @@ module.exports = function(req, res) {
         
         console.log('创建新接口，包含多响应数据:', {
           name: newInterface.name,
+          group: newInterface.group, // 添加分组日志
           responsesCount: newInterface.responses.length,
           activeResponseId: newInterface.activeResponseId
         });
@@ -343,6 +346,7 @@ module.exports = function(req, res) {
       const updatedInterface = {
         ...interfacesData.interfaces[index],
         name: interfaceData.name || interfacesData.interfaces[index].name,
+        group: interfaceData.group !== undefined ? interfaceData.group : interfacesData.interfaces[index].group || '', // 添加分组字段
         urlPattern: interfaceData.urlPattern || interfacesData.interfaces[index].urlPattern,
         proxyType: interfaceData.proxyType || interfacesData.interfaces[index].proxyType,
         responseContent: interfaceData.responseContent !== undefined ? interfaceData.responseContent : interfacesData.interfaces[index].responseContent,
@@ -362,6 +366,7 @@ module.exports = function(req, res) {
       
       console.log('PUT更新接口，包含多响应数据:', {
         name: updatedInterface.name,
+        group: updatedInterface.group, // 添加分组日志
         responsesCount: updatedInterface.responses.length,
         activeResponseId: updatedInterface.activeResponseId
       });
@@ -378,16 +383,8 @@ module.exports = function(req, res) {
     
     // 处理 PATCH 请求 - 部分更新接口（如启用/禁用状态）
     if (req.method === 'PATCH') {
-      const { id } = req.query;
+      const { id, active } = req.query;
       const patchData = req.body;
-      
-      if (!id) {
-        return res.status(400).json({
-          code: 400,
-          message: '接口ID不能为空',
-          data: null
-        });
-      }
       
       // 读取接口数据
       let interfacesData;
@@ -401,6 +398,70 @@ module.exports = function(req, res) {
         return res.status(500).json({
           code: 500, 
           message: '读取接口数据失败',
+          data: null
+        });
+      }
+      
+      // 批量更新接口状态
+      if (active !== undefined) {
+        const { featureId, group } = patchData;
+        
+        if (!featureId) {
+          return res.status(400).json({
+            code: 400,
+            message: '功能ID不能为空',
+            data: null
+          });
+        }
+        
+        // 根据分组筛选要更新的接口
+        let updatedCount = 0;
+        interfacesData.interfaces = interfacesData.interfaces.map(item => {
+          // 只更新指定功能模块下的接口
+          if (item.featureId !== featureId) {
+            return item;
+          }
+          
+          // 如果指定了分组，只更新该分组下的接口
+          if (group && item.group !== group) {
+            return item;
+          }
+          
+          // 更新接口状态
+          const isActive = active === 'true';
+          if (item.active !== isActive) {
+            updatedCount++;
+            return {
+              ...item,
+              active: isActive,
+              updatedAt: new Date().toISOString()
+            };
+          }
+          
+          return item;
+        });
+        
+        // 保存更新后的接口列表
+        fs.writeJsonSync(interfacesFile, interfacesData, { spaces: 2 });
+        
+        console.log(`批量${active === 'true' ? '启用' : '禁用'}接口:`, {
+          featureId,
+          group,
+          updatedCount
+        });
+        
+        return res.json({
+          code: 0,
+          message: `成功${active === 'true' ? '启用' : '禁用'} ${updatedCount} 个接口`,
+          data: { updatedCount }
+        });
+      }
+      
+      // 单个接口更新
+      if (!id) {
+        return res.status(400).json({
+          code: 400,
+          message: '接口ID不能为空',
           data: null
         });
       }
