@@ -313,14 +313,41 @@ const dataManager = {
     
     // 如果缓存存在且未过期，直接返回缓存
     if (enabledInterfacesCache && (now - lastCacheTime < CACHE_TTL)) {
+      this.log('使用已启用接口的缓存');
       return enabledInterfacesCache;
     }
     
     try {
-      // 读取所有接口数据
+      // 1. 获取所有启用的功能模块ID
+      const features = await this.getFeatures();
+      const enabledFeatureIds = features
+        .filter(feature => feature && feature.active === true)
+        .map(feature => feature.id);
+      
+      this.log(`找到 ${enabledFeatureIds.length} 个启用的功能模块`);
+      
+      // 2. 读取所有接口数据
       const data = await this.getInterfaces();
-      // 过滤出启用状态的接口
-      const enabledInterfaces = data.filter(item => item.enabled === true || item.active === true);
+      
+      // 3. 过滤出启用状态的接口，同时检查功能模块是否启用
+      const enabledInterfaces = data.filter(item => {
+        // 首先检查接口本身是否启用
+        const isInterfaceEnabled = item.enabled === true || item.active === true;
+        
+        if (!isInterfaceEnabled) {
+          return false;
+        }
+        
+        // 如果接口有关联功能，检查功能是否启用
+        if (item.featureId) {
+          return enabledFeatureIds.includes(item.featureId);
+        }
+        
+        // 如果接口没有关联功能，只要接口本身启用就可以
+        return true;
+      });
+      
+      this.log(`找到 ${enabledInterfaces.length} 个启用的接口（已过滤功能模块状态）`);
       
       // 更新缓存
       enabledInterfacesCache = enabledInterfaces;
@@ -328,6 +355,7 @@ const dataManager = {
       
       return enabledInterfaces;
     } catch (err) {
+      this.log(`获取启用接口失败: ${err.message}`);
       console.error('获取启用接口失败:', err);
       return [];
     }
