@@ -4,11 +4,13 @@ import AppLayout from '../components/AppLayout';
 import { 
   Table, Button, Modal, Form, Input, Select, message, Switch, 
   Popconfirm, Alert, Space, Card, Badge, Tooltip, Row, Col,
-  Popover, Checkbox, Tag 
+  Popover, Checkbox, Tag, Input as AntInput, Radio, Drawer
 } from 'antd';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, 
-  FileTextOutlined, PlusCircleOutlined, SettingOutlined 
+  FileTextOutlined, PlusCircleOutlined, SettingOutlined,
+  SearchOutlined, FilterOutlined, AppstoreOutlined,
+  UnorderedListOutlined, ReloadOutlined
 } from '@ant-design/icons';
 import '../styles/interface-management.css';
 import axios from 'axios';
@@ -27,6 +29,7 @@ import {
 } from '../components/interface-management';
 
 const { Option } = Select;
+const { Search } = AntInput;
 
 // 列配置数据结构
 const COLUMN_CONFIG = [
@@ -74,6 +77,12 @@ const InterfaceManagement = () => {
   const [editingInterface, setEditingInterface] = useState(null);
   const [previewContent, setPreviewContent] = useState(null);
   const [currentResponseId, setCurrentResponseId] = useState(null);
+  
+  // 搜索和视图状态
+  const [searchValue, setSearchValue] = useState('');
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [drawerVisible, setDrawerVisible] = useState(false);
   
   // 表单实例
   const [form] = Form.useForm();
@@ -210,16 +219,25 @@ const InterfaceManagement = () => {
     }
   };
   
-  // 根据分组筛选接口
+  // 根据分组和搜索关键词筛选接口
   const getFilteredInterfaces = () => {
     // 首先按功能模块筛选
-    const featureFiltered = interfaces.filter(item => 
+    let featureFiltered = interfaces.filter(item => 
       !selectedFeatureId || item.featureId === selectedFeatureId
     );
     
     // 然后按分组筛选
     if (selectedGroup) {
-      return featureFiltered.filter(item => item.group === selectedGroup);
+      featureFiltered = featureFiltered.filter(item => item.group === selectedGroup);
+    }
+    
+    // 最后按搜索关键词筛选
+    if (searchValue) {
+      const searchLower = searchValue.toLowerCase();
+      return featureFiltered.filter(item => 
+        (item.name && item.name.toLowerCase().includes(searchLower)) || 
+        (item.urlPattern && item.urlPattern.toLowerCase().includes(searchLower))
+      );
     }
     
     return featureFiltered;
@@ -572,6 +590,60 @@ const InterfaceManagement = () => {
     setColumnConfigVisible(visible);
   };
 
+  // 搜索处理
+  const handleSearch = (value) => {
+    setSearchValue(value);
+  };
+  
+  // 清除搜索
+  const handleClearSearch = () => {
+    setSearchValue('');
+  };
+  
+  // 表格行选择处理
+  const onSelectChange = (selectedKeys) => {
+    setSelectedRowKeys(selectedKeys);
+  };
+  
+  // 切换视图模式
+  const toggleViewMode = () => {
+    setViewMode(viewMode === 'table' ? 'card' : 'table');
+  };
+
+  // 刷新数据
+  const refreshData = () => {
+    fetchInterfaces();
+    message.success('数据已刷新');
+  };
+
+  // 批量操作接口状态
+  const handleBatchOperation = async (active) => {
+    if (!selectedRowKeys || selectedRowKeys.length === 0) {
+      message.warning('请先选择要操作的接口');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const operations = selectedRowKeys.map(id => 
+        axios.patch(`/cgi-bin/interfaces/${id}`, { active })
+      );
+      
+      await Promise.all(operations);
+      message.success(`已${active ? '启用' : '禁用'} ${selectedRowKeys.length} 个接口`);
+      setSelectedRowKeys([]);
+      fetchInterfaces();
+      
+      // 刷新规则缓存
+      refreshCacheAfterUpdate();
+    } catch (error) {
+      console.error('批量操作失败:', error);
+      message.error('批量操作失败: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 定义所有可用的列
   const allColumns = [
     {
@@ -888,35 +960,69 @@ const InterfaceManagement = () => {
   return (
     <AppLayout>
       <div className="interface-management-container">
-        <div className="interface-management-header">
-          <div className="feature-selector">
-            <span>功能模块：</span>
-            <Select
-              value={selectedFeatureId}
-              onChange={handleSelectFeature}
-              style={{ width: 200 }}
-              placeholder="选择功能模块"
-              loading={featuresLoading}
-            >
-              {(features || []).map(feature => (
-                <Option key={feature.id} value={feature.id}>
-                  {feature.name}
-                  {feature.active === false && 
-                    <span style={{ color: '#ff4d4f', marginLeft: 8 }}>(已禁用)</span>
-                  }
-                </Option>
-              ))}
-            </Select>
+        <Card className="interface-header-card">
+          <div className="interface-management-header">
+            <div className="feature-selector-container">
+              <div className="feature-selector">
+                <span>功能模块：</span>
+                <Select
+                  value={selectedFeatureId}
+                  onChange={handleSelectFeature}
+                  style={{ width: 240 }}
+                  placeholder="选择功能模块"
+                  loading={featuresLoading}
+                  dropdownMatchSelectWidth={false}
+                >
+                  {(features || []).map(feature => (
+                    <Option key={feature.id} value={feature.id}>
+                      {feature.name}
+                      {feature.active === false && 
+                        <span style={{ color: '#ff4d4f', marginLeft: 8 }}>(已禁用)</span>
+                      }
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+              
+              <Search
+                placeholder="搜索接口名称或URL"
+                onSearch={handleSearch}
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                style={{ width: 250, marginLeft: 16 }}
+                enterButton={<SearchOutlined />}
+                allowClear
+              />
+            </div>
+            
+            <div className="interface-actions">
+              <Space>
+                <Tooltip title="刷新数据">
+                  <Button 
+                    icon={<ReloadOutlined />} 
+                    onClick={refreshData}
+                    loading={interfacesLoading}
+                  />
+                </Tooltip>
+                <Tooltip title={viewMode === 'table' ? '切换到卡片视图' : '切换到表格视图'}>
+                  <Button 
+                    icon={viewMode === 'table' ? <AppstoreOutlined /> : <UnorderedListOutlined />} 
+                    onClick={toggleViewMode}
+                  />
+                </Tooltip>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddInterface}
+                  disabled={!selectedFeatureId || selectedFeature?.active === false}
+                  className="add-interface-button"
+                >
+                  添加接口
+                </Button>
+              </Space>
+            </div>
           </div>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddInterface}
-            disabled={!selectedFeatureId || selectedFeature?.active === false}
-          >
-            添加接口
-          </Button>
-        </div>
+        </Card>
         
         {!features.length && (
           <Alert
@@ -939,30 +1045,11 @@ const InterfaceManagement = () => {
         )}
 
         {/* 分组筛选和操作区域 */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: 16,
-          padding: '12px 16px',
-          backgroundColor: '#f5f5f5',
-          borderRadius: '4px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span>分组筛选：</span>
-            <Select
-              value={selectedGroup}
-              onChange={value => setSelectedGroup(value)}
-              style={{ width: 200 }}
-              placeholder="选择分组"
-              allowClear
-              showSearch
-              loading={interfacesLoading}
-            >
-              {groups.map(group => (
-                <Option key={group} value={group}>{group}</Option>
-              ))}
-            </Select>
+        <Card className="filter-card" bordered={false}>
+          <div className="filter-header">
+            <div className="filter-title">
+              <FilterOutlined /> 分组筛选
+            </div>
             {selectedGroup && (
               <Button 
                 type="link" 
@@ -974,8 +1061,27 @@ const InterfaceManagement = () => {
             )}
           </div>
           
+          <div className="group-tags-container">
+            {groups.length === 0 ? (
+              <div className="empty-groups">暂无分组</div>
+            ) : (
+              <div className="group-tags">
+                {groups.map(group => (
+                  <Tag 
+                    key={group} 
+                    color={selectedGroup === group ? "blue" : "default"}
+                    onClick={() => setSelectedGroup(group === selectedGroup ? null : group)}
+                    className={`group-tag ${selectedGroup === group ? 'active' : ''}`}
+                  >
+                    {group} ({interfaces.filter(item => item.group === group).length})
+                  </Tag>
+                ))}
+              </div>
+            )}
+          </div>
+          
           {selectedGroup && (
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="group-actions">
               <Popconfirm
                 title={`确定要启用分组 "${selectedGroup}" 中的所有接口吗？`}
                 onConfirm={() => handleBatchToggleActive(true)}
@@ -1007,40 +1113,60 @@ const InterfaceManagement = () => {
               </Popconfirm>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* 接口列表状态栏 */}
-        {filteredInterfaces.length > 0 && !interfacesLoading && (
-          <div style={{ 
-            marginBottom: 16, 
-            padding: '8px 12px', 
-            background: '#f8f9fa', 
-            borderRadius: '4px',
-            fontSize: '13px',
-            color: '#666',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <span>
-              当前功能模块：<strong>{selectedFeature?.name}</strong>
-              {selectedGroup && (
-                <span style={{ marginLeft: 8 }}>
-                  | 分组：<Tag color="blue">{selectedGroup}</Tag>
-                </span>
+        <Card className="list-header-card" bordered={false}>
+          <div className="list-header">
+            <div className="list-header-info">
+              <div className="feature-info">
+                <span className="label">功能模块：</span>
+                <span className="value">{selectedFeature?.name}</span>
+                {selectedGroup && (
+                  <Tag color="blue" className="group-badge">{selectedGroup}</Tag>
+                )}
+              </div>
+              <div className="interface-stats">
+                {searchValue ? (
+                  <Badge 
+                    count={`搜索"${searchValue}" - ${filteredInterfaces.length}个结果`} 
+                    style={{ backgroundColor: '#108ee9' }} 
+                  />
+                ) : (
+                  <Badge 
+                    count={`共 ${filteredInterfaces.length} 个接口`} 
+                    style={{ backgroundColor: '#52c41a' }} 
+                  />
+                )}
+              </div>
+            </div>
+            <div className="batch-actions">
+              {selectedRowKeys.length > 0 && (
+                <Space>
+                  <span className="selected-count">
+                    已选择 {selectedRowKeys.length} 项
+                  </span>
+                  <Popconfirm
+                    title="确定要批量启用选中的接口吗？"
+                    onConfirm={() => handleBatchOperation(true)}
+                    okText="确定"
+                    cancelText="取消"
+                  >
+                    <Button size="small" type="primary">批量启用</Button>
+                  </Popconfirm>
+                  <Popconfirm
+                    title="确定要批量禁用选中的接口吗？"
+                    onConfirm={() => handleBatchOperation(false)}
+                    okText="确定"
+                    cancelText="取消"
+                  >
+                    <Button size="small" danger>批量禁用</Button>
+                  </Popconfirm>
+                </Space>
               )}
-            </span>
-            <span>
-              共 {filteredInterfaces.length} 个接口，每页显示 {tableConfig.pageSize} 个
-              {tableConfig.sortField && (
-                <span style={{ marginLeft: 8 }}>
-                  | 按"{allColumns.find(col => col.key === tableConfig.sortField)?.title || tableConfig.sortField}"
-                  {tableConfig.sortOrder === 'ascend' ? '升序' : '降序'}排列
-                </span>
-              )}
-            </span>
+            </div>
           </div>
-        )}
+        </Card>
 
         {/* 列配置区域 */}
         <div style={{ 
@@ -1105,26 +1231,156 @@ const InterfaceManagement = () => {
           </Popover>
         </div>
 
-        <div className="interface-list-container">
-          <Table
-            columns={columns}
-            dataSource={filteredInterfaces}
-            rowKey="id"
-            loading={interfacesLoading}
-            onChange={handleTableChange}
-            pagination={{
-              current: tableConfig.current,
-              pageSize: tableConfig.pageSize,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) => `共 ${total} 个接口，显示第 ${range[0]}-${range[1]} 个`,
-              pageSizeOptions: ['10', '20', '50', '100'],
-              size: 'default'
-            }}
-            locale={{ emptyText: '暂无接口配置' }}
-            sortDirections={['ascend', 'descend']}
-          />
-        </div>
+        <Card className="list-container-card" bordered={false} bodyStyle={{ padding: 0 }}>
+          {/* 表格视图 */}
+          {viewMode === 'table' && (
+            <div className="interface-list-container">
+              <Table
+                columns={columns}
+                dataSource={filteredInterfaces}
+                rowKey="id"
+                loading={interfacesLoading}
+                onChange={handleTableChange}
+                rowSelection={{
+                  selectedRowKeys,
+                  onChange: onSelectChange,
+                }}
+                size="middle"
+                pagination={{
+                  current: tableConfig.current,
+                  pageSize: tableConfig.pageSize,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total, range) => `共 ${total} 个接口，显示第 ${range[0]}-${range[1]} 个`,
+                  pageSizeOptions: ['10', '20', '50', '100'],
+                  size: 'default'
+                }}
+                locale={{ emptyText: '暂无接口配置' }}
+                sortDirections={['ascend', 'descend']}
+                className="interface-table"
+              />
+            </div>
+          )}
+          
+          {/* 卡片视图 */}
+          {viewMode === 'card' && (
+            <div className="interface-card-view">
+              <Row gutter={[16, 16]} style={{ padding: 16 }}>
+                {interfacesLoading ? (
+                  [1,2,3,4,5,6].map(i => (
+                    <Col xs={24} sm={12} md={8} lg={8} xl={6} key={`loading-${i}`}>
+                      <Card loading style={{ height: 180 }} />
+                    </Col>
+                  ))
+                ) : filteredInterfaces.length === 0 ? (
+                  <Col span={24}>
+                    <div className="empty-data">暂无接口配置</div>
+                  </Col>
+                ) : (
+                  filteredInterfaces.map(item => (
+                    <Col xs={24} sm={12} md={8} lg={8} xl={6} key={item.id}>
+                      <Card 
+                        className={`interface-card ${item.active === false ? 'inactive' : ''}`}
+                        hoverable
+                      >
+                        <div className="interface-card-header">
+                          <Switch
+                            checked={item.active !== false}
+                            onChange={() => handleToggleActive(item.id, item.active)}
+                            size="small"
+                            className="interface-card-switch"
+                          />
+                          <div className="interface-card-title">{item.name}</div>
+                          {item.group && (
+                            <Tag 
+                              color="blue" 
+                              className="interface-card-group"
+                              onClick={() => setSelectedGroup(item.group)}
+                            >
+                              {item.group}
+                            </Tag>
+                          )}
+                        </div>
+                        
+                        <div className="interface-card-content">
+                          <div className="url-pattern-container">
+                            <Tooltip title={item.urlPattern}>
+                              <div className="url-pattern">{item.urlPattern}</div>
+                            </Tooltip>
+                          </div>
+                          
+                          <div className="interface-card-info">
+                            <div className="info-item">
+                              <span className="info-label">处理方式:</span>
+                              <Badge 
+                                color={proxyTypes.find(t => t.value === item.proxyType)?.color || '#999'} 
+                                text={proxyTypes.find(t => t.value === item.proxyType)?.label || item.proxyType} 
+                                className="info-value"
+                              />
+                            </div>
+                            <div className="info-item">
+                              <span className="info-label">状态码:</span>
+                              <span className={`status-badge status-${item.httpStatus >= 400 ? 'error' : item.httpStatus >= 300 ? 'warning' : 'success'}`}>
+                                {item.httpStatus || 200}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="interface-card-actions">
+                          <Button 
+                            type="primary" 
+                            size="small" 
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditInterface(item)}
+                          >
+                            编辑
+                          </Button>
+                          <Popconfirm
+                            title="确定要删除此接口吗？"
+                            onConfirm={() => handleDeleteInterface(item.id)}
+                            okText="确定"
+                            cancelText="取消"
+                          >
+                            <Button 
+                              danger 
+                              size="small"
+                              icon={<DeleteOutlined />}
+                            >
+                              删除
+                            </Button>
+                          </Popconfirm>
+                        </div>
+                      </Card>
+                    </Col>
+                  ))
+                )}
+              </Row>
+              
+              {/* 卡片视图分页 */}
+              {filteredInterfaces.length > 0 && (
+                <div className="card-pagination">
+                  <Pagination
+                    current={tableConfig.current}
+                    pageSize={tableConfig.pageSize}
+                    total={filteredInterfaces.length}
+                    showSizeChanger
+                    showQuickJumper
+                    showTotal={(total, range) => `共 ${total} 个接口，显示第 ${range[0]}-${range[1]} 个`}
+                    pageSizeOptions={['10', '20', '50', '100']}
+                    size="default"
+                    onChange={(page, pageSize) => {
+                      saveTableConfig({
+                        current: page,
+                        pageSize: pageSize
+                      });
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
 
         {/* 接口编辑/创建模态框 */}
         <Modal
