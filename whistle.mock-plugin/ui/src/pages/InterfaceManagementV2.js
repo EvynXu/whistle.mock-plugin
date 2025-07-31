@@ -10,12 +10,12 @@ import AppLayout from '../components/AppLayout';
 import { 
   Table, Button, Modal, Form, Input, Select, message, Switch, 
   Popconfirm, Alert, Space, Card, Badge, Tooltip, Row, Col,
-  Popover, Checkbox, Tag, Input as AntInput, Radio, Drawer, Dropdown, Menu
+  Popover, Checkbox, Tag, Input as AntInput, Radio, Drawer, Dropdown, Menu, Collapse
 } from 'antd';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, 
   FileTextOutlined, PlusCircleOutlined, SettingOutlined,
-  SearchOutlined, FilterOutlined, ReloadOutlined, DownOutlined
+  SearchOutlined, FilterOutlined, ReloadOutlined, DownOutlined, QuestionCircleOutlined
 } from '@ant-design/icons';
 import '../styles/interface-management.css';
 import axios from 'axios';
@@ -1262,36 +1262,77 @@ const InterfaceManagement = () => {
 
         {/* 接口编辑/创建模态框 */}
         <Modal
-          title={editingInterface ? '编辑接口' : '添加接口'}
+          title={
+            <div style={{ 
+              fontSize: '18px', 
+              fontWeight: 600, 
+              color: '#262626',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>{editingInterface ? '编辑接口' : '添加接口'}</span>
+              <Badge 
+                count="配置向导" 
+                style={{ 
+                  backgroundColor: '#f0f9ff', 
+                  color: '#1677ff',
+                  fontSize: '11px',
+                  fontWeight: 'normal'
+                }} 
+              />
+            </div>
+          }
           open={modalVisible}
           onOk={handleSubmit}
           onCancel={handleCancel}
-          width={800}
+          width={1200}
           destroyOnClose
           okText={editingInterface ? '保存' : '创建'}
           cancelText="取消"
-          bodyStyle={{ maxHeight: '70vh', overflow: 'auto', padding: '24px' }}
+          bodyStyle={{ 
+            maxHeight: '75vh', 
+            overflow: 'auto', 
+            padding: '0',
+            background: '#fafafa'
+          }}
+          className="interface-modal"
         >
-          <Form
-            form={form}
-            layout="vertical"
-            initialValues={{
-              name: '',
-              group: '',
-              pattern: '',
-              proxyType: 'response',
-              statusCode: '200',
-              contentType: 'application/json; charset=utf-8',
-              responses: [],
-              httpMethod: 'ALL',
-              targetUrl: '',
-              headerItems: [],
-              paramMatchers: [],
-              responseDelay: '0'
-            }}
-          >
-            {/* 基础信息表单项 */}
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
+          <div style={{ padding: '24px' }}>
+            <Form
+              form={form}
+              layout="vertical"
+              initialValues={{
+                name: '',
+                group: '',
+                pattern: '',
+                proxyType: 'response',
+                statusCode: '200',
+                contentType: 'application/json; charset=utf-8',
+                responses: [],
+                httpMethod: 'ALL',
+                targetUrl: '',
+                headerItems: [],
+                paramMatchers: [],
+                responseDelay: '0'
+              }}
+            >
+              <Collapse 
+                defaultActiveKey={editingInterface ? ['3'] : ['1', '2', '3']}
+                style={{ marginBottom: '16px' }}
+                ghost
+              >
+                {/* 第一步：基础信息 */}
+                <Collapse.Panel 
+                  header={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Badge count="1" style={{ backgroundColor: '#1677ff' }} />
+                      <span>基础信息</span>
+                    </div>
+                  }
+                  key="1"
+                >
+                <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
               <div style={{ flex: 1 }}>
                 <Form.Item
                   name="name"
@@ -1335,10 +1376,21 @@ const InterfaceManagement = () => {
                     ))}
                   </Select>
                 </Form.Item>
-              </div>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
+                </div>
+                </div>
+                </Collapse.Panel>
+
+                {/* 第二步：URL配置 */}
+                <Collapse.Panel 
+                  header={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Badge count="2" style={{ backgroundColor: '#1677ff' }} />
+                      <span>URL配置</span>
+                    </div>
+                  }
+                  key="2"
+                >
+                <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
               <div style={{ flex: 1 }}>
                 <Form.Item
                   name="pattern"
@@ -1478,7 +1530,19 @@ const InterfaceManagement = () => {
               <div style={{ flex: 1 }}>
                 {/* 这里可以留空或添加其他字段 */}
               </div>
-            </div>
+                </div>
+                </Collapse.Panel>
+
+                {/* 第三步：高级配置 */}
+                <Collapse.Panel 
+                  header={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Badge count="3" style={{ backgroundColor: '#1677ff' }} />
+                      <span>高级配置</span>
+                    </div>
+                  }
+                  key="3"
+                >
 
             {/* 根据proxyType显示不同的表单项 */}
             <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.proxyType !== currentValues.proxyType}>
@@ -1592,30 +1656,42 @@ const InterfaceManagement = () => {
                                   />
                                 </div>
                               ))}
-                              <Button
-                                type="dashed"
-                                onClick={() => add()}
-                                icon={<PlusOutlined />}
-                                style={{ width: '100%', marginTop: '8px' }}
-                              >
-                                添加参数匹配规则
-                              </Button>
-                              {fields.length > 0 && (
-                                <div style={{ 
-                                  fontSize: '12px', 
-                                  color: '#666', 
-                                  marginTop: '8px',
-                                  padding: '8px',
-                                  backgroundColor: '#f5f5f5',
-                                  borderRadius: '4px'
-                                }}>
-                                  <div><strong>说明：</strong></div>
-                                  <div>• <strong>精确匹配</strong>：参数值完全相等</div>
-                                  <div>• <strong>包含</strong>：参数值包含指定内容</div>
-                                  <div>• <strong>正则</strong>：参数值符合正则表达式</div>
-                                  <div>• <strong>嵌套路径</strong>：使用点号分隔，如 data.user.id</div>
-                          </div>
-                              )}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                                <Button
+                                  type="dashed"
+                                  onClick={() => add()}
+                                  icon={<PlusOutlined />}
+                                  style={{ flex: 1 }}
+                                >
+                                  添加参数匹配规则
+                                </Button>
+                                <Popover
+                                  content={
+                                    <div style={{ maxWidth: '300px' }}>
+                                      <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>匹配规则说明：</div>
+                                      <div style={{ lineHeight: '1.6' }}>
+                                        <div>• <strong>精确匹配</strong>：参数值完全相等</div>
+                                        <div>• <strong>包含</strong>：参数值包含指定内容</div>
+                                        <div>• <strong>正则</strong>：参数值符合正则表达式</div>
+                                        <div>• <strong>嵌套路径</strong>：使用点号分隔，如 data.user.id</div>
+                                      </div>
+                                    </div>
+                                  }
+                                  title="参数匹配规则"
+                                  trigger="click"
+                                  placement="top"
+                                >
+                                  <Button
+                                    type="text"
+                                    icon={<QuestionCircleOutlined />}
+                                    style={{ 
+                                      color: '#999',
+                                      padding: '4px'
+                                    }}
+                                    size="small"
+                                  />
+                                </Popover>
+                              </div>
                             </>
                           )}
                         </Form.List>
@@ -1739,7 +1815,10 @@ const InterfaceManagement = () => {
                 return null;
               }}
             </Form.Item>
-          </Form>
+                </Collapse.Panel>
+              </Collapse>
+            </Form>
+          </div>
         </Modal>
                     
         {/* 使用拆分后的预览模态框组件 */}

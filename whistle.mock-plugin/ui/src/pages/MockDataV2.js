@@ -520,24 +520,22 @@ const MockData = () => {
   return (
     <AppLayout>
       <div className="page-container">
-        {/* V2版本标识 */}
-        <div style={{ 
-          position: 'absolute', 
-          top: '10px', 
-          right: '10px', 
-          backgroundColor: '#52c41a', 
-          color: 'white', 
-          padding: '4px 8px', 
-          borderRadius: '4px', 
-          fontSize: '12px',
-          zIndex: 1000
-        }}>
-          V2版本
-        </div>
-        
         <div className="page-title-bar">
-          <div>
-            <h1 className="page-title">功能模块管理</h1>
+          <div className="title-section">
+            <div className="title-with-badge">
+              <h1 className="page-title">功能模块管理</h1>
+              <Badge 
+                count="V2" 
+                style={{ 
+                  backgroundColor: '#52c41a',
+                  fontSize: '12px',
+                  height: '20px',
+                  lineHeight: '20px',
+                  borderRadius: '10px',
+                  marginLeft: '12px'
+                }} 
+              />
+            </div>
             <div className="page-description">
               创建和管理功能模块，为每个功能配置独立的接口
             </div>
@@ -561,117 +559,147 @@ const MockData = () => {
           </div>
         </div>
 
-        {/* 排序和分页控制栏 */}
+        {/* 控制面板 */}
         {mockFeatures.length > 0 && !loading && (
-          <div style={{ 
-            marginBottom: 16, 
-            padding: '12px 16px', 
-            background: '#fafafa', 
-            borderRadius: '6px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '8px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '14px', color: '#666' }}>
-                <SortAscendingOutlined /> 排序：
-              </span>
-              <Select
-                value={listConfig.sortBy}
-                onChange={handleSortChange}
-                style={{ width: 120 }}
-                size="small"
-              >
-                <Select.Option value="name">名称</Select.Option>
-                <Select.Option value="createdAt">创建时间</Select.Option>
-                <Select.Option value="interfaceCount">接口数量</Select.Option>
-                <Select.Option value="active">状态</Select.Option>
-              </Select>
-              <Select
-                value={listConfig.sortOrder}
-                onChange={handleSortOrderChange}
-                style={{ width: 80 }}
-                size="small"
-              >
-                <Select.Option value="ascend">升序</Select.Option>
-                <Select.Option value="descend">降序</Select.Option>
-              </Select>
-            </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '14px', color: '#666' }}>每页显示：</span>
-              <Select
-                value={listConfig.pageSize}
-                onChange={handlePageSizeChange}
-                style={{ width: 80 }}
-                size="small"
-              >
-                <Select.Option value={8}>8</Select.Option>
-                <Select.Option value={12}>12</Select.Option>
-                <Select.Option value={16}>16</Select.Option>
-                <Select.Option value={24}>24</Select.Option>
-              </Select>
-              <span style={{ fontSize: '14px', color: '#999' }}>
-                共 {mockFeatures.length} 个功能模块
-              </span>
-            </div>
-          </div>
+          <Card className="control-panel-card" style={{ marginBottom: 24 }}>
+            <Row gutter={[24, 16]} align="middle">
+              {/* 统计信息区域 */}
+              <Col xs={24} sm={12} md={8} lg={6}>
+                <div className="stats-section">
+                  <div className="stats-item">
+                    <span className="stats-number">{mockFeatures.length}</span>
+                    <span className="stats-label">功能模块</span>
+                  </div>
+                  <div className="stats-item">
+                    <span className="stats-number">
+                      {mockFeatures.filter(f => f.active).length}
+                    </span>
+                    <span className="stats-label">已启用</span>
+                  </div>
+                  <div className="stats-item">
+                    <span className="stats-number">
+                      {mockFeatures.reduce((sum, f) => sum + (f.interfaceCount || 0), 0)}
+                    </span>
+                    <span className="stats-label">接口总数</span>
+                  </div>
+                </div>
+              </Col>
+              
+              {/* 排序控制区域 */}
+              <Col xs={24} sm={12} md={8} lg={9}>
+                <div className="sort-controls">
+                  <div className="control-group">
+                    <span className="control-label">
+                      <SortAscendingOutlined /> 排序方式
+                    </span>
+                    <Select
+                      value={listConfig.sortBy}
+                      onChange={handleSortChange}
+                      style={{ width: 120 }}
+                      size="middle"
+                    >
+                      <Select.Option value="name">名称</Select.Option>
+                      <Select.Option value="createdAt">创建时间</Select.Option>
+                      <Select.Option value="interfaceCount">接口数量</Select.Option>
+                      <Select.Option value="active">状态</Select.Option>
+                    </Select>
+                    <Select
+                      value={listConfig.sortOrder}
+                      onChange={handleSortOrderChange}
+                      style={{ width: 80 }}
+                      size="middle"
+                    >
+                      <Select.Option value="ascend">升序</Select.Option>
+                      <Select.Option value="descend">降序</Select.Option>
+                    </Select>
+                  </div>
+                </div>
+              </Col>
+              
+              {/* 分页控制区域 */}
+              <Col xs={24} sm={24} md={8} lg={9}>
+                <div className="pagination-controls">
+                  <div className="control-group">
+                    <span className="control-label">每页显示</span>
+                    <Select
+                      value={listConfig.pageSize}
+                      onChange={handlePageSizeChange}
+                      style={{ width: 80 }}
+                      size="middle"
+                    >
+                      <Select.Option value={8}>8</Select.Option>
+                      <Select.Option value={12}>12</Select.Option>
+                      <Select.Option value={16}>16</Select.Option>
+                      <Select.Option value={24}>24</Select.Option>
+                    </Select>
+                    <span className="page-info">
+                      第 {(listConfig.current - 1) * listConfig.pageSize + 1}-{Math.min(listConfig.current * listConfig.pageSize, mockFeatures.length)} 条
+                    </span>
+                  </div>
+                </div>
+              </Col>
+            </Row>
+          </Card>
         )}
         
-        <div className="feature-list-container">
+        <Card className="feature-list-card">
           {loading ? (
-            <div className="loading">
-              <div className="loading-spinner"></div>
-              <div>正在加载功能模块...</div>
+            <div className="loading-state">
+              <Spin size="large" />
+              <div className="loading-text">正在加载功能模块...</div>
             </div>
           ) : mockFeatures.length > 0 ? (
             <>
-              <Row gutter={[16, 16]}>
+              <Row gutter={[20, 20]} className="feature-grid">
                 {getPaginatedFeatures().map(feature => renderFeatureCard(feature))}
               </Row>
               
               {/* 分页组件 */}
               {mockFeatures.length > listConfig.pageSize && (
-                <div style={{ 
-                  marginTop: 24, 
-                  textAlign: 'center',
-                  padding: '16px',
-                  borderTop: '1px solid #f0f0f0'
-                }}>
+                <div className="pagination-wrapper">
                   <Pagination
                     current={listConfig.current}
                     pageSize={listConfig.pageSize}
                     total={mockFeatures.length}
                     onChange={handlePageChange}
                     onShowSizeChange={handlePageChange}
-                    showSizeChanger={true}
+                    showSizeChanger={false}
                     showQuickJumper={true}
                     showTotal={(total, range) => 
                       `第 ${range[0]}-${range[1]} 条，共 ${total} 个功能模块`
                     }
-                    pageSizeOptions={['8', '12', '16', '24']}
                     size="default"
+                    className="custom-pagination"
                   />
                 </div>
               )}
             </>
           ) : (
-            <div className="empty-data">
-              <div className="empty-icon">📂</div>
-              <div className="empty-text">暂无功能，请点击"新建功能"按钮创建</div>
+            <Empty
+              className="custom-empty"
+              image={
+                <div className="empty-image">
+                  <ApiOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />
+                </div>
+              }
+              description={
+                <div className="empty-description">
+                  <div className="empty-title">暂无功能模块</div>
+                  <div className="empty-subtitle">创建您的第一个功能模块，开始管理接口</div>
+                </div>
+              }
+            >
               <div className="empty-actions">
-                <button className="create-button" onClick={() => openModal()}>
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>
                   创建新功能
-                </button>
-                <button className="import-button-large" onClick={importFeatureConfig}>
-                  导入已有功能
-                </button>
+                </Button>
+                <Button icon={<ExportOutlined />} onClick={importFeatureConfig}>
+                  导入功能
+                </Button>
               </div>
-            </div>
+            </Empty>
           )}
-        </div>
+        </Card>
       </div>
       
       <Modal

@@ -1144,6 +1144,110 @@
   background: #e6f4ff;
 }
 
+/* 接口弹窗样式 */
+.interface-modal .ant-modal-header {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 16px 24px;
+  margin-bottom: 0;
+}
+
+.interface-modal .ant-modal-body {
+  padding: 0;
+}
+
+.interface-modal .ant-card {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.interface-modal .ant-card-head {
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 0 20px;
+  min-height: 48px;
+}
+
+.interface-modal .ant-card-head-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  padding: 12px 0;
+}
+
+.interface-modal .ant-form-item-label > label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #434343;
+}
+
+.interface-modal .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.interface-modal .ant-input,
+.interface-modal .ant-select-selector {
+  border-radius: 6px;
+  border: 1px solid #d9d9d9;
+}
+
+.interface-modal .ant-input:focus,
+.interface-modal .ant-select-focused .ant-select-selector {
+  border-color: #4096ff;
+  box-shadow: 0 0 0 2px rgba(64, 150, 255, 0.1);
+}
+
+/* 接口弹窗中的折叠面板样式 */
+.interface-modal .ant-collapse {
+  background: transparent;
+  border: none;
+}
+
+.interface-modal .ant-collapse-item {
+  margin-bottom: 16px;
+  background: #ffffff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.interface-modal .ant-collapse-header {
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  border-radius: 8px 8px 0 0 !important;
+  padding: 16px 20px !important;
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.interface-modal .ant-collapse-content {
+  border-top: none;
+  background: #ffffff;
+  border-radius: 0 0 8px 8px;
+}
+
+.interface-modal .ant-collapse-content-box {
+  padding: 20px;
+}
+
+.interface-modal .ant-collapse-arrow {
+  color: #666 !important;
+  font-size: 12px !important;
+}
+
+/* 参数匹配规则帮助按钮样式 */
+.interface-modal .ant-popover-inner-content {
+  padding: 12px;
+}
+
+.interface-modal .ant-popover-title {
+  font-weight: 600;
+  color: #262626;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
 /* 分页器样式 */
 .interface-table .ant-pagination-options {
   margin-right: 16px;
