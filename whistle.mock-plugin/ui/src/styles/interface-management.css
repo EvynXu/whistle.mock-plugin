@@ -15,12 +15,105 @@
   --transition-time: 0.3s;
 }
 
+
+/* 页面容器 */
 .interface-management-container {
   padding: 24px;
-  background: #f5f7fa;
+  min-height: calc(100vh - 120px);
 }
 
-/* 顶部功能区域 */
+/* 统一控制台 */
+.interface-control-panel {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.control-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.control-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.control-right {
+  display: flex;
+  align-items: center;
+}
+
+.feature-selector {
+  display: flex;
+  align-items: center;
+  background: #f9f9f9;
+  padding: 6px 12px;
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: all var(--transition-time);
+}
+
+.feature-selector:hover {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.feature-selector span {
+  margin-right: 8px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.control-panel-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 8px 0;
+  min-height: 40px;
+}
+
+.stats-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.stats-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stat-item {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+.stat-label {
+  color: var(--text-secondary);
+  margin-right: 6px;
+}
+
+.stat-value {
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.selected-count {
+  font-weight: 600;
+  color: var(--primary-color);
+  font-size: 13px;
+}
+
+/* 旧版样式兼容 */
 .interface-header-card {
   margin-bottom: 16px;
   border-radius: 12px;
@@ -40,26 +133,6 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-}
-
-.feature-selector {
-  display: flex;
-  align-items: center;
-  background: #f9f9f9;
-  padding: 8px 16px;
-  border-radius: var(--border-radius);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  transition: all var(--transition-time);
-}
-
-.feature-selector:hover {
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-
-.feature-selector span {
-  margin-right: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
 }
 
 .interface-actions {
@@ -202,7 +275,7 @@
 .list-container-card {
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  margin-bottom: 24px;
+  margin-bottom: 40px;
 }
 
 .interface-list-container {
@@ -215,10 +288,14 @@
   font-weight: 600;
   padding: 12px 16px !important;
   color: #333;
+  white-space: nowrap;
 }
 
 .interface-table td {
   padding: 12px 16px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 卡片视图样式 */
@@ -569,33 +646,7 @@
   line-height: 1.6;
 }
 
-.interface-table {
-  width: 100%;
-  border-collapse: collapse;
-  border-radius: var(--border-radius);
-  overflow: hidden;
-  box-shadow: var(--card-shadow);
-}
-
-.interface-table th,
-.interface-table td {
-  padding: 16px;
-  text-align: left;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.interface-table th {
-  background-color: #fafafa;
-  color: var(--text-secondary);
-  font-weight: 600;
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.interface-table tr:hover {
-  background-color: #f5f5f5;
-}
+/* 重复的表格样式已移除，使用上面的统一定义 */
 
 .interface-table tr.inactive {
   color: var(--text-light);
@@ -605,14 +656,14 @@
 
 .url-pattern {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  word-break: break-all;
   padding: 4px 8px;
   background: #f5f5f5;
   border-radius: 4px;
   display: inline-block;
-  max-width: 100%;
+  max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 接口状态开关 */
@@ -1066,4 +1117,34 @@
 .no-response {
   color: #999;
   font-style: italic;
-} 
+}
+
+/* 内联列设置按钮样式 */
+.inline-column-settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #d9d9d9;
+  background: #ffffff;
+  color: #666;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.inline-column-settings-btn:hover {
+  border-color: #4096ff;
+  background: #f0f9ff;
+  color: #4096ff;
+}
+
+.inline-column-settings-btn:active {
+  border-color: #1677ff;
+  background: #e6f4ff;
+}
+
+/* 分页器样式 */
+.interface-table .ant-pagination-options {
+  margin-right: 16px;
+}

@@ -10,12 +10,12 @@ import AppLayout from '../components/AppLayout';
 import { 
   Table, Button, Modal, Form, Input, Select, message, Switch, 
   Popconfirm, Alert, Space, Card, Badge, Tooltip, Row, Col,
-  Popover, Checkbox, Tag, Input as AntInput, Radio, Drawer
+  Popover, Checkbox, Tag, Input as AntInput, Radio, Drawer, Dropdown, Menu
 } from 'antd';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, 
   FileTextOutlined, PlusCircleOutlined, SettingOutlined,
-  SearchOutlined, FilterOutlined, ReloadOutlined
+  SearchOutlined, FilterOutlined, ReloadOutlined, DownOutlined
 } from '@ant-design/icons';
 import '../styles/interface-management.css';
 import axios from 'axios';
@@ -976,15 +976,36 @@ const InterfaceManagement = () => {
           重构后版本 V2
         </div>
         
-        <Card className="interface-header-card">
-          <div className="interface-management-header">
-            <div className="feature-selector-container">
+        {/* 警告信息置顶显示 */}
+        {!features.length && (
+          <Alert
+            message="未找到功能模块"
+            description="请先在模拟数据页面创建功能模块，然后再添加接口"
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        {selectedFeature?.active === false && (
+          <Alert
+            message="功能模块已禁用"
+            description="当前功能模块已被禁用，所有关联接口不会生效。您可以在模拟数据页面启用此功能模块。"
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        
+        <Card className="interface-control-panel">
+          <div className="control-panel-header">
+            <div className="control-left">
               <div className="feature-selector">
                 <span>功能模块：</span>
                 <Select
                   value={selectedFeatureId}
                   onChange={handleSelectFeature}
-                  style={{ width: 240 }}
+                  style={{ width: 200 }}
                   placeholder="选择功能模块"
                   loading={featuresLoading}
                   dropdownMatchSelectWidth={false}
@@ -1005,13 +1026,42 @@ const InterfaceManagement = () => {
                 onSearch={handleSearch}
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                style={{ width: 250, marginLeft: 16 }}
+                style={{ width: 220, marginLeft: 12 }}
                 enterButton={<SearchOutlined />}
                 allowClear
               />
+              
+              <Dropdown
+                overlay={
+                  <Menu
+                    selectedKeys={selectedGroup ? [selectedGroup] : ['ALL_GROUPS']}
+                    onClick={({ key }) => {
+                      if (key === 'ALL_GROUPS') {
+                        setSelectedGroup(null);
+                      } else {
+                        setSelectedGroup(key === selectedGroup ? null : key);
+                      }
+                    }}
+                  >
+                    <Menu.Item key="ALL_GROUPS">全部分组</Menu.Item>
+                    {groups.map(group => (
+                      <Menu.Item key={group}>
+                        {group} ({interfaces.filter(item => item.group === group).length})
+                      </Menu.Item>
+                    ))}
+                  </Menu>
+                }
+                trigger={['click']}
+                disabled={groups.length === 0}
+              >
+                <Button style={{ marginLeft: 12 }} icon={<FilterOutlined />}>
+                  {selectedGroup ? `分组: ${selectedGroup}` : '分组筛选'}
+                  <DownOutlined />
+                </Button>
+              </Dropdown>
             </div>
             
-            <div className="interface-actions">
+            <div className="control-right">
               <Space>
                 <Tooltip title="刷新数据">
                   <Button 
@@ -1026,132 +1076,41 @@ const InterfaceManagement = () => {
                   icon={<PlusOutlined />}
                   onClick={handleAddInterface}
                   disabled={!selectedFeatureId || selectedFeature?.active === false}
-                  className="add-interface-button"
                 >
                   添加接口
                 </Button>
               </Space>
             </div>
           </div>
-        </Card>
-        
-        {!features.length && (
-          <Alert
-            message="未找到功能模块"
-            description="请先在模拟数据页面创建功能模块，然后再添加接口"
-            type="warning"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-
-        {selectedFeature?.active === false && (
-          <Alert
-            message="功能模块已禁用"
-            description="当前功能模块已被禁用，所有关联接口不会生效。您可以在模拟数据页面启用此功能模块。"
-            type="warning"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-
-        {/* 分组筛选和操作区域 */}
-        <Card className="filter-card" bordered={false}>
-          <div className="filter-header">
-            <div className="filter-title">
-              <FilterOutlined /> 分组筛选
-            </div>
-            {selectedGroup && (
-              <Button 
-                type="link" 
-                onClick={() => setSelectedGroup(null)}
-                size="small"
-              >
-                清除筛选
-              </Button>
-            )}
-          </div>
           
-          <div className="group-tags-container">
-            {groups.length === 0 ? (
-              <div className="empty-groups">暂无分组</div>
-            ) : (
-              <div className="group-tags">
-                {groups.map(group => (
-                  <Tag 
-                    key={group} 
-                    color={selectedGroup === group ? "blue" : "default"}
-                    onClick={() => setSelectedGroup(group === selectedGroup ? null : group)}
-                    className={`group-tag ${selectedGroup === group ? 'active' : ''}`}
-                  >
-                    {group} ({interfaces.filter(item => item.group === group).length})
-                  </Tag>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          {selectedGroup && (
-            <div className="group-actions">
-              <Popconfirm
-                title={`确定要启用分组 "${selectedGroup}" 中的所有接口吗？`}
-                onConfirm={() => handleBatchToggleActive(true)}
-                okText="确定"
-                cancelText="取消"
-              >
-                <Button 
-                  type="primary" 
-                  size="small"
-                  loading={groupActionLoading}
-                >
-                  批量启用
-                </Button>
-              </Popconfirm>
-              
-              <Popconfirm
-                title={`确定要禁用分组 "${selectedGroup}" 中的所有接口吗？`}
-                onConfirm={() => handleBatchToggleActive(false)}
-                okText="确定"
-                cancelText="取消"
-              >
-                <Button 
-                  danger 
-                  size="small"
-                  loading={groupActionLoading}
-                >
-                  批量禁用
-                </Button>
-              </Popconfirm>
-            </div>
-          )}
-        </Card>
-
-        {/* 接口列表状态栏 */}
-        <Card className="list-header-card" bordered={false}>
-          <div className="list-header">
-            <div className="list-header-info">
-              <div className="feature-info">
-                <span className="label">功能模块：</span>
-                <span className="value">{selectedFeature?.name}</span>
+          {/* 统计和批量操作行 */}
+          <div className="control-panel-stats">
+            <div className="stats-left">
+              <Space size="large">
                 {selectedGroup && (
-                  <Tag color="blue" className="group-badge">{selectedGroup}</Tag>
+                  <span className="stat-item">
+                    <span className="stat-label">当前分组：</span>
+                    <Tag color="blue">{selectedGroup}</Tag>
+                  </span>
                 )}
-              </div>
-              <div className="interface-stats">
-                {searchValue ? (
-                  <Badge 
-                    count={`搜索"${searchValue}" - ${filteredInterfaces.length}个结果`} 
-                    style={{ backgroundColor: '#108ee9' }} 
-                  />
-                ) : (
-                  <Badge 
-                    count={`共 ${filteredInterfaces.length} 个接口`} 
-                    style={{ backgroundColor: '#52c41a' }} 
-                  />
-                )}
-              </div>
+                
+                <span className="stat-item">
+                  {searchValue ? (
+                    <Badge 
+                      count={`搜索"${searchValue}" - ${filteredInterfaces.length}个结果`} 
+                      style={{ backgroundColor: '#108ee9' }} 
+                    />
+                  ) : (
+                    <Badge 
+                      count={`共 ${filteredInterfaces.length} 个接口`} 
+                      style={{ backgroundColor: '#52c41a' }} 
+                    />
+                  )}
+                </span>
+              </Space>
             </div>
-            <div className="batch-actions">
+            
+            <div className="stats-right">
               {selectedRowKeys.length > 0 && (
                 <Space>
                   <span className="selected-count">
@@ -1175,74 +1134,104 @@ const InterfaceManagement = () => {
                   </Popconfirm>
                 </Space>
               )}
+              
+              {selectedGroup && (
+                <Space style={{ marginLeft: selectedRowKeys.length > 0 ? 16 : 0 }}>
+                  <Popconfirm
+                    title={`确定要启用分组 "${selectedGroup}" 中的所有接口吗？`}
+                    onConfirm={() => handleBatchToggleActive(true)}
+                    okText="确定"
+                    cancelText="取消"
+                  >
+                    <Button 
+                      type="primary" 
+                      size="small"
+                      loading={groupActionLoading}
+                    >
+                      分组启用
+                    </Button>
+                  </Popconfirm>
+                  <Popconfirm
+                    title={`确定要禁用分组 "${selectedGroup}" 中的所有接口吗？`}
+                    onConfirm={() => handleBatchToggleActive(false)}
+                    okText="确定"
+                    cancelText="取消"
+                  >
+                    <Button 
+                      danger 
+                      size="small"
+                      loading={groupActionLoading}
+                    >
+                      分组禁用
+                    </Button>
+                  </Popconfirm>
+                </Space>
+              )}
+              
+              {/* 列设置按钮 */}
+              <Popover
+                title="自定义显示列"
+                trigger="click"
+                open={columnConfigVisible}
+                onOpenChange={handleColumnConfigToggle}
+                content={
+                  <div style={{ width: 280 }}>
+                    <div style={{ marginBottom: 12 }}>
+                      <Space>
+                        <Button size="small" onClick={handleSelectAllColumns}>
+                          全选
+                        </Button>
+                        <Button size="small" onClick={handleResetColumns}>
+                          重置
+                        </Button>
+                      </Space>
+                    </div>
+                    <Checkbox.Group
+                      value={tableConfig.visibleColumns || COLUMN_CONFIG.map(col => col.key)}
+                      onChange={handleColumnConfigChange}
+                      style={{ width: '100%' }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {COLUMN_CONFIG.map(col => (
+                          <Checkbox 
+                            key={col.key} 
+                            value={col.key}
+                            disabled={col.required}
+                            style={{ 
+                              width: '100%',
+                              color: col.required ? '#999' : undefined 
+                            }}
+                          >
+                            {col.title}
+                            {col.required && (
+                              <span style={{ color: '#999', fontSize: '12px', marginLeft: 4 }}>
+                                (必须)
+                              </span>
+                            )}
+                          </Checkbox>
+                        ))}
+                      </div>
+                    </Checkbox.Group>
+                  </div>
+                }
+              >
+                <Tooltip title="自定义表格显示列">
+                  <Button 
+                    icon={<SettingOutlined />} 
+                    type="text"
+                    size="small"
+                    className="inline-column-settings-btn"
+                    style={{ marginLeft: (selectedRowKeys.length > 0 || selectedGroup) ? 16 : 0 }}
+                  >
+                    列设置
+                  </Button>
+                </Tooltip>
+              </Popover>
             </div>
           </div>
         </Card>
-
-        {/* 列配置区域 */}
-        <div style={{ 
-          marginBottom: 16, 
-          display: 'flex', 
-          justifyContent: 'flex-end',
-          alignItems: 'center' 
-        }}>
-          <Popover
-            title="自定义显示列"
-            trigger="click"
-            open={columnConfigVisible}
-            onOpenChange={handleColumnConfigToggle}
-            content={
-              <div style={{ width: 280 }}>
-                <div style={{ marginBottom: 12 }}>
-                  <Space>
-                    <Button size="small" onClick={handleSelectAllColumns}>
-                      全选
-                    </Button>
-                    <Button size="small" onClick={handleResetColumns}>
-                      重置
-                    </Button>
-                  </Space>
-                </div>
-                <Checkbox.Group
-                  value={tableConfig.visibleColumns || COLUMN_CONFIG.map(col => col.key)}
-                  onChange={handleColumnConfigChange}
-                  style={{ width: '100%' }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {COLUMN_CONFIG.map(col => (
-                      <Checkbox 
-                        key={col.key} 
-                        value={col.key}
-                        disabled={col.required}
-                        style={{ 
-                          width: '100%',
-                          color: col.required ? '#999' : undefined 
-                        }}
-                      >
-                        {col.title}
-                        {col.required && (
-                          <span style={{ color: '#999', fontSize: '12px', marginLeft: 4 }}>
-                            (必须)
-                          </span>
-                        )}
-                      </Checkbox>
-                    ))}
-                  </div>
-                </Checkbox.Group>
-              </div>
-            }
-          >
-            <Button 
-              icon={<SettingOutlined />} 
-              size="small"
-              type="text"
-            >
-              列设置
-            </Button>
-          </Popover>
-        </div>
-
-                <Card className="list-container-card" bordered={false} bodyStyle={{ padding: 0 }}>
+        
+        <Card className="list-container-card" bordered={false} bodyStyle={{ padding: 0 }}>
           <div className="interface-list-container">
             <Table
               columns={columns}
