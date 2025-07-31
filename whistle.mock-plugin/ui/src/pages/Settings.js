@@ -1,66 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
-import { Form, Input, Button, Switch, Card, message, Divider, Typography, Space, Alert, InputNumber } from 'antd';
-import { SaveOutlined, UndoOutlined } from '@ant-design/icons';
+import { Card, Switch, message, Typography, Divider } from 'antd';
 import '../styles/settings.css';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
+
+// localStorage工具函数
+const getUIVersion = () => {
+  try {
+    return localStorage.getItem('ui-version') || 'v1';
+  } catch (error) {
+    console.error('获取UI版本设置失败:', error);
+    return 'v1';
+  }
+};
+
+const setUIVersion = (version) => {
+  try {
+    localStorage.setItem('ui-version', version);
+    return true;
+  } catch (error) {
+    console.error('保存UI版本设置失败:', error);
+    return false;
+  }
+};
 
 const Settings = () => {
-  const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
-  const [settings, setSettings] = useState(null);
+  const [uiVersion, setUiVersionState] = useState(getUIVersion());
 
-  // 获取当前设置
+  // 页面加载时同步localStorage状态
   useEffect(() => {
-    fetchSettings();
+    const currentVersion = getUIVersion();
+    setUiVersionState(currentVersion);
   }, []);
 
-  const fetchSettings = async () => {
-    try {
-      setLoading(true);
-      // 这里假设有一个获取设置的接口
-      // 为了示例，我们使用默认设置
-      const defaultSettings = {
-        logRetention: 7,
-        enableLogging: true,
-        enableAutoRefresh: false,
-        maxLogEntries: 10000,
-        notificationEnabled: true,
-        mockjsEnabled: true,
-        responseDelay: 0
-      };
+  // 处理UI版本切换
+  const handleUIVersionChange = (checked) => {
+    const newVersion = checked ? 'v2' : 'v1';
+    
+    if (setUIVersion(newVersion)) {
+      setUiVersionState(newVersion);
       
-      setSettings(defaultSettings);
-      form.setFieldsValue(defaultSettings);
-    } catch (error) {
-      console.error('获取设置失败:', error);
-      message.error('获取设置失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async (values) => {
-    try {
-      setLoading(true);
-      // 这里假设有一个保存设置的接口
-      // 现在只是模拟保存成功
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 提示用户刷新页面以应用更改
+      message.success({
+        content: `已切换到${checked ? '重构后' : '重构前'}版本，页面将自动刷新`,
+        duration: 2,
+        onClose: () => {
+          window.location.reload();
+        }
+      });
       
-      setSettings(values);
-      message.success('设置已保存');
-    } catch (error) {
-      console.error('保存设置失败:', error);
-      message.error('保存设置失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReset = () => {
-    if (settings) {
-      form.setFieldsValue(settings);
+      // 1秒后自动刷新
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } else {
+      message.error('设置保存失败，请重试');
     }
   };
 
@@ -71,119 +66,46 @@ const Settings = () => {
           <div>
             <h1 className="page-title">系统设置</h1>
             <div className="page-description">
-              配置插件的全局设置项，这些设置将影响所有功能模块
+              配置插件的全局设置项和界面选项
             </div>
           </div>
         </div>
 
-        <Alert
-          message="设置功能正在开发中"
-          description="目前部分设置可能不生效，我们正在努力完善此功能"
-          type="info"
-          showIcon
-          style={{ marginBottom: 20 }}
-        />
-        
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSave}
-          initialValues={settings || {}}
-        >
-          <Card title="日志设置" className="settings-card">
-            <Form.Item
-              name="enableLogging"
-              label="启用请求日志记录"
-              valuePropName="checked"
-            >
-              <Switch />
-            </Form.Item>
-            
-            <Form.Item
-              name="logRetention"
-              label="日志保留天数"
-              rules={[{ required: true, message: '请输入日志保留天数' }]}
-              tooltip="超过设定天数的日志将被自动清理"
-            >
-              <InputNumber min={1} max={90} />
-            </Form.Item>
-            
-            <Form.Item
-              name="maxLogEntries"
-              label="最大日志条数"
-              rules={[{ required: true, message: '请输入最大日志条数' }]}
-              tooltip="超过设定条数的日志将被清理"
-            >
-              <InputNumber min={1000} max={100000} step={1000} />
-            </Form.Item>
-          </Card>
-          
-          <Card title="接口模拟设置" className="settings-card">
-            <Form.Item
-              name="mockjsEnabled"
-              label="启用 Mock.js 数据模拟"
-              valuePropName="checked"
-              tooltip="使用 Mock.js 生成随机数据"
-            >
-              <Switch />
-            </Form.Item>
-            
-            <Form.Item
-              name="responseDelay"
-              label="全局响应延迟（毫秒）"
-              tooltip="所有接口默认的响应延迟时间"
-            >
-              <InputNumber min={0} max={10000} />
-            </Form.Item>
-            
-            <Form.Item
-              name="notificationEnabled"
-              label="启用请求匹配通知"
-              valuePropName="checked"
-              tooltip="接口匹配成功时显示通知"
-            >
-              <Switch />
-            </Form.Item>
-          </Card>
-          
-          <Card title="界面设置" className="settings-card">
-            <Form.Item
-              name="enableAutoRefresh"
-              label="启用页面自动刷新"
-              valuePropName="checked"
-              tooltip="启用后，页面数据将定期自动刷新"
-            >
-              <Switch />
-            </Form.Item>
-            
-            <Form.Item
-              name="theme"
-              label="界面主题"
-            >
-              <Input disabled placeholder="暂不支持自定义主题" />
-            </Form.Item>
-          </Card>
-          
-          <div className="settings-actions">
-            <Space>
-              <Button 
-                type="default" 
-                icon={<UndoOutlined />} 
-                onClick={handleReset}
-              >
-                重置
-              </Button>
-              <Button 
-                type="primary" 
-                icon={<SaveOutlined />} 
-                htmlType="submit" 
-                loading={loading}
-              >
-                保存设置
-              </Button>
-            </Space>
+        <Card title="界面设置" className="settings-card">
+          <div className="setting-item">
+            <div className="setting-label">
+              <Text strong>UI版本切换</Text>
+              <Paragraph type="secondary" style={{ margin: '4px 0 0 0', fontSize: '12px' }}>
+                切换使用重构前后的界面版本
+              </Paragraph>
+            </div>
+            <div className="setting-control">
+              <Switch
+                checked={uiVersion === 'v2'}
+                onChange={handleUIVersionChange}
+                checkedChildren="重构后"
+                unCheckedChildren="重构前"
+              />
+            </div>
           </div>
-        </Form>
+          
+          <Divider />
+          
+          <div style={{ padding: '16px 0' }}>
+            <Title level={5}>版本说明</Title>
+            <div style={{ marginLeft: '16px' }}>
+              <Paragraph>
+                <Text strong>重构前版本：</Text> 当前稳定版本的功能模块管理和接口管理界面
+              </Paragraph>
+              <Paragraph>
+                <Text strong>重构后版本：</Text> 新设计的界面版本，提供更好的用户体验和功能优化
+              </Paragraph>
+              <Paragraph type="warning">
+                <Text>注意：切换版本后页面将自动刷新以应用更改</Text>
+              </Paragraph>
+            </div>
+          </div>
+        </Card>
       </div>
     </AppLayout>
   );

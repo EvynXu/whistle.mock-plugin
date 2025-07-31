@@ -1,3 +1,9 @@
+/**
+ * InterfaceManagementV2.js - 接口管理页面（重构后版本）
+ * 这是重构后的新版本界面，提供更好的用户体验和功能优化
+ * 当前内容与V1版本相同，等待后续重构
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useHistory } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
@@ -955,6 +961,21 @@ const InterfaceManagement = () => {
   return (
     <AppLayout>
       <div className="interface-management-container">
+        {/* V2版本标识 */}
+        <div style={{ 
+          position: 'absolute', 
+          top: '10px', 
+          right: '10px', 
+          backgroundColor: '#52c41a', 
+          color: 'white', 
+          padding: '4px 8px', 
+          borderRadius: '4px', 
+          fontSize: '12px',
+          zIndex: 1000
+        }}>
+          重构后版本 V2
+        </div>
+        
         <Card className="interface-header-card">
           <div className="interface-management-header">
             <div className="feature-selector-container">
@@ -1221,7 +1242,7 @@ const InterfaceManagement = () => {
           </Popover>
         </div>
 
-        <Card className="list-container-card" bordered={false} bodyStyle={{ padding: 0 }}>
+                <Card className="list-container-card" bordered={false} bodyStyle={{ padding: 0 }}>
           <div className="interface-list-container">
             <Table
               columns={columns}

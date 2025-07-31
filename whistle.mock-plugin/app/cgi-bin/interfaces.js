@@ -383,7 +383,9 @@ module.exports = function(req, res) {
     
     // 处理 PATCH 请求 - 部分更新接口（如启用/禁用状态）
     if (req.method === 'PATCH') {
-      const { id, active } = req.query;
+      // 从URL路径参数或查询参数中获取ID
+      const id = req.params?.id || req.query?.id;
+      const { active } = req.query;
       const patchData = req.body;
       
       // 读取接口数据

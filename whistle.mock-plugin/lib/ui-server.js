@@ -38,7 +38,25 @@ app.all('/cgi-bin/*', function(req, res) {
     res.setHeader('Access-Control-Allow-Credentials', true);
   }
 
-  const controller = CGI_MODULES[APP_ROOT + req.url.replace(/\?.*$/, '')];
+  // 原始URL路径
+  let urlPath = req.url.replace(/\?.*$/, '');
+  let controller = CGI_MODULES[APP_ROOT + urlPath];
+  
+  // 如果直接匹配失败，尝试匹配带路径参数的路由
+  if (!controller) {
+    // 检查是否是接口相关的路由（带ID参数）
+    const interfacesMatch = urlPath.match(/^\/cgi-bin\/interfaces(\/[^\/]+)?$/);
+    if (interfacesMatch) {
+      controller = CGI_MODULES[APP_ROOT + '/cgi-bin/interfaces'];
+      // 将路径参数添加到请求对象中
+      if (interfacesMatch[1]) {
+        const id = interfacesMatch[1].substring(1); // 移除前面的'/'
+        req.params = req.params || {};
+        req.params.id = id;
+      }
+    }
+  }
+  
   if (!controller) {
     res.status(404).end('Not found');
     return;
