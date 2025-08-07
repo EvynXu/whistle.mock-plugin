@@ -221,10 +221,37 @@ body {
   margin-right: 24px;
 }
 
+.logo-icon-group {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .logo-icon {
   font-size: 24px;
   color: #1890ff;
-  margin-right: 12px;
+}
+
+.logo-icon-primary {
+  position: relative;
+  z-index: 2;
+  font-size: 22px;
+  display: none;
+}
+
+.logo-icon-secondary {
+  position: absolute;
+  right: -6px;
+  font-size: 16px;
+  color: #52c41a;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.15);
+  padding: 2px;
 }
 
 .logo-text {
@@ -232,6 +259,10 @@ body {
   font-size: 18px;
   font-weight: 600;
   white-space: nowrap;
+  background: linear-gradient(135deg, #1890ff, #52c41a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
 }
 
 .collapse-button {
@@ -332,6 +363,11 @@ body {
 }
 
 .dark-theme .logo-text,
-.dark-theme .logo-icon {
+.dark-theme .logo-icon-primary {
   color: #177ddc;
+}
+
+.dark-theme .logo-icon-secondary {
+  color: #49aa19;
+  background: #141414;
 } 

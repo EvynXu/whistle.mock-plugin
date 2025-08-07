@@ -385,8 +385,9 @@ const InterfaceManagement = () => {
 
   const handleSubmit = async () => {
     try {
-      // 表单验证
-      const values = await form.validateFields();
+      // 表单验证 - 先验证所有字段，再获取所有字段值（包括折叠的）
+      await form.validateFields();
+      const values = form.getFieldsValue(true); // true表示获取所有字段，包括未渲染的
       console.log('表单提交数据:', values);
       
       // 处理自定义请求头
@@ -405,19 +406,19 @@ const InterfaceManagement = () => {
         groupValue = groupValue.length > 0 ? groupValue[0] : '';
       }
       
-      // 构建接口数据
+      // 构建接口数据 - 在编辑模式下，确保关键字段不丢失
       const interfaceData = {
-        name: values.name,
-        group: groupValue || '', // 确保group不为undefined
-        urlPattern: values.pattern,
-        proxyType: values.proxyType,
+        name: values.name || (editingInterface ? editingInterface.name : ''),
+        group: groupValue || (editingInterface ? editingInterface.group : '') || '', // 确保group不为undefined
+        urlPattern: values.pattern || (editingInterface ? editingInterface.urlPattern : ''),
+        proxyType: values.proxyType || (editingInterface ? editingInterface.proxyType : 'response'),
         featureId: selectedFeatureId,
-        responses: values.responses,
-        activeResponseId: values.activeResponseId,
-        httpStatus: parseInt(values.statusCode, 10), // 转换为数字
-        contentType: values.contentType,
-        responseDelay: parseInt(values.responseDelay, 10) || 0,
-        httpMethod: values.httpMethod,
+        responses: values.responses || (editingInterface ? editingInterface.responses : []),
+        activeResponseId: values.activeResponseId || (editingInterface ? editingInterface.activeResponseId : null),
+        httpStatus: parseInt(values.statusCode, 10) || (editingInterface ? editingInterface.httpStatus : 200), // 转换为数字
+        contentType: values.contentType || (editingInterface ? editingInterface.contentType : 'application/json; charset=utf-8'),
+        responseDelay: parseInt(values.responseDelay, 10) || (editingInterface ? editingInterface.responseDelay : 0) || 0,
+        httpMethod: values.httpMethod || (editingInterface ? editingInterface.httpMethod : 'ALL'),
         active: true
       };
       

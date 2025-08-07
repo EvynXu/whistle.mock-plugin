@@ -7,7 +7,7 @@ import {
   FileTextOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  DashboardOutlined
+  ExperimentOutlined
 } from '@ant-design/icons';
 import { Link, useLocation } from 'react-router-dom';
 import VersionModal from './VersionModal';
@@ -93,8 +93,10 @@ const AppLayout = ({ children }) => {
       <Header className="app-header" style={{ background: colorBgContainer }}>
         <div className="header-left">
           <div className="logo-container">
-            <DashboardOutlined className="logo-icon" />
-            <div className="logo-text">Whistle Mock</div>
+            <div className="logo-icon-group">
+              <ExperimentOutlined className="logo-icon logo-icon-secondary" />
+            </div>
+            <div className="logo-text">MockMaster</div>
           </div>
           <Button
             type="text"
