@@ -436,13 +436,11 @@ const InterfaceManagement = () => {
         interfaceData.headers = headers;
       }
       
-      // 添加参数匹配规则
-      if (values.paramMatchers && Array.isArray(values.paramMatchers) && values.paramMatchers.length > 0) {
-        // 过滤掉空的匹配规则
-        interfaceData.paramMatchers = values.paramMatchers.filter(matcher => 
-          matcher && matcher.paramPath && matcher.paramValue
-        );
-      }
+      // 添加参数匹配规则（始终发送，空数组用于清空后端旧值）
+      const filteredParamMatchers = Array.isArray(values.paramMatchers)
+        ? values.paramMatchers.filter(matcher => matcher && matcher.paramPath && matcher.paramValue)
+        : [];
+      interfaceData.paramMatchers = filteredParamMatchers;
       
       console.log('提交接口数据:', interfaceData);
       
