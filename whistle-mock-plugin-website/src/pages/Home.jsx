@@ -70,10 +70,10 @@ const Home = () => {
             强大的 API 接口模拟工具，提供完整的接口 Mock 解决方案
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/quickstart" className="px-6 py-3 bg-white text-primary-600 rounded-lg font-medium hover:bg-gray-100 transition-all duration-200 shadow-lg hover:shadow-xl">
+            <Link to="/quickstart" className="inline-block px-8 py-4 bg-white text-primary-600 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-lg hover:shadow-xl text-center">
               快速开始
             </Link>
-            <Link to="/features" className="px-6 py-3 bg-transparent text-white border-2 border-white rounded-lg font-medium hover:bg-white hover:text-primary-600 transition-all duration-200">
+            <Link to="/features" className="inline-block px-8 py-4 bg-white/10 backdrop-blur-sm text-white border-2 border-white rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-all duration-200 text-center">
               了解更多
             </Link>
           </div>
@@ -217,14 +217,14 @@ const Home = () => {
             立即安装并体验强大的 API Mock 功能
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/quickstart" className="btn-primary bg-white text-primary-600 hover:bg-gray-100">
+            <Link to="/quickstart" className="inline-block px-8 py-4 bg-white text-primary-600 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-lg hover:shadow-xl text-center">
               查看快速开始指南
             </Link>
             <a
               href="https://github.com/EvynXu/whistle.mock-plugin"
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-secondary border-white text-white hover:bg-white/10"
+              className="inline-block px-8 py-4 bg-white/10 backdrop-blur-sm text-white border-2 border-white rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-all duration-200 text-center"
             >
               访问 GitHub
             </a>
