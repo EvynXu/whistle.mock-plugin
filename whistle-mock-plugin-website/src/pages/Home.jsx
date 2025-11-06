@@ -221,7 +221,7 @@ const Home = () => {
               查看快速开始指南
             </Link>
             <a
-              href="https://github.com/yourusername/whistle.mock-plugin"
+              href="https://github.com/EvynXu/whistle.mock-plugin"
               target="_blank"
               rel="noopener noreferrer"
               className="btn-secondary border-white text-white hover:bg-white/10"

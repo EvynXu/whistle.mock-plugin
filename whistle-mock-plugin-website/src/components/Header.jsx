@@ -43,7 +43,7 @@ const Header = () => {
               </Link>
             ))}
             <a
-              href="https://github.com/yourusername/whistle.mock-plugin"
+              href="https://github.com/EvynXu/whistle.mock-plugin"
               target="_blank"
               rel="noopener noreferrer"
               className="btn-primary"
@@ -93,7 +93,7 @@ const Header = () => {
               </Link>
             ))}
             <a
-              href="https://github.com/yourusername/whistle.mock-plugin"
+              href="https://github.com/EvynXu/whistle.mock-plugin"
               target="_blank"
               rel="noopener noreferrer"
               className="block mt-2 btn-primary text-center"

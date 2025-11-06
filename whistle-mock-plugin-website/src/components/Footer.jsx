@@ -50,7 +50,7 @@ const Footer = () => {
             <ul className="space-y-2 text-sm">
               <li>
                 <a
-                  href="https://github.com/yourusername/whistle.mock-plugin"
+                  href="https://github.com/EvynXu/whistle.mock-plugin"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-primary-400 transition-colors"
@@ -87,7 +87,7 @@ const Footer = () => {
             <ul className="space-y-2 text-sm">
               <li>
                 <a
-                  href="https://github.com/yourusername/whistle.mock-plugin/issues"
+                  href="https://github.com/EvynXu/whistle.mock-plugin/issues"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-primary-400 transition-colors"
@@ -97,7 +97,7 @@ const Footer = () => {
               </li>
               <li>
                 <a
-                  href="https://github.com/yourusername/whistle.mock-plugin/discussions"
+                  href="https://github.com/EvynXu/whistle.mock-plugin/discussions"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-primary-400 transition-colors"
