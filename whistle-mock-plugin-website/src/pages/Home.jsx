@@ -70,10 +70,10 @@ const Home = () => {
             强大的 API 接口模拟工具，提供完整的接口 Mock 解决方案
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/quickstart" className="btn-primary bg-white text-primary-600 hover:bg-gray-100">
+            <Link to="/quickstart" className="px-6 py-3 bg-white text-primary-600 rounded-lg font-medium hover:bg-gray-100 transition-all duration-200 shadow-lg hover:shadow-xl">
               快速开始
             </Link>
-            <Link to="/features" className="btn-secondary border-white text-white hover:bg-white/10">
+            <Link to="/features" className="px-6 py-3 bg-transparent text-white border-2 border-white rounded-lg font-medium hover:bg-white hover:text-primary-600 transition-all duration-200">
               了解更多
             </Link>
           </div>
