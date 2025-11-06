@@ -1,0 +1,69 @@
+name: Deploy Website to GitHub Pages
+
+on:
+  # 当推送到 main 或 dev 分支时触发
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'whistle-mock-plugin-website/**'
+  
+  # 允许手动触发工作流
+  workflow_dispatch:
+
+# 设置 GITHUB_TOKEN 的权限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 只允许一个并发部署
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # 构建任务
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: whistle-mock-plugin-website/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./whistle-mock-plugin-website
+        run: npm ci
+      
+      - name: Build website
+        working-directory: ./whistle-mock-plugin-website
+        run: npm run build
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./whistle-mock-plugin-website/dist
+
+  # 部署任务
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
