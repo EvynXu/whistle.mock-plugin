@@ -8,6 +8,7 @@ on:
       - dev
     paths:
       - 'whistle-mock-plugin-website/**'
+      - '.github/workflows/deploy-website.yml'
   
   # 允许手动触发工作流
   workflow_dispatch:
