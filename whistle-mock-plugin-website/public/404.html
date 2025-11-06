@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Whistle Mock Plugin</title>
+    <script>
+      // GitHub Pages SPA 重定向解决方案
+      // 当用户访问子路由并刷新时，GitHub Pages 会返回 404
+      // 这个脚本会将路径信息保存到 sessionStorage，然后重定向到首页
+      // 首页的脚本会读取这个信息并恢复正确的路由
+      
+      var pathSegmentsToKeep = 1; // GitHub Pages 子目录层级 (whistle.mock-plugin)
+      
+      var l = window.location;
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+        l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
