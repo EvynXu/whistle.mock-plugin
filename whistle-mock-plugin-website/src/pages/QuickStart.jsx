@@ -30,7 +30,11 @@ const QuickStart = () => {
                 如果你还没有安装 Whistle，首先需要安装它：
               </p>
               <CodeBlock
-                code="# 全局安装 Whistle\nnpm install -g whistle\n\n# 或使用 yarn\nyarn global add whistle"
+                code={`# 全局安装 Whistle
+npm install -g whistle
+
+# 或使用 yarn
+yarn global add whistle`}
                 language="bash"
                 title="安装 Whistle"
               />
@@ -50,7 +54,11 @@ const QuickStart = () => {
                 安装 Whistle Mock Plugin：
               </p>
               <CodeBlock
-                code="# 通过 npm 安装\nnpm install -g whistle.mock-plugin\n\n# 或通过 yarn 安装\nyarn global add whistle.mock-plugin"
+                code={`# 通过 npm 安装
+npm install -g whistle.mock-plugin
+
+# 或通过 yarn 安装
+yarn global add whistle.mock-plugin`}
                 language="bash"
                 title="安装插件"
               />
@@ -75,7 +83,11 @@ const QuickStart = () => {
                 启动 Whistle 服务：
               </p>
               <CodeBlock
-                code="# 启动 Whistle\nw2 start\n\n# 查看 Whistle 状态\nw2 status"
+                code={`# 启动 Whistle
+w2 start
+
+# 查看 Whistle 状态
+w2 status`}
                 language="bash"
                 title="启动服务"
               />
