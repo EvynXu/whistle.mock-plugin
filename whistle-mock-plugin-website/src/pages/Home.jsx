@@ -83,11 +83,11 @@ const Home = () => {
       {/* Quick Install */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4 text-center">
               一分钟快速安装
             </h2>
-            <p className="text-gray-600 mb-8">
+            <p className="text-gray-600 mb-8 text-center">
               通过 npm 或 yarn 快速安装插件，立即开始使用
             </p>
             <CodeBlock
