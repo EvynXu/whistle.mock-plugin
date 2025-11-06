@@ -1,7 +1,5 @@
 /**
- * InterfaceManagementV2.js - 接口管理页面（重构后版本）
- * 这是重构后的新版本界面，提供更好的用户体验和功能优化
- * 当前内容与V1版本相同，等待后续重构
+ * InterfaceManagementV2.js - 接口管理页面
  */
 
 import React, { useState, useEffect } from 'react';
@@ -15,7 +13,7 @@ import {
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, 
   FileTextOutlined, PlusCircleOutlined, SettingOutlined,
-  SearchOutlined, FilterOutlined, ReloadOutlined, DownOutlined, QuestionCircleOutlined
+  SearchOutlined, FilterOutlined, ReloadOutlined, DownOutlined, QuestionCircleOutlined, CopyOutlined
 } from '@ant-design/icons';
 import '../styles/interface-management.css';
 import axios from 'axios';
@@ -32,6 +30,7 @@ import {
   formatResponseContent,
   generateResponseId
 } from '../components/interface-management';
+import DataManagementModal from '../components/interface-management/DataManagementModal';
 
 const { Option } = Select;
 const { Search } = AntInput;
@@ -74,6 +73,9 @@ const InterfaceManagement = () => {
   // 模态框状态
   const [modalVisible, setModalVisible] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [isDuplicateMode, setIsDuplicateMode] = useState(false);
+  const [dataModalVisible, setDataModalVisible] = useState(false);
+  const [dataModalRecord, setDataModalRecord] = useState(null);
   
   // 列配置状态
   const [columnConfigVisible, setColumnConfigVisible] = useState(false);
@@ -253,6 +255,7 @@ const InterfaceManagement = () => {
       return;
     }
     form.resetFields();
+    setIsDuplicateMode(false);
     
     // 创建默认响应
     const defaultResponseId = generateResponseId();
@@ -292,6 +295,7 @@ const InterfaceManagement = () => {
     
     // 重置表单
     form.resetFields();
+    setIsDuplicateMode(false);
     
     // 处理响应数据
     let responses = [];
@@ -348,6 +352,91 @@ const InterfaceManagement = () => {
     
     setCurrentResponseId(activeResponseId);
     setEditingInterface(record);
+    setModalVisible(true);
+  };
+
+  // 复制新增接口
+  const handleDuplicate = (record) => {
+    if (!selectedFeatureId) {
+      message.warning('请先选择一个功能模块');
+      return;
+    }
+    if (!record) {
+      message.warning('接口数据不完整，无法复制');
+      return;
+    }
+
+    form.resetFields();
+
+    // 深拷贝源数据
+    const source = JSON.parse(JSON.stringify(record));
+
+    // 处理响应数据
+    let responses = [];
+    let activeResponseId = '';
+
+    if (Array.isArray(source.responses) && source.responses.length > 0) {
+      // 为每条响应生成新的ID，并重映射activeResponseId
+      const idMap = new Map();
+      responses = source.responses.map((resp) => {
+        const newId = generateResponseId();
+        idMap.set(resp.id, newId);
+        return {
+          id: newId,
+          name: resp.name || '未命名响应',
+          description: resp.description || '',
+          content: resp.content || '{}'
+        };
+      });
+      const mapped = idMap.get(source.activeResponseId) || responses[0]?.id;
+      activeResponseId = mapped || '';
+    } else if (source.responseContent) {
+      // 兼容旧数据格式
+      const defaultResponseId = generateResponseId();
+      responses = [{
+        id: defaultResponseId,
+        name: '默认响应',
+        description: '',
+        content: source.responseContent
+      }];
+      activeResponseId = defaultResponseId;
+    }
+
+    // 处理自定义请求头 -> 表单需要的数组结构
+    let headerItems = [];
+    if (source.headers && typeof source.headers === 'object') {
+      headerItems = Object.entries(source.headers).map(([headerName, headerValue]) => ({
+        headerName,
+        headerValue
+      }));
+    }
+
+    // 分组值保证为字符串
+    let groupValue = source.group;
+    if (Array.isArray(groupValue)) {
+      groupValue = groupValue.length > 0 ? groupValue[0] : undefined;
+    }
+
+    // 设定表单初值
+    form.setFieldsValue({
+      name: `${source.name || '未命名接口'} - 副本`,
+      group: groupValue || undefined,
+      pattern: source.urlPattern,
+      proxyType: source.proxyType || 'response',
+      statusCode: (source.httpStatus || source.statusCode || 200).toString(),
+      contentType: source.contentType || 'application/json; charset=utf-8',
+      responses,
+      activeResponseId,
+      httpMethod: source.httpMethod || source.method || 'ALL',
+      targetUrl: source.targetUrl || '',
+      headerItems,
+      paramMatchers: Array.isArray(source.paramMatchers) ? source.paramMatchers : [],
+      responseDelay: source.responseDelay ? String(source.responseDelay) : '0'
+    });
+
+    setCurrentResponseId(activeResponseId || null);
+    setEditingInterface(null); // 新增模式
+    setIsDuplicateMode(true);
     setModalVisible(true);
   };
 
@@ -481,6 +570,7 @@ const InterfaceManagement = () => {
 
   const handleCancel = () => {
     setModalVisible(false);
+    setIsDuplicateMode(false);
   };
 
   const handleSelectFeature = (featureId) => {
@@ -910,7 +1000,7 @@ const InterfaceManagement = () => {
     {
       title: '操作',
       key: 'action',
-      width: 180,
+      width: 220,
       render: (_, record) => (
         <div className="action-buttons">
           <Button 
@@ -918,6 +1008,22 @@ const InterfaceManagement = () => {
             icon={<EditOutlined />} 
             onClick={() => handleEditInterface(record)}
           />
+          {record.proxyType === 'response' && (
+            <Tooltip title="数据管理">
+              <Button 
+                type="text" 
+                icon={<FileTextOutlined />} 
+                onClick={() => { setDataModalRecord(record); setDataModalVisible(true); }}
+              />
+            </Tooltip>
+          )}
+          <Tooltip title="复制新增">
+            <Button 
+              type="text" 
+              icon={<CopyOutlined />} 
+              onClick={() => handleDuplicate(record)}
+            />
+          </Tooltip>
           <Popconfirm
             title="确定要删除此接口吗？"
             onConfirm={() => handleDeleteInterface(record.id)}
@@ -960,21 +1066,6 @@ const InterfaceManagement = () => {
   return (
     <AppLayout>
       <div className="interface-management-container">
-        {/* V2版本标识 */}
-        <div style={{ 
-          position: 'absolute', 
-          top: '10px', 
-          right: '10px', 
-          backgroundColor: '#52c41a', 
-          color: 'white', 
-          padding: '4px 8px', 
-          borderRadius: '4px', 
-          fontSize: '12px',
-          zIndex: 1000
-        }}>
-          重构后版本 V2
-        </div>
-        
         {/* 警告信息置顶显示 */}
         {!features.length && (
           <Alert
@@ -1270,7 +1361,7 @@ const InterfaceManagement = () => {
               alignItems: 'center',
               gap: '8px'
             }}>
-              <span>{editingInterface ? '编辑接口' : '添加接口'}</span>
+              <span>{editingInterface ? '编辑接口' : (isDuplicateMode ? '复制新增接口' : '添加接口')}</span>
               <Badge 
                 count="配置向导" 
                 style={{ 
@@ -1829,6 +1920,16 @@ const InterfaceManagement = () => {
           visible={previewVisible}
           onCancel={() => setPreviewVisible(false)}
           previewContent={previewContent}
+        />
+
+        {/* 数据管理弹窗 */}
+        <DataManagementModal
+          visible={dataModalVisible}
+          onCancel={() => { setDataModalVisible(false); setDataModalRecord(null); }}
+          interfaceItem={dataModalRecord}
+          onSaved={() => {
+            fetchInterfaces();
+          }}
         />
       </div>
     </AppLayout>

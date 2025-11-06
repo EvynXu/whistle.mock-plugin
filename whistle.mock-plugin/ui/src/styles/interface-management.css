@@ -1144,6 +1144,37 @@
   background: #e6f4ff;
 }
 
+/* 紧凑排序 Chips */
+.sortable-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  height: 24px;
+  border: 1px solid #e6e6e6;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 12px;
+  color: #595959;
+  cursor: move;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sortable-chip:hover {
+  border-color: #bfbfbf;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.sortable-chip-active {
+  background: #e6f7ff;
+  border-color: #91d5ff;
+  color: #1677ff;
+}
+
+.sortable-ghost {
+  opacity: 0.6;
+}
+
 /* 接口弹窗样式 */
 .interface-modal .ant-modal-header {
   border-bottom: 1px solid #f0f0f0;

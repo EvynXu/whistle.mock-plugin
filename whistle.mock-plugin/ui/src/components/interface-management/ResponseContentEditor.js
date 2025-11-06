@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ReactSortable } from 'react-sortablejs';
 import ReactDOM from 'react-dom';
 import { Card, Button, Space, Badge, Row, Col, Input, Select, Tooltip, message, AutoComplete } from 'antd';
 import { 
@@ -11,7 +12,8 @@ import {
   CheckCircleOutlined,
   EditOutlined,
   FullscreenOutlined,
-  FullscreenExitOutlined 
+  FullscreenExitOutlined,
+  MenuOutlined
 } from '@ant-design/icons';
 import { generateResponseId } from './utils';
 
@@ -22,16 +24,32 @@ const ResponseContentEditor = ({
   form,
   responses, 
   activeResponseId, 
-  onPreview
+  onPreview,
+  enableSorting = false
 }) => {
   const { getFieldValue, setFieldsValue } = form;
   const [isEditing, setIsEditing] = useState(false);
   const [editingName, setEditingName] = useState('');
   const [isTextareaFullscreen, setIsTextareaFullscreen] = useState(false);
+  const [showSorting, setShowSorting] = useState(false);
 
   // 查找激活的响应
   const activeResponseIndex = responses.findIndex(r => r.id === activeResponseId);
   const activeResponse = activeResponseIndex >= 0 ? responses[activeResponseIndex] : null;
+  // 拖拽排序：基于 ReactSortable 管理一个本地列表镜像
+  const [sortableList, setSortableList] = useState(() => {
+    return Array.isArray(responses) ? responses.map(r => ({ ...r })) : [];
+  });
+
+  useEffect(() => {
+    setSortableList(Array.isArray(responses) ? responses.map(r => ({ ...r })) : []);
+  }, [responses]);
+
+  const handleAfterSort = (newList) => {
+    // 将排序后的列表写回表单 responses 字段；activeResponseId 不变
+    setFieldsValue({ responses: newList });
+  };
+
 
   // 全屏切换函数
   const toggleTextareaFullscreen = () => {
@@ -263,6 +281,17 @@ const ResponseContentEditor = ({
       }
       extra={
         <Space size="small">
+          {enableSorting && (
+            <Button 
+              type="default" 
+              icon={<MenuOutlined />} 
+              onClick={() => setShowSorting(!showSorting)}
+              size="small"
+              style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              排序
+            </Button>
+          )}
           <Button 
             type="default" 
             icon={<PlusCircleOutlined />} 
@@ -313,6 +342,31 @@ const ResponseContentEditor = ({
       style={{ marginBottom: 16 }}
       bodyStyle={{ padding: '16px' }}
     >
+      {enableSorting && showSorting && Array.isArray(sortableList) && sortableList.length > 1 && (
+        <div style={{ marginBottom: 12 }}>
+          <ReactSortable
+            list={sortableList}
+            setList={(newState) => {
+              setSortableList(newState);
+              handleAfterSort(newState);
+            }}
+            animation={150}
+            ghostClass="sortable-ghost"
+            style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}
+          >
+            {sortableList.map((item) => (
+              <div
+                key={item.id}
+                className={`sortable-chip${item.id === activeResponseId ? ' sortable-chip-active' : ''}`}
+                onClick={() => handleResponseSelect(item.id)}
+                title={item.name || '未命名响应'}
+              >
+                {item.name || '未命名响应'}
+              </div>
+            ))}
+          </ReactSortable>
+        </div>
+      )}
       {/* 响应选择和名称编辑合并区域 */}
       <div style={{ marginBottom: '16px' }}>
         <Row gutter={12} align="middle">
@@ -445,12 +499,13 @@ const ResponseContentEditor = ({
           
           <div style={{ position: 'relative' }}>
             <TextArea 
-              rows={12} 
+              rows={26} 
               placeholder="请输入响应内容..." 
               style={{ 
                 fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
                 fontSize: '13px',
-                lineHeight: '1.5'
+                lineHeight: '1.5',
+                minHeight: '620px'
               }}
               value={activeResponse.content || ''}
               onChange={(e) => updateActiveResponseContent(e.target.value)}

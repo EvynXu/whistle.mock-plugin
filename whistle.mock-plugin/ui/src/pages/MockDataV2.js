@@ -1,13 +1,12 @@
 /**
- * MockDataV2.js - 功能模块管理页面（V2版本）
- * 功能和UI与V1版本完全一致，仅保留V2版本标识
+ * MockDataV2.js - 功能模块管理页面
  */
 
 import React, { useState, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
-import { Card, Row, Col, Button, Modal, Form, Input, message, Switch, Empty, Spin, Typography, Tooltip, Badge, Select, Pagination } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined, ExportOutlined, InfoCircleOutlined, CalendarOutlined, SortAscendingOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Button, Modal, Form, Input, message, Switch, Empty, Spin, Typography, Tooltip, Badge, Select, Pagination, Table, Space, Tag } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined, ExportOutlined, InfoCircleOutlined, CalendarOutlined, SortAscendingOutlined, AppstoreOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import '../styles/mock-data.css';
 import axios from 'axios';
 
@@ -41,7 +40,8 @@ const MockData = () => {
       sortBy: 'name', // name, createdAt, interfaceCount, active
       sortOrder: 'ascend', // ascend, descend
       pageSize: 12,
-      current: 1
+      current: 1,
+      viewMode: 'card' // card, list
     };
   });
 
@@ -369,6 +369,10 @@ const MockData = () => {
     saveListConfig({ current: page, pageSize });
   };
 
+  const handleViewModeChange = (mode) => {
+    saveListConfig({ viewMode: mode, current: 1 });
+  };
+
   // 获取排序后的功能列表
   const getSortedFeatures = () => {
     const sorted = [...mockFeatures].sort((a, b) => {
@@ -517,6 +521,139 @@ const MockData = () => {
     );
   };
 
+  // 渲染列表视图
+  const renderListView = () => {
+    const columns = [
+      {
+        title: '状态',
+        dataIndex: 'active',
+        key: 'active',
+        width: 100,
+        render: (active, record) => (
+          <Switch
+            checked={active}
+            onChange={(checked, e) => {
+              e.stopPropagation();
+              handleToggleActive(record.id, active);
+            }}
+            checkedChildren="启用"
+            unCheckedChildren="禁用"
+          />
+        ),
+      },
+      {
+        title: '功能名称',
+        dataIndex: 'name',
+        key: 'name',
+        ellipsis: { tooltip: true },
+        render: (name) => (
+          <Text strong style={{ fontSize: '14px' }}>{name}</Text>
+        ),
+      },
+      {
+        title: '功能描述',
+        dataIndex: 'description',
+        key: 'description',
+        ellipsis: { tooltip: true },
+        render: (description) => (
+          <Text type="secondary">{description || '无描述'}</Text>
+        ),
+      },
+      {
+        title: '接口数量',
+        dataIndex: 'interfaceCount',
+        key: 'interfaceCount',
+        width: 100,
+        align: 'center',
+        render: (count) => (
+          <Badge count={count || 0} showZero style={{ backgroundColor: '#1890ff' }} />
+        ),
+      },
+      {
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        key: 'createdAt',
+        width: 120,
+        render: (createdAt) => (
+          <Text type="secondary">
+            {createdAt ? new Date(createdAt).toLocaleDateString() : '未知日期'}
+          </Text>
+        ),
+      },
+      {
+        title: '操作',
+        key: 'action',
+        width: 200,
+        fixed: 'right',
+        render: (_, record) => (
+          <Space size="small">
+            <Tooltip title="管理接口">
+              <Button
+                type="link"
+                size="small"
+                icon={<ApiOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  viewInterfaces(record);
+                }}
+              >
+                接口
+              </Button>
+            </Tooltip>
+            <Tooltip title="编辑">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openModal(record);
+                }}
+              />
+            </Tooltip>
+            <Tooltip title="导出">
+              <Button
+                type="link"
+                size="small"
+                icon={<ExportOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  exportFeatureConfig(record);
+                }}
+              />
+            </Tooltip>
+            <Tooltip title="删除">
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteFeature(record.id);
+                }}
+              />
+            </Tooltip>
+          </Space>
+        ),
+      },
+    ];
+
+    return (
+      <Table
+        columns={columns}
+        dataSource={getPaginatedFeatures()}
+        rowKey="id"
+        pagination={false}
+        onRow={(record) => ({
+          onClick: () => viewInterfaces(record),
+          style: { cursor: 'pointer' }
+        })}
+        rowClassName={(record) => !record.active ? 'inactive-row' : ''}
+      />
+    );
+  };
+
   return (
     <AppLayout>
       <div className="page-container">
@@ -585,7 +722,7 @@ const MockData = () => {
                 </div>
               </Col>
               
-              {/* 排序控制区域 */}
+              {/* 排序和视图控制区域 */}
               <Col xs={24} sm={12} md={8} lg={9}>
                 <div className="sort-controls">
                   <div className="control-group">
@@ -616,8 +753,30 @@ const MockData = () => {
                 </div>
               </Col>
               
+              {/* 视图切换区域 */}
+              <Col xs={24} sm={12} md={4} lg={3}>
+                <div className="view-mode-controls">
+                  <Button.Group>
+                    <Tooltip title="卡片视图">
+                      <Button
+                        type={listConfig.viewMode === 'card' ? 'primary' : 'default'}
+                        icon={<AppstoreOutlined />}
+                        onClick={() => handleViewModeChange('card')}
+                      />
+                    </Tooltip>
+                    <Tooltip title="列表视图">
+                      <Button
+                        type={listConfig.viewMode === 'list' ? 'primary' : 'default'}
+                        icon={<UnorderedListOutlined />}
+                        onClick={() => handleViewModeChange('list')}
+                      />
+                    </Tooltip>
+                  </Button.Group>
+                </div>
+              </Col>
+              
               {/* 分页控制区域 */}
-              <Col xs={24} sm={24} md={8} lg={9}>
+              <Col xs={24} sm={24} md={12} lg={6}>
                 <div className="pagination-controls">
                   <div className="control-group">
                     <span className="control-label">每页显示</span>
@@ -650,9 +809,13 @@ const MockData = () => {
             </div>
           ) : mockFeatures.length > 0 ? (
             <>
-              <Row gutter={[20, 20]} className="feature-grid">
-                {getPaginatedFeatures().map(feature => renderFeatureCard(feature))}
-              </Row>
+              {listConfig.viewMode === 'card' ? (
+                <Row gutter={[20, 20]} className="feature-grid">
+                  {getPaginatedFeatures().map(feature => renderFeatureCard(feature))}
+                </Row>
+              ) : (
+                renderListView()
+              )}
               
               {/* 分页组件 */}
               {mockFeatures.length > listConfig.pageSize && (
