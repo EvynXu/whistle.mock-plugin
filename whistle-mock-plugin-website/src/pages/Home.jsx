@@ -91,7 +91,14 @@ const Home = () => {
               通过 npm 或 yarn 快速安装插件，立即开始使用
             </p>
             <CodeBlock
-              code="# 通过 npm 安装\nnpm install whistle.mock-plugin -g\n\n# 或通过 yarn 安装\nyarn global add whistle.mock-plugin\n\n# 启动 Whistle\nw2 start"
+              code={`# 通过 npm 安装
+npm install whistle.mock-plugin -g
+
+# 或通过 yarn 安装
+yarn global add whistle.mock-plugin
+
+# 启动 Whistle
+w2 start`}
               language="bash"
               title="安装命令"
             />
