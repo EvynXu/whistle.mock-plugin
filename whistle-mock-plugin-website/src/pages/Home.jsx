@@ -70,7 +70,7 @@ const Home = () => {
             强大的 API 接口模拟工具，提供完整的接口 Mock 解决方案
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/quickstart" className="inline-block px-8 py-4 bg-white text-primary-600 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-lg hover:shadow-xl text-center">
+            <Link to="/quickstart" className="inline-block px-8 py-4 bg-primary-700 text-white rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-all duration-200 shadow-lg hover:shadow-xl text-center">
               快速开始
             </Link>
             <Link to="/features" className="inline-block px-8 py-4 bg-white/10 backdrop-blur-sm text-white border-2 border-white rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-all duration-200 text-center">
@@ -217,7 +217,7 @@ const Home = () => {
             立即安装并体验强大的 API Mock 功能
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/quickstart" className="inline-block px-8 py-4 bg-white text-primary-600 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-lg hover:shadow-xl text-center">
+            <Link to="/quickstart" className="inline-block px-8 py-4 bg-primary-700 text-white rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-all duration-200 shadow-lg hover:shadow-xl text-center">
               查看快速开始指南
             </Link>
             <a
