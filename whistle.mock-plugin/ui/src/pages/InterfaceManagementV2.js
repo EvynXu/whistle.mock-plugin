@@ -15,6 +15,7 @@ import {
   FileTextOutlined, PlusCircleOutlined, SettingOutlined,
   SearchOutlined, FilterOutlined, ReloadOutlined, DownOutlined, QuestionCircleOutlined, CopyOutlined
 } from '@ant-design/icons';
+// 移除 react-resizable，改用原生实现
 import '../styles/interface-management.css';
 import axios from 'axios';
 
@@ -31,6 +32,7 @@ import {
   generateResponseId
 } from '../components/interface-management';
 import DataManagementModal from '../components/interface-management/DataManagementModal';
+import { DataManagementDrawer } from '../components/interface-management';
 
 const { Option } = Select;
 const { Search } = AntInput;
@@ -90,6 +92,12 @@ const InterfaceManagement = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [drawerVisible, setDrawerVisible] = useState(false);
   
+  // 数据管理显示模式
+  const [displayMode, setDisplayMode] = useState('modal');
+  
+  // 接口表单显示模式
+  const [interfaceFormDisplayMode, setInterfaceFormDisplayMode] = useState('modal');
+  
   // 表单实例
   const [form] = Form.useForm();
 
@@ -97,13 +105,27 @@ const InterfaceManagement = () => {
   const [tableConfig, setTableConfig] = useState(() => {
     const cached = localStorage.getItem('interface-table-config');
     const defaultVisibleColumns = COLUMN_CONFIG.map(col => col.key);
-    return cached ? JSON.parse(cached) : {
+    const defaultConfig = {
       sortOrder: null,
       sortField: null,
       pageSize: 10,
       current: 1,
-      visibleColumns: defaultVisibleColumns
+      visibleColumns: defaultVisibleColumns,
+      columnWidths: {
+        currentResponse: 180
+      }
     };
+    
+    if (cached) {
+      const parsedConfig = JSON.parse(cached);
+      // 确保 columnWidths 存在
+      if (!parsedConfig.columnWidths) {
+        parsedConfig.columnWidths = { currentResponse: 180 };
+      }
+      return parsedConfig;
+    }
+    
+    return defaultConfig;
   });
 
   // 保存表格配置到localStorage
@@ -122,6 +144,52 @@ const InterfaceManagement = () => {
       fetchInterfaces();
     }
   }, [selectedFeatureId]);
+
+  // 监听数据管理显示模式变化
+  useEffect(() => {
+    // 初始化时从 localStorage 读取配置
+    const savedMode = localStorage.getItem('dataManagementDisplayMode');
+    if (savedMode) {
+      setDisplayMode(savedMode);
+    }
+
+    // 监听 storage 事件，实现设置立即生效
+    const handleStorageChange = () => {
+      const newMode = localStorage.getItem('dataManagementDisplayMode');
+      if (newMode) {
+        setDisplayMode(newMode);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // 监听接口表单显示模式变化
+  useEffect(() => {
+    // 初始化时从 localStorage 读取配置
+    const savedMode = localStorage.getItem('interfaceFormDisplayMode');
+    if (savedMode) {
+      setInterfaceFormDisplayMode(savedMode);
+    }
+
+    // 监听 storage 事件，实现设置立即生效
+    const handleStorageChange = () => {
+      const newMode = localStorage.getItem('interfaceFormDisplayMode');
+      if (newMode) {
+        setInterfaceFormDisplayMode(newMode);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   // 获取当前选中的功能模块
   const selectedFeature = features.find(f => f.id === selectedFeatureId);
@@ -675,7 +743,22 @@ const InterfaceManagement = () => {
   // 重置列配置
   const handleResetColumns = () => {
     const defaultColumns = COLUMN_CONFIG.map(col => col.key);
-    saveTableConfig({ visibleColumns: defaultColumns });
+    saveTableConfig({ 
+      visibleColumns: defaultColumns,
+      columnWidths: {
+        active: 80,
+        name: 150,
+        group: 120,
+        urlPattern: 250,
+        proxyType: 120,
+        currentResponse: 180,
+        responseDelay: 100,
+        httpStatus: 100,
+        contentType: 120,
+        targetUrl: 200,
+        customHeaders: 100
+      }
+    });
   };
 
   // 切换列配置面板显示
@@ -704,6 +787,74 @@ const InterfaceManagement = () => {
   const refreshData = () => {
     fetchInterfaces();
     message.success('数据已刷新');
+  };
+
+  // 可调整大小的表头组件（使用原生实现）
+  const ResizableTitle = (props) => {
+    const { onResize, width, columnKey, ...restProps } = props;
+
+    if (!width || !onResize) {
+      return <th {...restProps} />;
+    }
+
+    const handleMouseDown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const startX = e.clientX;
+      const startWidth = width;
+      let currentWidth = startWidth;
+
+      const handleMouseMove = (moveEvent) => {
+        const deltaX = moveEvent.clientX - startX;
+        currentWidth = Math.max(50, startWidth + deltaX); // 最小宽度 50px
+        
+        // 实时更新列宽（不保存到 localStorage）
+        const newColumnWidths = {
+          ...tableConfig.columnWidths,
+          [columnKey]: currentWidth
+        };
+        setTableConfig(prev => ({
+          ...prev,
+          columnWidths: newColumnWidths
+        }));
+      };
+
+      const handleMouseUp = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        
+        // 拖动结束后保存到 localStorage
+        onResize(columnKey, currentWidth);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    };
+
+    return (
+      <th {...restProps} style={{ ...restProps.style, position: 'relative' }}>
+        {restProps.children}
+        <span
+          className="column-resize-handle"
+          onMouseDown={handleMouseDown}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </th>
+    );
+  };
+
+  // 处理列宽调整
+  const handleResize = (columnKey, newWidth) => {
+    const newColumnWidths = {
+      ...tableConfig.columnWidths,
+      [columnKey]: newWidth
+    };
+    saveTableConfig({ columnWidths: newColumnWidths });
   };
 
   // 批量操作接口状态
@@ -740,7 +891,12 @@ const InterfaceManagement = () => {
       title: '状态',
       dataIndex: 'active',
       key: 'active',
-      width: 80,
+      width: tableConfig.columnWidths?.active || 80,
+      onHeaderCell: (column) => ({
+        width: column.width,
+        columnKey: 'active',
+        onResize: handleResize,
+      }),
       render: (active, record) => (
         <Switch
           checked={active !== false}
@@ -753,6 +909,12 @@ const InterfaceManagement = () => {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
+      width: tableConfig.columnWidths?.name || 150,
+      onHeaderCell: (column) => ({
+        width: column.width,
+        columnKey: 'name',
+        onResize: handleResize,
+      }),
       sorter: (a, b) => a.name.localeCompare(b.name),
       render: (text) => <span className="interface-name">{text}</span>,
     },
@@ -760,7 +922,12 @@ const InterfaceManagement = () => {
       title: '分组',
       dataIndex: 'group',
       key: 'group',
-      width: 120,
+      width: tableConfig.columnWidths?.group || 120,
+      onHeaderCell: (column) => ({
+        width: column.width,
+        columnKey: 'group',
+        onResize: handleResize,
+      }),
       sorter: (a, b) => {
         const groupA = a.group || '';
         const groupB = b.group || '';
@@ -781,6 +948,12 @@ const InterfaceManagement = () => {
       title: 'URL匹配规则',
       dataIndex: 'urlPattern',
       key: 'urlPattern',
+      width: tableConfig.columnWidths?.urlPattern || 250,
+      onHeaderCell: (column) => ({
+        width: column.width,
+        columnKey: 'urlPattern',
+        onResize: handleResize,
+      }),
       ellipsis: true,
       render: (text) => <span className="url-pattern">{text}</span>,
     },
@@ -788,7 +961,12 @@ const InterfaceManagement = () => {
       title: '处理方式',
       dataIndex: 'proxyType',
       key: 'proxyType',
-      width: 120,
+      width: tableConfig.columnWidths?.proxyType || 120,
+      onHeaderCell: (column) => ({
+        width: column.width,
+        columnKey: 'proxyType',
+        onResize: handleResize,
+      }),
       render: (text) => {
         const proxyType = proxyTypes.find(item => item.value === text);
         return (
@@ -803,7 +981,16 @@ const InterfaceManagement = () => {
       title: '当前响应',
       dataIndex: 'activeResponseId',
       key: 'currentResponse',
-      width: 180,
+      width: tableConfig.columnWidths?.currentResponse || 180,
+      className: 'current-response-column',
+      onHeaderCell: (column) => ({
+        width: column.width,
+        columnKey: 'currentResponse',
+        onResize: handleResize,
+      }),
+      onCell: () => ({
+        className: 'current-response-cell',
+      }),
       render: (activeResponseId, record) => {
         // 如果没有响应数据，返回空
         if (!record.responses || !Array.isArray(record.responses) || record.responses.length === 0) {
@@ -822,6 +1009,7 @@ const InterfaceManagement = () => {
             style={{ width: '100%' }}
             onChange={(value) => handleResponseSwitch(record.id, value)}
             disabled={record.proxyType !== 'response'}
+            getPopupContainer={(trigger) => trigger.parentNode}
           >
             {record.responses.map(resp => (
               <Option key={resp.id} value={resp.id}>
@@ -836,7 +1024,12 @@ const InterfaceManagement = () => {
       title: '延迟(毫秒)',
       dataIndex: 'responseDelay',
       key: 'responseDelay',
-      width: 100,
+      width: tableConfig.columnWidths?.responseDelay || 100,
+      onHeaderCell: (column) => ({
+        width: column.width,
+        columnKey: 'responseDelay',
+        onResize: handleResize,
+      }),
       sorter: (a, b) => (a.responseDelay || 0) - (b.responseDelay || 0),
       render: (delay) => {
         const delayValue = parseInt(delay, 10) || 0;
@@ -851,7 +1044,12 @@ const InterfaceManagement = () => {
       title: '状态码',
       dataIndex: 'httpStatus',
       key: 'httpStatus',
-      width: 100,
+      width: tableConfig.columnWidths?.httpStatus || 100,
+      onHeaderCell: (column) => ({
+        width: column.width,
+        columnKey: 'httpStatus',
+        onResize: handleResize,
+      }),
       render: (status) => {
         const statusCode = status || 200;
         let statusClass = 'status-success';
@@ -867,7 +1065,12 @@ const InterfaceManagement = () => {
       title: '内容类型',
       dataIndex: 'contentType',
       key: 'contentType',
-      width: 120,
+      width: tableConfig.columnWidths?.contentType || 120,
+      onHeaderCell: (column) => ({
+        width: column.width,
+        columnKey: 'contentType',
+        onResize: handleResize,
+      }),
       sorter: (a, b) => {
         const aType = a.contentType || '';
         const bType = b.contentType || '';
@@ -886,6 +1089,12 @@ const InterfaceManagement = () => {
       title: '目标URL',
       dataIndex: 'targetUrl',
       key: 'targetUrl',
+      width: tableConfig.columnWidths?.targetUrl || 200,
+      onHeaderCell: (column) => ({
+        width: column.width,
+        columnKey: 'targetUrl',
+        onResize: handleResize,
+      }),
       ellipsis: true,
       sorter: (a, b) => {
         const aUrl = a.targetUrl || '';
@@ -901,7 +1110,12 @@ const InterfaceManagement = () => {
       title: '自定义头',
       dataIndex: 'customHeaders',
       key: 'customHeaders',
-      width: 100,
+      width: tableConfig.columnWidths?.customHeaders || 100,
+      onHeaderCell: (column) => ({
+        width: column.width,
+        columnKey: 'customHeaders',
+        onResize: handleResize,
+      }),
       sorter: (a, b) => {
         const aCount = Object.keys(a.customHeaders || {}).length;
         const bCount = Object.keys(b.customHeaders || {}).length;
@@ -1333,6 +1547,11 @@ const InterfaceManagement = () => {
                 selectedRowKeys,
                 onChange: onSelectChange,
               }}
+              components={{
+                header: {
+                  cell: ResizableTitle,
+                },
+              }}
               size="middle"
               pagination={{
                 current: tableConfig.current,
@@ -1350,63 +1569,70 @@ const InterfaceManagement = () => {
           </div>
         </Card>
 
-        {/* 接口编辑/创建模态框 */}
-        <Modal
-          title={
-            <div style={{ 
-              fontSize: '18px', 
-              fontWeight: 600, 
-              color: '#262626',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <span>{editingInterface ? '编辑接口' : (isDuplicateMode ? '复制新增接口' : '添加接口')}</span>
-              <Badge 
-                count="配置向导" 
-                style={{ 
-                  backgroundColor: '#f0f9ff', 
-                  color: '#1677ff',
-                  fontSize: '11px',
-                  fontWeight: 'normal'
-                }} 
-              />
-            </div>
-          }
-          open={modalVisible}
-          onOk={handleSubmit}
-          onCancel={handleCancel}
-          width={1200}
-          destroyOnClose
-          okText={editingInterface ? '保存' : '创建'}
-          cancelText="取消"
-          bodyStyle={{ 
-            maxHeight: '75vh', 
-            overflow: 'auto', 
-            padding: '0',
-            background: '#fafafa'
-          }}
-          className="interface-modal"
-        >
-          <div style={{ padding: '24px' }}>
-            <Form
-              form={form}
-              layout="vertical"
-              initialValues={{
-                name: '',
-                group: '',
-                pattern: '',
-                proxyType: 'response',
-                statusCode: '200',
-                contentType: 'application/json; charset=utf-8',
-                responses: [],
-                httpMethod: 'ALL',
-                targetUrl: '',
-                headerItems: [],
-                paramMatchers: [],
-                responseDelay: '0'
-              }}
-            >
+        {/* 接口编辑/创建模态框/抽屉 */}
+        {interfaceFormDisplayMode === 'drawer' ? (
+          <Drawer
+            title={
+              <div style={{ 
+                fontSize: '18px', 
+                fontWeight: 600, 
+                color: '#262626',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span>{editingInterface ? '编辑接口' : (isDuplicateMode ? '复制新增接口' : '添加接口')}</span>
+                <Badge 
+                  count="配置向导" 
+                  style={{ 
+                    backgroundColor: '#f0f9ff', 
+                    color: '#1677ff',
+                    fontSize: '11px',
+                    fontWeight: 'normal'
+                  }} 
+                />
+              </div>
+            }
+            placement="right"
+            width={1040}
+            open={modalVisible}
+            onClose={handleCancel}
+            destroyOnClose
+            bodyStyle={{ 
+              padding: '0',
+              background: '#fafafa'
+            }}
+            footer={
+              <div style={{ textAlign: 'right' }}>
+                <Space>
+                  <Button onClick={handleCancel}>取消</Button>
+                  <Button type="primary" onClick={handleSubmit}>
+                    {editingInterface ? '保存' : '创建'}
+                  </Button>
+                </Space>
+              </div>
+            }
+            className="interface-drawer"
+          >
+            <div style={{ padding: '24px' }}>
+              <Form
+                form={form}
+                layout="vertical"
+                initialValues={{
+                  name: '',
+                  group: '',
+                  pattern: '',
+                  proxyType: 'response',
+                  statusCode: '200',
+                  contentType: 'application/json; charset=utf-8',
+                  responses: [],
+                  httpMethod: 'ALL',
+                  targetUrl: '',
+                  headerItems: [],
+                  paramMatchers: [],
+                  responseDelay: '0'
+                }}
+              >
               <Collapse 
                 defaultActiveKey={
                   editingInterface && editingInterface.proxyType === 'response'
@@ -1913,7 +2139,538 @@ const InterfaceManagement = () => {
               </Collapse>
             </Form>
           </div>
-        </Modal>
+          </Drawer>
+        ) : (
+          <Modal
+            title={
+              <div style={{ 
+                fontSize: '18px', 
+                fontWeight: 600, 
+                color: '#262626',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span>{editingInterface ? '编辑接口' : (isDuplicateMode ? '复制新增接口' : '添加接口')}</span>
+                <Badge 
+                  count="配置向导" 
+                  style={{ 
+                    backgroundColor: '#f0f9ff', 
+                    color: '#1677ff',
+                    fontSize: '11px',
+                    fontWeight: 'normal'
+                  }} 
+                />
+              </div>
+            }
+            open={modalVisible}
+            onCancel={handleCancel}
+            onOk={handleSubmit}
+            width={1040}
+            destroyOnClose
+            okText={editingInterface ? '保存' : '创建'}
+            cancelText="取消"
+            bodyStyle={{ 
+              maxHeight: '70vh',
+              overflow: 'auto',
+              background: '#fafafa'
+            }}
+          >
+            <div style={{ padding: '0' }}>
+              <Form
+                form={form}
+                layout="vertical"
+                initialValues={{
+                  name: '',
+                  group: '',
+                  pattern: '',
+                  proxyType: 'response',
+                  statusCode: '200',
+                  contentType: 'application/json; charset=utf-8',
+                  responses: [],
+                  httpMethod: 'ALL',
+                  targetUrl: '',
+                  headerItems: [],
+                  paramMatchers: [],
+                  responseDelay: '0'
+                }}
+              >
+                {/* Modal 模式下使用相同的表单内容，但去掉 Collapse 包装 */}
+                <div style={{ padding: '24px' }}>
+                  {/* 基础信息 */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Badge count="1" style={{ backgroundColor: '#1677ff' }} />
+                      <span>基础信息</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
+                      <div style={{ flex: 1 }}>
+                        <Form.Item
+                          name="name"
+                          label="接口名称"
+                          rules={[{ required: true, message: '请输入接口名称' }]}
+                        >
+                          <Input placeholder="请输入接口名称" />
+                        </Form.Item>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <Form.Item
+                          name="group"
+                          label="分组"
+                          tooltip="为接口设置分组，便于管理和批量操作"
+                        >
+                          <Select
+                            placeholder="选择或创建分组"
+                            showSearch
+                            allowClear
+                            style={{ width: '100%' }}
+                            mode="tags"
+                            maxTagCount="responsive"
+                            maxTagTextLength={10}
+                            onChange={(value) => {
+                              if (Array.isArray(value) && value.length > 0) {
+                                const groupValue = value[0] === '' ? undefined : value[0];
+                                form.setFieldsValue({ group: groupValue });
+                              }
+                            }}
+                            onInputKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.stopPropagation();
+                              }
+                            }}
+                          >
+                            {Array.from(new Set(interfaces.map(item => item.group).filter(Boolean))).map(group => (
+                              <Option key={group} value={group}>{group}</Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* URL配置 */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Badge count="2" style={{ backgroundColor: '#1677ff' }} />
+                      <span>URL配置</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
+                      <div style={{ flex: 1 }}>
+                        <Form.Item
+                          name="pattern"
+                          label="URL匹配规则"
+                          rules={[
+                            { required: true, message: '请输入URL匹配规则' },
+                            ({ getFieldValue }) => ({
+                              validator(_, value) {
+                                const proxyType = getFieldValue('proxyType');
+                                if (!value) return Promise.resolve();
+                                
+                                if (proxyType === 'url_redirect') {
+                                  try {
+                                    new URL(value);
+                                    return Promise.resolve();
+                                  } catch (e) {
+                                    return Promise.reject(new Error('URL重定向模式下，URL匹配规则必须是完整的URL（包括http://或https://）'));
+                                  }
+                                }
+                                
+                                if (proxyType === 'redirect') {
+                                  if (value.startsWith('http://') || value.startsWith('https://')) {
+                                    return Promise.resolve();
+                                  }
+                                  return Promise.reject(new Error('重定向模式下，URL匹配规则必须以http://或https://开头'));
+                                }
+                                
+                                if (proxyType === 'response') {
+                                  if (value.startsWith('/') && value.endsWith('/')) {
+                                    try {
+                                      new RegExp(value.slice(1, -1));
+                                      return Promise.resolve();
+                                    } catch (e) {
+                                      return Promise.reject(new Error('无效的正则表达式格式'));
+                                    }
+                                  }
+                                  
+                                  if (value.includes('*')) {
+                                    if (/^[a-zA-Z0-9\-_/.*]+$/.test(value)) {
+                                      return Promise.resolve();
+                                    }
+                                    return Promise.reject(new Error('通配符URL格式不正确'));
+                                  }
+                                  
+                                  if (/^[a-zA-Z0-9\-_/]+$/.test(value)) {
+                                    return Promise.resolve();
+                                  }
+                                  return Promise.reject(new Error('URL路径格式不正确'));
+                                }
+                                
+                                return Promise.resolve();
+                              },
+                            }),
+                          ]}
+                          tooltip={{
+                            title: (
+                              <>
+                                <div>不同处理方式下URL匹配规则要求：</div>
+                                <ul style={{margin: '5px 0 0 15px', padding: 0}}>
+                                  <li><b>模拟响应：</b> 支持路径格式如 /api/users，通配符如 /api/*，正则如 /\/api\/\d+/</li>
+                                  <li><b>重定向：</b> 必须以http://或https://开头，例如：https://example.com/api</li>
+                                  <li><b>URL重定向：</b> 必须是完整URL，包括http://或https://，例如：https://example.com/api/users</li>
+                                </ul>
+                              </>
+                            ),
+                            overlayStyle: { maxWidth: '450px' }
+                          }}
+                        >
+                          <Input 
+                            placeholder="根据选择的处理方式输入相应格式的URL" 
+                          />
+                        </Form.Item>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <Form.Item
+                          name="proxyType"
+                          label="处理方式"
+                          rules={[{ required: true, message: '请选择处理方式' }]}
+                          tooltip={{
+                            title: (
+                              <>
+                                <div>不同处理方式的规则说明：</div>
+                                <ul style={{margin: '5px 0 0 15px', padding: 0}}>
+                                  <li><b>模拟响应：</b> 返回您定义的响应内容</li>
+                                  <li><b>重定向：</b> 将请求重定向到其他URL，URL匹配规则必须以http://或https://开头</li>
+                                  <li><b>URL重定向：</b> 完全匹配URL时重定向，URL匹配规则必须是完整URL</li>
+                                </ul>
+                              </>
+                            ),
+                            overlayStyle: { maxWidth: '450px' }
+                          }}
+                        >
+                          <Select onChange={(value) => {
+                            form.setFieldsValue({ pattern: '' });
+                            const patternInput = document.querySelector('input[placeholder="根据选择的处理方式输入相应格式的URL"]');
+                            if (patternInput) {
+                              if (value === 'response') {
+                                patternInput.placeholder = "例如：/api/users，/api/users/*，/api\\/users\\/\\d+/";
+                              } else if (value === 'redirect') {
+                                patternInput.placeholder = "例如：https://example.com/api";
+                              } else if (value === 'url_redirect') {
+                                patternInput.placeholder = "例如：https://example.com/api/users";
+                              }
+                            }
+                          }}>
+                            {proxyTypes.map(item => (
+                              <Option key={item.value} value={item.value}>{item.label}</Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
+                      <div style={{ flex: 1 }}>
+                        <Form.Item
+                          name="httpMethod"
+                          label="请求方法"
+                          rules={[{ required: true, message: '请选择请求方法' }]}
+                        >
+                          <Select>
+                            {httpMethods.map(item => (
+                              <Option key={item.value} value={item.value}>{item.label}</Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        {/* 这里可以留空或添加其他字段 */}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 高级配置 */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Badge count="3" style={{ backgroundColor: '#1677ff' }} />
+                      <span>高级配置</span>
+                    </div>
+
+                    {/* 根据proxyType显示不同的表单项 */}
+                    <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.proxyType !== currentValues.proxyType}>
+                      {({ getFieldValue }) => {
+                        const proxyType = getFieldValue('proxyType');
+                        
+                        if (proxyType === 'response') {
+                          return (
+                            <>
+                              <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
+                                <div style={{ flex: 1 }}>
+                                  <Form.Item
+                                    name="statusCode"
+                                    label="状态码"
+                                    rules={[{ required: true, message: '请选择状态码' }]}
+                                  >
+                                    <Select>
+                                      {statusCodes.map(item => (
+                                        <Option key={item.value} value={item.value}>{item.label}</Option>
+                                      ))}
+                                    </Select>
+                                  </Form.Item>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <Form.Item
+                                    name="contentType"
+                                    label="内容类型"
+                                    rules={[{ required: true, message: '请选择内容类型' }]}
+                                  >
+                                    <Select>
+                                      {contentTypes.map(item => (
+                                        <Option key={item.value} value={item.value}>{item.label}</Option>
+                                      ))}
+                                    </Select>
+                                  </Form.Item>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <Form.Item
+                                    name="responseDelay"
+                                    label="延迟响应(毫秒)"
+                                    tooltip="设置接口响应延迟时间，单位为毫秒"
+                                    rules={[
+                                      { 
+                                        pattern: /^\d*$/, 
+                                        message: '请输入有效的数字' 
+                                      },
+                                      {
+                                        validator: (_, value) => {
+                                          if (!value || parseInt(value, 10) <= 60000) {
+                                            return Promise.resolve();
+                                          }
+                                          return Promise.reject(new Error('延迟时间不能超过60秒(60000毫秒)'));
+                                        }
+                                      }
+                                    ]}
+                                  >
+                                    <Input placeholder="例如：500" />
+                                  </Form.Item>
+                                </div>
+                              </div>
+
+                              {/* 请求入参匹配设置 */}
+                              <Form.Item
+                                label="请求入参匹配"
+                                tooltip="设置请求参数的匹配条件，只有当请求参数满足条件时才返回对应的响应。支持嵌套属性路径，如：a.b.c"
+                              >
+                                <Form.List name="paramMatchers">
+                                  {(fields, { add, remove }) => (
+                                    <>
+                                      {fields.map(({ key, name, ...restField }) => (
+                                        <div key={key} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                                          <Form.Item
+                                            {...restField}
+                                            name={[name, 'paramPath']}
+                                            rules={[
+                                              { required: true, message: '请输入参数路径' },
+                                              {
+                                                pattern: /^[a-zA-Z_$][a-zA-Z0-9_$.]*$/,
+                                                message: '请输入有效的参数路径，如：userId 或 data.user.id'
+                                              }
+                                            ]}
+                                            style={{ flex: 1, margin: 0 }}
+                                          >
+                                            <Input placeholder="参数路径（如：userId 或 data.user.id）" />
+                                          </Form.Item>
+                                          <Form.Item
+                                            {...restField}
+                                            name={[name, 'paramValue']}
+                                            rules={[{ required: true, message: '请输入期望值' }]}
+                                            style={{ flex: 1, margin: 0 }}
+                                          >
+                                            <Input placeholder="期望值（如：123 或 admin）" />
+                                          </Form.Item>
+                                          <Form.Item
+                                            {...restField}
+                                            name={[name, 'matchType']}
+                                            style={{ width: 100, margin: 0 }}
+                                            initialValue="exact"
+                                          >
+                                            <Select placeholder="匹配类型">
+                                              <Option value="exact">精确匹配</Option>
+                                              <Option value="contains">包含</Option>
+                                              <Option value="regex">正则</Option>
+                                            </Select>
+                                          </Form.Item>
+                                          <Button 
+                                            type="text" 
+                                            danger 
+                                            icon={<DeleteOutlined />}
+                                            onClick={() => remove(name)}
+                                          />
+                                        </div>
+                                      ))}
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                                        <Button
+                                          type="dashed"
+                                          onClick={() => add()}
+                                          icon={<PlusOutlined />}
+                                          style={{ flex: 1 }}
+                                        >
+                                          添加参数匹配规则
+                                        </Button>
+                                        <Popover
+                                          content={
+                                            <div style={{ maxWidth: '300px' }}>
+                                              <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>匹配规则说明：</div>
+                                              <div style={{ lineHeight: '1.6' }}>
+                                                <div>• <strong>精确匹配</strong>：参数值完全相等</div>
+                                                <div>• <strong>包含</strong>：参数值包含指定内容</div>
+                                                <div>• <strong>正则</strong>：参数值符合正则表达式</div>
+                                                <div>• <strong>嵌套路径</strong>：使用点号分隔，如 data.user.id</div>
+                                              </div>
+                                            </div>
+                                          }
+                                          title="参数匹配规则"
+                                          trigger="click"
+                                          placement="top"
+                                        >
+                                          <Button
+                                            type="text"
+                                            icon={<QuestionCircleOutlined />}
+                                            style={{ 
+                                              color: '#999',
+                                              padding: '4px'
+                                            }}
+                                            size="small"
+                                          />
+                                        </Popover>
+                                      </div>
+                                    </>
+                                  )}
+                                </Form.List>
+                              </Form.Item>
+
+                              {/* 隐藏的表单字段用于存储响应数据 */}
+                              <Form.Item 
+                                name="responses" 
+                                initialValue={[]}
+                                hidden
+                              >
+                                <Input />
+                              </Form.Item>
+                              <Form.Item name="activeResponseId" hidden>
+                                <Input />
+                              </Form.Item>
+
+                              {/* 使用新的合并组件 */}
+                              <Form.Item noStyle shouldUpdate>
+                                {({ getFieldValue }) => {
+                                  let responses = getFieldValue('responses') || [];
+                                  const activeResponseId = getFieldValue('activeResponseId');
+                                  
+                                  if (!Array.isArray(responses)) {
+                                    try {
+                                      if (typeof responses === 'string') {
+                                        responses = JSON.parse(responses);
+                                      }
+                                    } catch (e) {
+                                      responses = [];
+                                    }
+                                  }
+                                  
+                                  return (
+                                    <ResponseContentEditor
+                                      form={form}
+                                      responses={responses}
+                                      activeResponseId={activeResponseId}
+                                      onPreview={handlePreview}
+                                    />
+                                  );
+                                }}
+                              </Form.Item>
+                            </>
+                          );
+                        } else if (proxyType === 'redirect' || proxyType === 'url_redirect') {
+                          return (
+                            <>
+                              <Form.Item
+                                name="targetUrl"
+                                label="重定向目标URL"
+                                rules={[
+                                  { required: true, message: '请输入重定向目标URL' },
+                                  { 
+                                    validator(_, value) {
+                                      if (!value) return Promise.resolve();
+                                      try {
+                                        new URL(value);
+                                        return Promise.resolve();
+                                      } catch (e) {
+                                        return Promise.reject(new Error('请输入有效的URL格式（包括http://或https://）'));
+                                      }
+                                    }
+                                  }
+                                ]}
+                                tooltip="重定向的目标URL，必须是完整的URL格式"
+                              >
+                                <Input 
+                                  placeholder="例如：https://api.example.com/users"
+                                />
+                              </Form.Item>
+                              
+                              {/* 自定义请求头设置 */}
+                              <Form.Item label="自定义请求头">
+                                <Form.List name="headerItems">
+                                  {(fields, { add, remove }) => (
+                                    <>
+                                      {fields.map(({ key, name, ...restField }) => (
+                                        <div key={key} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                                          <Form.Item
+                                            {...restField}
+                                            name={[name, 'headerName']}
+                                            rules={[{ required: true, message: '请输入请求头名称' }]}
+                                            style={{ flex: 1, margin: 0 }}
+                                          >
+                                            <Input placeholder="请求头名称（如：Authorization）" />
+                                          </Form.Item>
+                                          <Form.Item
+                                            {...restField}
+                                            name={[name, 'headerValue']}
+                                            rules={[{ required: true, message: '请输入请求头值' }]}
+                                            style={{ flex: 1, margin: 0 }}
+                                          >
+                                            <Input placeholder="请求头值（如：Bearer token123）" />
+                                          </Form.Item>
+                                          <Button 
+                                            type="text" 
+                                            danger 
+                                            icon={<DeleteOutlined />}
+                                            onClick={() => remove(name)}
+                                          />
+                                        </div>
+                                      ))}
+                                      <Button 
+                                        type="dashed" 
+                                        onClick={() => add()} 
+                                        icon={<PlusOutlined />}
+                                        style={{ width: '100%', marginTop: '8px' }}
+                                      >
+                                        添加请求头
+                                      </Button>
+                                    </>
+                                  )}
+                                </Form.List>
+                              </Form.Item>
+                            </>
+                          );
+                        }
+                        
+                        return null;
+                      }}
+                    </Form.Item>
+                  </div>
+                </div>
+              </Form>
+            </div>
+          </Modal>
+        )}
                     
         {/* 使用拆分后的预览模态框组件 */}
         <PreviewModal
@@ -1922,15 +2679,26 @@ const InterfaceManagement = () => {
           previewContent={previewContent}
         />
 
-        {/* 数据管理弹窗 */}
-        <DataManagementModal
-          visible={dataModalVisible}
-          onCancel={() => { setDataModalVisible(false); setDataModalRecord(null); }}
-          interfaceItem={dataModalRecord}
-          onSaved={() => {
-            fetchInterfaces();
-          }}
-        />
+        {/* 数据管理弹窗/抽屉 */}
+        {displayMode === 'drawer' ? (
+          <DataManagementDrawer
+            visible={dataModalVisible}
+            onCancel={() => { setDataModalVisible(false); setDataModalRecord(null); }}
+            interfaceItem={dataModalRecord}
+            onSaved={() => {
+              fetchInterfaces();
+            }}
+          />
+        ) : (
+          <DataManagementModal
+            visible={dataModalVisible}
+            onCancel={() => { setDataModalVisible(false); setDataModalRecord(null); }}
+            interfaceItem={dataModalRecord}
+            onSaved={() => {
+              fetchInterfaces();
+            }}
+          />
+        )}
       </div>
     </AppLayout>
   );
