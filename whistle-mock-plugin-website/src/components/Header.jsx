@@ -16,15 +16,19 @@ const Header = () => {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <header className="bg-white shadow-md sticky top-0 z-50">
+    <header className="bg-cyber-dark/90 backdrop-blur-md border-b border-cyber-border sticky top-0 z-50">
       <nav className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">W</span>
+          <Link to="/" className="flex items-center space-x-3 group">
+            <div className="w-10 h-10 bg-cyber-black border-2 border-cyber-cyan flex items-center justify-center relative group-hover:shadow-cyber-glow transition-shadow duration-300">
+              <span className="text-cyber-cyan font-display font-bold text-xl">W</span>
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-cyber-cyan animate-cyber-pulse" />
             </div>
-            <span className="text-xl font-bold text-gray-900">Whistle Mock Plugin</span>
+            <div>
+              <span className="text-xl font-display font-bold text-white tracking-wide">Whistle Mock</span>
+              <span className="hidden sm:inline text-cyber-cyan font-mono text-sm ml-2">&lt;Plugin /&gt;</span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
@@ -33,11 +37,7 @@ const Header = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`font-medium transition-colors duration-200 ${
-                  isActive(item.path)
-                    ? 'text-primary-600 border-b-2 border-primary-600'
-                    : 'text-gray-600 hover:text-primary-600'
-                }`}
+                className={`nav-link-cyber ${isActive(item.path) ? 'nav-link-cyber-active' : ''}`}
               >
                 {item.label}
               </Link>
@@ -46,7 +46,7 @@ const Header = () => {
               href="https://github.com/EvynXu/whistle.mock-plugin"
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-primary"
+              className="btn-cyber text-sm"
             >
               GitHub
             </a>
@@ -54,7 +54,7 @@ const Header = () => {
 
           {/* Mobile menu button */}
           <button
-            className="md:hidden p-2"
+            className="md:hidden p-2 text-cyber-cyan border border-cyber-border hover:border-cyber-cyan transition-colors"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             <svg
@@ -77,26 +77,26 @@ const Header = () => {
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <div className="md:hidden mt-4 pb-4">
+          <div className="md:hidden mt-4 pb-4 border-t border-cyber-border pt-4">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`block py-2 px-4 rounded ${
+                className={`block py-2 px-4 font-mono text-sm ${
                   isActive(item.path)
-                    ? 'bg-primary-100 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'text-cyber-cyan bg-cyber-cyan/10 border-l-2 border-cyber-cyan'
+                    : 'text-cyber-muted hover:text-cyber-cyan hover:bg-cyber-cyan/5'
                 }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                {item.label}
+                {isActive(item.path) && '> '}{item.label}
               </Link>
             ))}
             <a
               href="https://github.com/EvynXu/whistle.mock-plugin"
               target="_blank"
               rel="noopener noreferrer"
-              className="block mt-2 btn-primary text-center"
+              className="block mt-2 btn-cyber text-center text-sm"
             >
               GitHub
             </a>

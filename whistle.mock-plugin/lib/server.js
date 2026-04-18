@@ -270,6 +270,10 @@ const app = express();
 app.use(express.json({limit: '100mb'}));
 app.use(express.urlencoded({ extended: true, limit: '100mb'}));
 
+// 注册设置路由
+const settingsRouter = require('./routes/settings');
+app.use('/api', settingsRouter.initRouter());
+
 // 加载功能和接口配置
 const loadConfigurations = () => {
   try {

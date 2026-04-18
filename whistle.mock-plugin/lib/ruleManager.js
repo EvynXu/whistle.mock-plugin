@@ -1,7 +1,24 @@
 const fs = require('fs');
+const fse = require('fs-extra');
 const path = require('path');
 const url = require('url');
 const Mock = require('mockjs');
+const storage = require('./storage');
+
+const SETTINGS_FILE = path.join(storage.DATA_DIR, 'settings.json');
+
+const getSettings = () => {
+  try {
+    if (!fse.existsSync(SETTINGS_FILE)) return { interfaceParamMatcherEnabled: true, responseParamMatcherEnabled: true };
+    const s = fse.readJsonSync(SETTINGS_FILE);
+    return {
+      interfaceParamMatcherEnabled: s.interfaceParamMatcherEnabled !== false,
+      responseParamMatcherEnabled: s.responseParamMatcherEnabled !== false,
+    };
+  } catch (e) {
+    return { interfaceParamMatcherEnabled: true, responseParamMatcherEnabled: true };
+  }
+};
 
 // 获取嵌套对象属性值的工具函数
 const getNestedValue = (obj, path) => {
@@ -268,29 +285,34 @@ const ruleManager = {
       return null;
     }
     
-    // 在URL匹配的接口中，查找参数也匹配的接口
-    for (const intf of urlMatchedInterfaces) {
-      // 检查参数匹配
-      if (isParamMatch(req, intf.paramMatchers, this.log)) {
-        this.log(`[规则处理器] 找到完全匹配的接口: ${intf.name} (URL + 参数匹配)`);
-        return intf;
-      } else {
-        this.log(`[规则处理器] 接口 ${intf.name} URL匹配但参数不匹配，继续查找...`);
+    // 在URL匹配的接口中，查找参数也匹配的接口（受接口入参匹配开关控制）
+    const settings = getSettings();
+    if (settings.interfaceParamMatcherEnabled) {
+      for (const intf of urlMatchedInterfaces) {
+        if (isParamMatch(req, intf.paramMatchers, this.log)) {
+          this.log(`[规则处理器] 找到完全匹配的接口: ${intf.name} (URL + 参数匹配)`);
+          return intf;
+        } else {
+          this.log(`[规则处理器] 接口 ${intf.name} URL匹配但参数不匹配，继续查找...`);
+        }
       }
+
+      // 如果没有参数匹配的接口，返回第一个没有参数匹配规则的接口
+      const fallbackInterface = urlMatchedInterfaces.find(intf =>
+        !intf.paramMatchers || !Array.isArray(intf.paramMatchers) || intf.paramMatchers.length === 0
+      );
+
+      if (fallbackInterface) {
+        this.log(`[规则处理器] 使用回退接口: ${fallbackInterface.name} (无参数匹配规则)`);
+        return fallbackInterface;
+      }
+
+      this.log(`[规则处理器] 所有URL匹配的接口都有参数匹配规则且都不满足，未找到合适的接口`);
+      return null;
+    } else {
+      this.log('[规则处理器] 接口入参匹配已关闭，直接返回第一个URL匹配的接口');
+      return urlMatchedInterfaces[0];
     }
-    
-    // 如果没有参数匹配的接口，返回第一个没有参数匹配规则的接口
-    const fallbackInterface = urlMatchedInterfaces.find(intf => 
-      !intf.paramMatchers || !Array.isArray(intf.paramMatchers) || intf.paramMatchers.length === 0
-    );
-    
-    if (fallbackInterface) {
-      this.log(`[规则处理器] 使用回退接口: ${fallbackInterface.name} (无参数匹配规则)`);
-      return fallbackInterface;
-    }
-    
-    this.log(`[规则处理器] 所有URL匹配的接口都有参数匹配规则且都不满足，未找到合适的接口`);
-    return null;
   },
 
   /**
@@ -437,9 +459,9 @@ const ruleManager = {
         }
       }
       
-      // 对于有多个响应的接口，添加当前响应标识
-      if (config.responses && config.activeResponseId) {
-        const activeResponse = config.responses.find(r => r.id === config.activeResponseId);
+      // 对于有多个响应的接口，添加当前响应标识（优先展示实际命中的响应，在 handleDataTemplate 前此处只能用 activeResponseId 作为预估）
+      if (config.responses && config.responses.length > 0) {
+        const activeResponse = config.responses.find(r => r.id === config.activeResponseId) || config.responses[0];
         if (activeResponse && activeResponse.name) {
           res.setHeader('X-Whistle-Mock-Response', activeResponse.name);
         }
@@ -751,18 +773,63 @@ const ruleManager = {
     
     // 支持多响应系统
     let template = '';
+    let hitResponse = null;
     
     // 检查是否有多响应配置
     if (config.responses && Array.isArray(config.responses) && config.responses.length > 0) {
-      // 获取当前激活的响应
-      const activeResponseId = config.activeResponseId;
-      const activeResponse = activeResponseId 
-        ? config.responses.find(r => r.id === activeResponseId)
-        : config.responses[0];
-      
-      if (activeResponse) {
-        this.log(`[规则处理器] 使用响应: ${activeResponse.name || '未命名'}`);
-        template = activeResponse.content;
+      let selectedResponse = null;
+      const settings = getSettings();
+
+      // 1. 优先检查接口级 paramMatchers 中带 targetResponseId 的规则（受开关控制）
+      if (settings.interfaceParamMatcherEnabled) {
+        const interfaceMatchers = config.paramMatchers;
+        if (interfaceMatchers && Array.isArray(interfaceMatchers) && interfaceMatchers.length > 0) {
+          for (const matcher of interfaceMatchers) {
+            if (!matcher.targetResponseId) continue;
+            if (isParamMatch(req, [matcher], this.log)) {
+              const target = config.responses.find(r => r.id === matcher.targetResponseId);
+              if (target) {
+                selectedResponse = target;
+                this.log(`[规则处理器] 接口级规则指定响应匹配成功，使用响应: ${target.name || '未命名'}`);
+                break;
+              }
+            }
+          }
+        }
+      } else {
+        this.log('[规则处理器] 接口入参匹配已关闭，跳过接口级匹配');
+      }
+
+      // 2. 按顺序查找第一个响应级入参匹配的响应（受开关控制）
+      if (!selectedResponse) {
+        if (settings.responseParamMatcherEnabled) {
+          for (const resp of config.responses) {
+            if (resp.paramMatchers && Array.isArray(resp.paramMatchers) && resp.paramMatchers.length > 0) {
+              if (isParamMatch(req, resp.paramMatchers, this.log)) {
+                selectedResponse = resp;
+                this.log(`[规则处理器] 响应级入参匹配成功，使用响应: ${resp.name || '未命名'}`);
+                break;
+              } else {
+                this.log(`[规则处理器] 响应 "${resp.name || '未命名'}" 入参不匹配，继续检查下一个`);
+              }
+            }
+          }
+        } else {
+          this.log('[规则处理器] 响应入参匹配已关闭，跳过响应级匹配');
+        }
+      }
+
+      // 3. 无匹配则回退到 activeResponseId 指定的默认响应
+      if (!selectedResponse) {
+        const activeResponseId = config.activeResponseId;
+        selectedResponse = (activeResponseId && config.responses.find(r => r.id === activeResponseId))
+          || config.responses[0];
+        this.log(`[规则处理器] 无响应级匹配，使用默认响应: ${selectedResponse ? (selectedResponse.name || '未命名') : '无'}`);
+      }
+
+      if (selectedResponse) {
+        hitResponse = selectedResponse;
+        template = selectedResponse.content;
       }
     }
     
@@ -790,11 +857,10 @@ const ruleManager = {
       const enableMockHeaders = process.env.WHISTLE_MOCK_HEADERS !== 'false';
       if (enableMockHeaders) {
         res.setHeader('X-Whistle-Mock-Data-Type', 'template');
-        if (config.responses && config.activeResponseId) {
-          const activeResponse = config.responses.find(r => r.id === config.activeResponseId);
-          if (activeResponse) {
-            res.setHeader('X-Whistle-Mock-Template', activeResponse.name || 'unnamed');
-          }
+        if (hitResponse) {
+          res.setHeader('X-Whistle-Mock-Template', hitResponse.name || 'unnamed');
+          // 覆盖 processRequest 中预设的响应头，确保反映实际命中的响应
+          res.setHeader('X-Whistle-Mock-Response', hitResponse.name || 'unnamed');
         }
       }
       
@@ -807,9 +873,7 @@ const ruleManager = {
         mockInfo: {
           delay: parseInt(config.responseDelay || config.delay || 0, 10),
           timestamp: new Date().toISOString(),
-          responseName: config.responses && config.activeResponseId 
-            ? (config.responses.find(r => r.id === config.activeResponseId)?.name || '未命名')
-            : '默认响应'
+          responseName: hitResponse ? (hitResponse.name || '未命名') : '默认响应'
         }
       };
     } catch (err) {

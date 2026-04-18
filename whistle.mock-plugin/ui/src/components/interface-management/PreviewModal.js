@@ -22,22 +22,20 @@ const PreviewModal = ({
         <div style={{ 
           marginBottom: '16px',
           padding: '8px',
-          background: '#f9f9f9',
           borderRadius: '4px',
-          borderLeft: '4px solid #1890ff'
+          borderLeft: '4px solid #00f0ff'
         }}>
           <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>描述：</div>
-          <div>{previewContent.description}</div>
+          <div style={{ opacity: 0.7 }}>{previewContent.description}</div>
         </div>
       )}
       
       <div style={{ 
         maxHeight: '60vh', 
         overflow: 'auto', 
-        backgroundColor: '#f5f5f5', 
         padding: '16px',
         borderRadius: '4px',
-        fontFamily: 'monospace'
+        fontFamily: "'Share Tech Mono', monospace",
       }}>
         <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
           {previewContent?.content}
@@ -47,4 +45,4 @@ const PreviewModal = ({
   );
 };
 
-export default PreviewModal; 
+export default PreviewModal;

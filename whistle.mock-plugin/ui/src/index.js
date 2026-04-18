@@ -3,9 +3,12 @@ import ReactDOM from 'react-dom';
 import { HashRouter as Router, Switch, Route, Redirect } from 'react-router-dom';
 
 // 导入样式
-import 'antd/dist/reset.css'; // 导入antd样式，使用适合的版本
+import 'antd/dist/reset.css';
 import './styles/global.css';
 import './App.css';
+
+// 赛博朋克主题 CSS（规则均带 body.cyber-theme 前缀，默认不生效）
+require('./styles/cyber-theme.css');
 
 // 导入页面组件
 import MockData from './pages/MockDataV2';
@@ -37,4 +40,4 @@ if (ReactDOM.createRoot) {
 } else {
   // 旧版本React
   ReactDOM.render(<App />, root);
-} 
+}

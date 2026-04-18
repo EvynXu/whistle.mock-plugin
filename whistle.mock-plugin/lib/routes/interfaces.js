@@ -53,7 +53,8 @@ const processInterfaceData = (data) => {
         id: resp.id,
         name: resp.name,
         description: resp.description || '',
-        content: resp.content || '{}'
+        content: resp.content || '{}',
+        paramMatchers: Array.isArray(resp.paramMatchers) ? resp.paramMatchers : []
       };
       
       console.log(`处理后的响应 ${index}:`, processedResp);
@@ -86,7 +87,8 @@ const processInterfaceData = (data) => {
       id: Math.random().toString(36).substring(2, 15),
       name: '默认响应',
       description: '',
-      content: result.responseContent
+      content: result.responseContent,
+      paramMatchers: []
     }];
     result.activeResponseId = result.responses[0].id;
     console.log('创建的默认响应:', result.responses[0]);
@@ -98,7 +100,8 @@ const processInterfaceData = (data) => {
       id: Math.random().toString(36).substring(2, 15),
       name: '默认响应',
       description: '',
-      content: '{}'
+      content: '{}',
+      paramMatchers: []
     }];
     result.activeResponseId = result.responses[0].id;
     result.responseContent = '{}';

@@ -8,28 +8,222 @@
   }
   
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-cyber-black text-cyber-text;
+    font-family: 'Noto Sans SC', sans-serif;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0a0a12;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1a1a2e;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00f0ff;
   }
 }
 
 @layer components {
-  .btn-primary {
-    @apply px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors duration-200;
+  /* Cyberpunk grid background */
+  .bg-cyber-grid {
+    background-color: #050508;
+    background-image: 
+      linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
   }
-  
-  .btn-secondary {
-    @apply px-6 py-3 bg-white text-primary-600 border-2 border-primary-600 rounded-lg font-medium hover:bg-primary-50 transition-colors duration-200;
+
+  /* Scanline overlay */
+  .cyber-scanline::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 240, 255, 0.015) 2px,
+      rgba(0, 240, 255, 0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
   }
-  
-  .section-title {
-    @apply text-3xl md:text-4xl font-bold text-gray-900 mb-4;
+
+  /* Cyberpunk button */
+  .btn-cyber {
+    @apply px-6 py-3 bg-transparent text-cyber-cyan font-medium relative overflow-hidden;
+    @apply border border-cyber-cyan transition-all duration-300;
+    @apply hover:bg-cyber-cyan hover:text-cyber-black;
+    @apply hover:shadow-cyber-glow;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   }
-  
-  .section-subtitle {
-    @apply text-lg text-gray-600 mb-8;
+
+  .btn-cyber-magenta {
+    @apply px-6 py-3 bg-transparent text-cyber-magenta font-medium relative overflow-hidden;
+    @apply border border-cyber-magenta transition-all duration-300;
+    @apply hover:bg-cyber-magenta hover:text-white;
+    @apply hover:shadow-cyber-glow-magenta;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   }
-  
-  .card {
-    @apply bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300;
+
+  .btn-cyber-filled {
+    @apply px-6 py-3 bg-cyber-cyan text-cyber-black font-semibold relative overflow-hidden;
+    @apply border border-cyber-cyan transition-all duration-300;
+    @apply hover:shadow-cyber-glow;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+
+  /* Cyberpunk card */
+  .card-cyber {
+    @apply bg-cyber-panel border border-cyber-border p-6 relative;
+    @apply transition-all duration-300;
+    @apply hover:border-cyber-cyan/50 hover:shadow-cyber-border;
+  }
+
+  .card-cyber::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 20px;
+    width: 40px;
+    height: 2px;
+    background: #00f0ff;
+    transition: width 0.3s ease;
+  }
+
+  .card-cyber:hover::before {
+    width: 80px;
+  }
+
+  /* Section styles */
+  .section-cyber {
+    @apply bg-cyber-dark relative;
+  }
+
+  .section-cyber-alt {
+    @apply bg-cyber-black relative;
+  }
+
+  /* Hero section */
+  .hero-cyber {
+    @apply relative overflow-hidden;
+    background: linear-gradient(135deg, #0a0a12 0%, #0f0f2a 50%, #0a0a12 100%);
+  }
+
+  .hero-cyber::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(ellipse at 20% 50%, rgba(0, 240, 255, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 50%, rgba(255, 0, 160, 0.06) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* Text effects */
+  .text-glow-cyan {
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.5), 0 0 20px rgba(0, 240, 255, 0.3);
+  }
+
+  .text-glow-magenta {
+    text-shadow: 0 0 10px rgba(255, 0, 160, 0.5), 0 0 20px rgba(255, 0, 160, 0.3);
+  }
+
+  .text-glow-green {
+    text-shadow: 0 0 10px rgba(0, 255, 65, 0.5), 0 0 20px rgba(0, 255, 65, 0.3);
+  }
+
+  /* Divider */
+  .cyber-divider {
+    @apply h-px w-full;
+    background: linear-gradient(90deg, transparent, #00f0ff, transparent);
+  }
+
+  /* Corner decorations */
+  .cyber-corner {
+    @apply relative;
+  }
+
+  .cyber-corner::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 20px;
+    height: 20px;
+    border-bottom: 2px solid #00f0ff;
+    border-right: 2px solid #00f0ff;
+  }
+
+  /* Code block cyber style */
+  .code-cyber {
+    @apply bg-cyber-dark border border-cyber-border rounded-lg overflow-hidden;
+  }
+
+  .code-cyber-header {
+    @apply bg-cyber-panel text-cyber-cyan px-4 py-2 font-mono text-sm flex items-center justify-between border-b border-cyber-border;
+  }
+
+  .code-cyber-body {
+    @apply bg-cyber-black text-cyber-text p-4 overflow-x-auto font-mono text-sm;
+  }
+
+  /* Step number cyber */
+  .step-cyber {
+    @apply w-12 h-12 bg-cyber-panel border-2 border-cyber-cyan text-cyber-cyan flex items-center justify-center text-xl font-bold font-display;
+    @apply shadow-cyber-glow;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  }
+
+  /* Tag/Corner label */
+  .cyber-tag {
+    @apply inline-block px-3 py-1 text-xs font-mono uppercase tracking-wider;
+    @apply bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30;
+  }
+
+  /* Nav link cyber */
+  .nav-link-cyber {
+    @apply font-medium transition-all duration-200 relative;
+    @apply text-cyber-muted hover:text-cyber-cyan;
+  }
+
+  .nav-link-cyber-active {
+    @apply text-cyber-cyan;
+  }
+
+  .nav-link-cyber-active::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: #00f0ff;
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+  }
+
+  /* Alert boxes */
+  .alert-cyber-info {
+    @apply bg-cyber-cyan/10 border border-cyber-cyan/30 text-cyber-cyan p-4;
+  }
+
+  .alert-cyber-warn {
+    @apply bg-cyber-yellow/10 border border-cyber-yellow/30 text-cyber-yellow p-4;
+  }
+
+  .alert-cyber-success {
+    @apply bg-cyber-green/10 border border-cyber-green/30 text-cyber-green p-4;
   }
 }

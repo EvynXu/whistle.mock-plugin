@@ -3,39 +3,42 @@ import CodeBlock from '../components/CodeBlock';
 
 const Documentation = () => {
   return (
-    <div className="py-12">
+    <div className="bg-cyber-black">
       {/* Hero */}
-      <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-16">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">文档</h1>
-          <p className="text-xl text-primary-100 max-w-2xl mx-auto">
+      <section className="hero-cyber py-16">
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <div className="cyber-tag mb-4">DOCUMENTATION</div>
+          <h1 className="text-4xl md:text-5xl font-display font-black text-white tracking-wide mb-4">
+            文档
+          </h1>
+          <p className="text-xl text-cyber-muted max-w-2xl mx-auto">
             详细的 API 文档和配置说明
           </p>
         </div>
       </section>
 
       {/* Content */}
-      <section className="py-16">
+      <section className="py-20 bg-cyber-dark relative">
         <div className="container mx-auto px-4 max-w-5xl">
           {/* Table of Contents */}
-          <div className="card mb-8 bg-gray-50">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">目录</h2>
-            <ul className="space-y-2 text-gray-700">
-              <li><a href="#config-reference" className="text-primary-600 hover:underline">配置参考</a></li>
-              <li><a href="#api-reference" className="text-primary-600 hover:underline">API 参考</a></li>
-              <li><a href="#matching-rules" className="text-primary-600 hover:underline">匹配规则</a></li>
-              <li><a href="#mockjs-syntax" className="text-primary-600 hover:underline">Mock.js 语法</a></li>
-              <li><a href="#best-practices" className="text-primary-600 hover:underline">最佳实践</a></li>
-              <li><a href="#troubleshooting" className="text-primary-600 hover:underline">常见问题</a></li>
+          <div className="card-cyber mb-10">
+            <h2 className="text-2xl font-display font-bold text-white mb-4 tracking-wide">目录</h2>
+            <ul className="space-y-2 text-cyber-muted font-mono text-sm">
+              <li><a href="#config-reference" className="text-cyber-cyan hover:text-cyber-cyan/80 hover:underline">{'>'} 配置参考</a></li>
+              <li><a href="#api-reference" className="text-cyber-cyan hover:text-cyber-cyan/80 hover:underline">{'>'} API 参考</a></li>
+              <li><a href="#matching-rules" className="text-cyber-cyan hover:text-cyber-cyan/80 hover:underline">{'>'} 匹配规则</a></li>
+              <li><a href="#mockjs-syntax" className="text-cyber-cyan hover:text-cyber-cyan/80 hover:underline">{'>'} Mock.js 语法</a></li>
+              <li><a href="#best-practices" className="text-cyber-cyan hover:text-cyber-cyan/80 hover:underline">{'>'} 最佳实践</a></li>
+              <li><a href="#troubleshooting" className="text-cyber-cyan hover:text-cyber-cyan/80 hover:underline">{'>'} 常见问题</a></li>
             </ul>
           </div>
 
           {/* Configuration Reference */}
-          <div id="config-reference" className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">配置参考</h2>
+          <div id="config-reference" className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">配置参考</h2>
             
-            <div className="card mb-6">
-              <h3 className="text-2xl font-bold mb-4">接口配置结构</h3>
+            <div className="card-cyber mb-6">
+              <h3 className="text-2xl font-display font-bold text-white mb-4 tracking-wide">接口配置结构</h3>
               <CodeBlock
                 code={`{
   // 基本信息
@@ -81,8 +84,8 @@ const Documentation = () => {
               />
             </div>
 
-            <div className="card">
-              <h3 className="text-2xl font-bold mb-4">功能模块配置结构</h3>
+            <div className="card-cyber">
+              <h3 className="text-2xl font-display font-bold text-white mb-4 tracking-wide">功能模块配置结构</h3>
               <CodeBlock
                 code={`{
   "id": "feature-id",             // 模块唯一标识（自动生成）
@@ -98,21 +101,21 @@ const Documentation = () => {
           </div>
 
           {/* API Reference */}
-          <div id="api-reference" className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">API 参考</h2>
+          <div id="api-reference" className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">API 参考</h2>
             
             <div className="space-y-6">
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">获取所有功能模块</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">获取所有功能模块</h3>
                 <CodeBlock
                   code="GET /api/features"
                   language="text"
                 />
-                <p className="text-gray-600 mt-2">返回所有功能模块的列表</p>
+                <p className="text-cyber-muted mt-2 font-mono text-sm">{'>'} 返回所有功能模块的列表</p>
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">创建功能模块</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">创建功能模块</h3>
                 <CodeBlock
                   code={`POST /api/features
 Content-Type: application/json
@@ -125,16 +128,16 @@ Content-Type: application/json
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">获取所有接口</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">获取所有接口</h3>
                 <CodeBlock
                   code="GET /api/interfaces"
                   language="text"
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">创建接口</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">创建接口</h3>
                 <CodeBlock
                   code={`POST /api/interfaces
 Content-Type: application/json
@@ -150,8 +153,8 @@ Content-Type: application/json
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">测试接口</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">测试接口</h3>
                 <CodeBlock
                   code={`POST /api/test-interface
 Content-Type: application/json
@@ -167,13 +170,13 @@ Content-Type: application/json
           </div>
 
           {/* Matching Rules */}
-          <div id="matching-rules" className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">匹配规则详解</h2>
+          <div id="matching-rules" className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">匹配规则详解</h2>
             
             <div className="space-y-6">
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">精确匹配 (exact)</h3>
-                <p className="text-gray-600 mb-4">完全匹配 URL 路径，大小写敏感</p>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">精确匹配 (exact)</h3>
+                <p className="text-cyber-muted mb-4">完全匹配 URL 路径，大小写敏感</p>
                 <CodeBlock
                   code={`// 配置
 {
@@ -190,9 +193,9 @@ Content-Type: application/json
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">通配符匹配 (wildcard)</h3>
-                <p className="text-gray-600 mb-4">使用 * 作为通配符，匹配任意字符</p>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">通配符匹配 (wildcard)</h3>
+                <p className="text-cyber-muted mb-4">使用 * 作为通配符，匹配任意字符</p>
                 <CodeBlock
                   code={`// 配置
 {
@@ -210,13 +213,13 @@ Content-Type: application/json
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">正则表达式匹配 (regex)</h3>
-                <p className="text-gray-600 mb-4">使用正则表达式进行复杂匹配</p>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">正则表达式匹配 (regex)</h3>
+                <p className="text-cyber-muted mb-4">使用正则表达式进行复杂匹配</p>
                 <CodeBlock
                   code={`// 配置：匹配用户ID（纯数字）
 {
-  "urlPattern": "^/api/user/\\\\d+$",
+  "urlPattern": "^/api/user/\\d+$",
   "matchType": "regex"
 }
 
@@ -243,11 +246,11 @@ Content-Type: application/json
           </div>
 
           {/* Mock.js Syntax */}
-          <div id="mockjs-syntax" className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">Mock.js 语法速查</h2>
+          <div id="mockjs-syntax" className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">Mock.js 语法速查</h2>
             
-            <div className="card">
-              <h3 className="text-xl font-bold mb-4">基本数据类型</h3>
+            <div className="card-cyber">
+              <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">基本数据类型</h3>
               <CodeBlock
                 code={`{
   // 字符串
@@ -281,8 +284,8 @@ Content-Type: application/json
               />
             </div>
 
-            <div className="card mt-6">
-              <h3 className="text-xl font-bold mb-4">中文数据</h3>
+            <div className="card-cyber mt-6">
+              <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">中文数据</h3>
               <CodeBlock
                 code={`{
   // 姓名
@@ -308,8 +311,8 @@ Content-Type: application/json
               />
             </div>
 
-            <div className="card mt-6">
-              <h3 className="text-xl font-bold mb-4">英文数据</h3>
+            <div className="card-cyber mt-6">
+              <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">英文数据</h3>
               <CodeBlock
                 code={`{
   // 姓名
@@ -334,8 +337,8 @@ Content-Type: application/json
               />
             </div>
 
-            <div className="card mt-6">
-              <h3 className="text-xl font-bold mb-4">其他常用</h3>
+            <div className="card-cyber mt-6">
+              <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">其他常用</h3>
               <CodeBlock
                 code={`{
   // 图片
@@ -369,95 +372,95 @@ Content-Type: application/json
           </div>
 
           {/* Best Practices */}
-          <div id="best-practices" className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">最佳实践</h2>
+          <div id="best-practices" className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">最佳实践</h2>
             
             <div className="space-y-6">
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">1. 合理组织功能模块</h3>
-                <ul className="space-y-2 text-gray-600">
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">1. 合理组织功能模块</h3>
+                <ul className="space-y-2 text-cyber-muted font-mono text-sm">
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>按业务功能划分模块，如"用户管理"、"商品管理"等</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>每个模块包含相关的接口，便于管理和维护</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>为模块添加清晰的描述，方便团队协作</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">2. 使用多响应管理不同场景</h3>
-                <ul className="space-y-2 text-gray-600">
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">2. 使用多响应管理不同场景</h3>
+                <ul className="space-y-2 text-cyber-muted font-mono text-sm">
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>为每个接口配置多个响应：成功、失败、异常等</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>使用描述性的响应名称，如"用户不存在"、"权限不足"</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>添加响应描述，说明该响应的使用场景</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">3. 合理使用 Mock.js 语法</h3>
-                <ul className="space-y-2 text-gray-600">
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">3. 合理使用 Mock.js 语法</h3>
+                <ul className="space-y-2 text-cyber-muted font-mono text-sm">
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>使用 Mock.js 生成随机数据，让测试更真实</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>数组数据使用范围语法，如 "list|5-10"</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>使用 @increment 生成唯一ID</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">4. 设置适当的响应延迟</h3>
-                <ul className="space-y-2 text-gray-600">
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">4. 设置适当的响应延迟</h3>
+                <ul className="space-y-2 text-cyber-muted font-mono text-sm">
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>模拟真实网络环境，设置合理的延迟时间</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>测试加载状态和超时处理</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>不同接口可设置不同的延迟时间</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">5. 定期备份配置数据</h3>
-                <ul className="space-y-2 text-gray-600">
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">5. 定期备份配置数据</h3>
+                <ul className="space-y-2 text-cyber-muted font-mono text-sm">
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>使用导出功能备份重要配置</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>将配置文件纳入版本控制系统</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-primary-600 mr-2">•</span>
+                    <span className="text-cyber-cyan mr-3">{'>'}</span>
                     <span>团队共享配置文件，保持环境一致</span>
                   </li>
                 </ul>
@@ -466,85 +469,85 @@ Content-Type: application/json
           </div>
 
           {/* Troubleshooting */}
-          <div id="troubleshooting" className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">常见问题</h2>
+          <div id="troubleshooting" className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">常见问题</h2>
             
             <div className="space-y-6">
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">接口没有生效？</h3>
-                <ul className="space-y-2 text-gray-600">
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">接口没有生效？</h3>
+                <ul className="space-y-2 text-cyber-muted font-mono text-sm">
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">1.</span>
+                    <span className="text-cyber-orange mr-3">1.</span>
                     <span>检查功能模块和接口是否都已启用</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">2.</span>
+                    <span className="text-cyber-orange mr-3">2.</span>
                     <span>确认 URL 匹配规则是否正确</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">3.</span>
+                    <span className="text-cyber-orange mr-3">3.</span>
                     <span>检查 HTTP 方法是否匹配</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">4.</span>
+                    <span className="text-cyber-orange mr-3">4.</span>
                     <span>查看日志记录中是否有匹配记录</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">Mock.js 语法不生效？</h3>
-                <ul className="space-y-2 text-gray-600">
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">Mock.js 语法不生效？</h3>
+                <ul className="space-y-2 text-cyber-muted font-mono text-sm">
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">1.</span>
+                    <span className="text-cyber-orange mr-3">1.</span>
                     <span>确保语法正确，特别注意引号和转义字符</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">2.</span>
+                    <span className="text-cyber-orange mr-3">2.</span>
                     <span>在 JSON 中使用双引号，不要使用单引号</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">3.</span>
+                    <span className="text-cyber-orange mr-3">3.</span>
                     <span>检查 Mock.js 语法是否正确，参考官方文档</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">无法访问插件管理界面？</h3>
-                <ul className="space-y-2 text-gray-600">
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">无法访问插件管理界面？</h3>
+                <ul className="space-y-2 text-cyber-muted font-mono text-sm">
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">1.</span>
+                    <span className="text-cyber-orange mr-3">1.</span>
                     <span>确认 Whistle 服务已启动（w2 status）</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">2.</span>
+                    <span className="text-cyber-orange mr-3">2.</span>
                     <span>检查插件是否正确安装（npm list -g whistle.mock-plugin）</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">3.</span>
+                    <span className="text-cyber-orange mr-3">3.</span>
                     <span>尝试重启 Whistle 服务（w2 restart）</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">性能问题？</h3>
-                <ul className="space-y-2 text-gray-600">
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">性能问题？</h3>
+                <ul className="space-y-2 text-cyber-muted font-mono text-sm">
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">1.</span>
+                    <span className="text-cyber-orange mr-3">1.</span>
                     <span>禁用不使用的功能模块和接口</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">2.</span>
+                    <span className="text-cyber-orange mr-3">2.</span>
                     <span>使用精确匹配而不是正则表达式（性能更好）</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">3.</span>
+                    <span className="text-cyber-orange mr-3">3.</span>
                     <span>定期清理日志记录</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-orange-600 mr-2">4.</span>
+                    <span className="text-cyber-orange mr-3">4.</span>
                     <span>避免在响应中生成过大的数据</span>
                   </li>
                 </ul>

@@ -43,22 +43,26 @@ const Features = () => {
   ];
 
   return (
-    <div className="py-12">
+    <div className="bg-cyber-black">
       {/* Hero */}
-      <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-16">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">功能特性</h1>
-          <p className="text-xl text-primary-100 max-w-2xl mx-auto">
+      <section className="hero-cyber py-16">
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <div className="cyber-tag mb-4">FEATURES</div>
+          <h1 className="text-4xl md:text-5xl font-display font-black text-white tracking-wide mb-4">
+            功能特性
+          </h1>
+          <p className="text-xl text-cyber-muted max-w-2xl mx-auto">
             全面了解 Whistle Mock Plugin 提供的强大功能
           </p>
         </div>
       </section>
 
       {/* Main Features */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-20 bg-cyber-dark relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="section-title">核心功能</h2>
+          <div className="text-center mb-14">
+            <div className="cyber-tag mb-4">CORE</div>
+            <h2 className="text-3xl font-display font-bold text-white tracking-wide">核心功能</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {mainFeatures.map((feature, index) => (
@@ -69,18 +73,18 @@ const Features = () => {
       </section>
 
       {/* Feature Details */}
-      <section className="py-16 bg-white">
+      <section className="py-20 bg-cyber-black relative">
         <div className="container mx-auto px-4 max-w-5xl">
           {/* Multi-Response Management */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              多响应管理 ⭐ 核心特性
+          <div className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-4 tracking-wide">
+              多响应管理 <span className="text-cyber-magenta text-glow-magenta">⭐</span> 核心特性
             </h2>
-            <p className="text-gray-600 mb-6 text-lg">
+            <p className="text-cyber-muted mb-8 text-lg">
               每个接口可配置多个不同的响应内容，灵活切换不同场景的响应数据
             </p>
-            <div className="card">
-              <h3 className="text-xl font-bold mb-4">配置示例</h3>
+            <div className="card-cyber">
+              <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">配置示例</h3>
               <CodeBlock
                 code={`{
   "name": "用户信息接口",
@@ -123,26 +127,26 @@ const Features = () => {
 }`}
                 language="json"
               />
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                <p className="text-blue-800">
-                  <strong>💡 提示：</strong>可以在管理界面中快速切换不同的响应内容，方便测试各种场景
+              <div className="alert-cyber-info mt-4">
+                <p className="font-mono text-sm">
+                  <span className="text-cyber-cyan font-bold">{'>'}</span> 提示：可以在管理界面中快速切换不同的响应内容，方便测试各种场景
                 </p>
               </div>
             </div>
           </div>
 
           {/* Smart Matching */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <div className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-4 tracking-wide">
               智能接口匹配
             </h2>
-            <p className="text-gray-600 mb-6 text-lg">
+            <p className="text-cyber-muted mb-8 text-lg">
               支持多种匹配模式，满足不同场景的需求
             </p>
             <div className="space-y-6">
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">精确匹配</h3>
-                <p className="text-gray-600 mb-4">完全匹配 URL 路径</p>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">精确匹配</h3>
+                <p className="text-cyber-muted mb-4">完全匹配 URL 路径</p>
                 <CodeBlock
                   code={`{
   "urlPattern": "/api/user/info",
@@ -152,9 +156,9 @@ const Features = () => {
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">通配符匹配</h3>
-                <p className="text-gray-600 mb-4">使用 * 通配符匹配多个路径</p>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">通配符匹配</h3>
+                <p className="text-cyber-muted mb-4">使用 * 通配符匹配多个路径</p>
                 <CodeBlock
                   code={`{
   "urlPattern": "/api/user/*",
@@ -169,9 +173,9 @@ const Features = () => {
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">正则表达式匹配</h3>
-                <p className="text-gray-600 mb-4">使用正则表达式进行复杂匹配</p>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">正则表达式匹配</h3>
+                <p className="text-cyber-muted mb-4">使用正则表达式进行复杂匹配</p>
                 <CodeBlock
                   code={`{
   "urlPattern": "^/api/user/\\d+$",
@@ -189,17 +193,17 @@ const Features = () => {
           </div>
 
           {/* Proxy Modes */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <div className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-4 tracking-wide">
               代理模式支持
             </h2>
-            <p className="text-gray-600 mb-6 text-lg">
+            <p className="text-cyber-muted mb-8 text-lg">
               支持多种代理方式，灵活应对不同需求
             </p>
             <div className="space-y-6">
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">响应模式</h3>
-                <p className="text-gray-600 mb-4">直接返回配置的 JSON/HTML 响应内容</p>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">响应模式</h3>
+                <p className="text-cyber-muted mb-4">直接返回配置的 JSON/HTML 响应内容</p>
                 <CodeBlock
                   code={`{
   "proxyType": "response",
@@ -214,9 +218,9 @@ const Features = () => {
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">文件代理</h3>
-                <p className="text-gray-600 mb-4">返回本地文件内容作为响应</p>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">文件代理</h3>
+                <p className="text-cyber-muted mb-4">返回本地文件内容作为响应</p>
                 <CodeBlock
                   code={`{
   "proxyType": "file",
@@ -226,9 +230,9 @@ const Features = () => {
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-2">URL 重定向</h3>
-                <p className="text-gray-600 mb-4">将请求转发到指定的目标 URL</p>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-2 tracking-wide">URL 重定向</h3>
+                <p className="text-cyber-muted mb-4">将请求转发到指定的目标 URL</p>
                 <CodeBlock
                   code={`{
   "proxyType": "redirect",
@@ -242,15 +246,15 @@ const Features = () => {
           </div>
 
           {/* Mock.js Integration */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <div className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-4 tracking-wide">
               Mock.js 集成
             </h2>
-            <p className="text-gray-600 mb-6 text-lg">
+            <p className="text-cyber-muted mb-8 text-lg">
               强大的数据模拟能力，自动生成随机数据
             </p>
-            <div className="card">
-              <h3 className="text-xl font-bold mb-4">常用模板示例</h3>
+            <div className="card-cyber">
+              <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">常用模板示例</h3>
               <CodeBlock
                 code={`{
   "content": {
@@ -291,13 +295,13 @@ const Features = () => {
 
           {/* Advanced Configuration */}
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl font-display font-bold text-white mb-4 tracking-wide">
               高级配置选项
             </h2>
-            <p className="text-gray-600 mb-6 text-lg">
+            <p className="text-cyber-muted mb-8 text-lg">
               更多配置选项，精确控制响应行为
             </p>
-            <div className="card">
+            <div className="card-cyber">
               <CodeBlock
                 code={`{
   "name": "用户列表接口",

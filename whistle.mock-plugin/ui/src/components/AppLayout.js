@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Layout, Menu, Button, Breadcrumb, Typography, Space, theme, Divider, Badge } from 'antd';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Layout, Menu, Button, Breadcrumb, Space, ConfigProvider, theme } from 'antd';
 import { 
   AppstoreOutlined, 
   ApiOutlined, 
@@ -14,14 +14,67 @@ import VersionModal from './VersionModal';
 import '../styles/app-layout.css';
 
 const { Header, Content, Sider } = Layout;
-const { Title, Text } = Typography;
 
 const AppLayout = ({ children }) => {
   const location = useLocation();
   const currentPath = location.pathname;
   const [collapsed, setCollapsed] = useState(false);
   const [versionModalVisible, setVersionModalVisible] = useState(false);
-  const { token } = theme.useToken();
+  
+  // 赛博朋克主题开关
+  const [enableCyber, setEnableCyber] = useState(() => {
+    return localStorage.getItem('cyberTheme') !== 'false';
+  });
+
+  useEffect(() => {
+    document.body.classList.toggle('cyber-theme', enableCyber);
+  }, [enableCyber]);
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setEnableCyber(localStorage.getItem('cyberTheme') !== 'false');
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+  
+  const cyberTheme = useMemo(() => ({
+    token: {
+      colorPrimary: '#00f0ff',
+      colorPrimaryHover: '#33f3ff',
+      colorPrimaryActive: '#00c2cc',
+      colorSuccess: '#00ff41',
+      colorWarning: '#f0e800',
+      colorError: '#ff4d4f',
+      colorInfo: '#00f0ff',
+      colorText: '#e0e0e0',
+      colorTextSecondary: '#a0a0a0',
+      colorTextTertiary: '#6b7280',
+      colorBorder: '#1a1a2e',
+      colorBorderSecondary: '#1a1a2e',
+      colorBgBase: '#050508',
+      colorBgContainer: '#0f0f1a',
+      colorBgElevated: '#141420',
+      colorBgLayout: '#0a0a12',
+      colorBgSpotlight: '#141420',
+      borderRadius: 6,
+      borderRadiusSM: 4,
+      borderRadiusLG: 8,
+      wireframe: false,
+      fontFamily: "'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      fontFamilyCode: "'Share Tech Mono', 'SFMono-Regular', Consolas, monospace",
+    },
+    algorithm: theme.darkAlgorithm,
+  }), []);
+
+  const lightTheme = useMemo(() => ({
+    token: {
+      borderRadius: 6,
+      borderRadiusSM: 4,
+      borderRadiusLG: 8,
+    },
+    algorithm: theme.defaultAlgorithm,
+  }), []);
   
   // 版本弹窗控制方法
   const showVersionModal = () => setVersionModalVisible(true);
@@ -83,88 +136,130 @@ const AppLayout = ({ children }) => {
   ];
 
   const breadcrumbs = getBreadcrumbs();
-  const colorBgContainer = token.colorBgContainer;
-  const colorBgLayout = token.colorBgLayout;
-  const borderRadius = token.borderRadius;
 
   return (
-    <Layout className="app-layout">
-      {/* 顶部导航栏 */}
-      <Header className="app-header" style={{ background: colorBgContainer }}>
-        <div className="header-left">
-          <div className="logo-container">
-            <div className="logo-icon-group">
-              <ExperimentOutlined className="logo-icon logo-icon-secondary" />
+    <ConfigProvider theme={enableCyber ? cyberTheme : lightTheme}>
+      <Layout className="app-layout">
+        {/* 顶部导航栏 */}
+        <Header className="app-header" style={{ background: enableCyber ? '#0f0f1a' : '#ffffff', borderBottom: enableCyber ? '1px solid #1a1a2e' : '1px solid #f0f0f0' }}>
+          <div className="header-left">
+            <div className="logo-container">
+              <div className="logo-icon-group">
+                <ExperimentOutlined className="logo-icon logo-icon-secondary" style={{ color: enableCyber ? '#00ff41' : '#52c41a' }} />
+              </div>
+              <div 
+                className="logo-text" 
+                style={enableCyber ? {
+                  background: 'linear-gradient(135deg, #00f0ff, #00ff41)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                } : {
+                  background: 'linear-gradient(135deg, #1890ff, #52c41a)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                MockMaster
+              </div>
             </div>
-            <div className="logo-text">MockMaster</div>
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              className="collapse-button"
+            />
           </div>
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            className="collapse-button"
-          />
-        </div>
-        <div className="header-right">
-          <Space>
-            <Button 
-              type="text" 
-              size="small"
-              className="version-button"
-              onClick={showVersionModal}
-            >
-              <Text type="secondary">v{__APP_VERSION__}</Text>
-            </Button>
-          </Space>
-        </div>
-      </Header>
+          <div className="header-right">
+            <Space>
+              <Button 
+                type="text" 
+                size="small"
+                className="version-button"
+                onClick={showVersionModal}
+              >
+                <span style={{ color: enableCyber ? '#6b7280' : '#000000d9', fontFamily: "'Share Tech Mono', monospace" }}>
+                  v{__APP_VERSION__}
+                </span>
+              </Button>
+            </Space>
+          </div>
+        </Header>
 
-      <Layout>
-        {/* 侧边导航 */}
-        <Sider 
-          width={220} 
-          className="app-sider" 
-          collapsed={collapsed} 
-          collapsible 
-          trigger={null}
-          style={{ background: colorBgContainer }}
-        >
-          <Menu
-            mode="inline"
-            selectedKeys={getSelectedKeys()}
-            items={menuItems}
-            style={{ 
-              height: '100%', 
-              borderRight: 0, 
-              padding: '8px',
-            }}
-          />
-        </Sider>
-
-        {/* 主内容区 */}
-        <Layout className="app-content-wrapper" style={{ padding: 0, background: colorBgLayout }}>
-          {/* 内容区 */}
-          <Content
-            className="app-content"
-            style={{
-              background: colorBgContainer,
-              padding: 24,
-              borderRadius: borderRadius,
-              minHeight: 280,
-            }}
+        <Layout>
+          {/* 侧边导航 */}
+          <Sider 
+            width={220} 
+            className="app-sider" 
+            collapsed={collapsed} 
+            collapsible 
+            trigger={null}
+            style={{ background: enableCyber ? '#0f0f1a' : '#ffffff' }}
           >
-            {children}
-          </Content>
+            <Menu
+              mode="inline"
+              selectedKeys={getSelectedKeys()}
+              items={menuItems}
+              style={{ 
+                height: '100%', 
+                borderRight: 0, 
+                padding: '8px',
+                background: enableCyber ? '#0f0f1a' : '#ffffff',
+              }}
+            />
+          </Sider>
+
+          {/* 主内容区 */}
+          <Layout className="app-content-wrapper" style={{ padding: 0, background: enableCyber ? '#0a0a12' : '#f5f5f5' }}>
+            {/* 面包屑和标题 */}
+            <div style={{ padding: '16px 24px 0' }}>
+              <Breadcrumb className="app-breadcrumb" style={{ marginBottom: 16 }}>
+                {breadcrumbs.map((crumb, index) => (
+                  <Breadcrumb.Item key={index}>
+                    {index < breadcrumbs.length - 1 ? (
+                      <Link to={crumb.path} style={{ color: enableCyber ? '#a0a0a0' : '#000000d9' }}>{crumb.title}</Link>
+                    ) : (
+                      <span style={{ color: enableCyber ? '#e0e0e0' : '#000000d9', fontWeight: 500 }}>{crumb.title}</span>
+                    )}
+                  </Breadcrumb.Item>
+                ))}
+              </Breadcrumb>
+              <h1 style={{ 
+                margin: 0, 
+                fontSize: 22, 
+                fontWeight: 700, 
+                color: enableCyber ? '#e0e0e0' : '#000000d9',
+                fontFamily: enableCyber ? "'Orbitron', sans-serif" : undefined,
+                letterSpacing: enableCyber ? '0.5px' : undefined,
+              }}>
+                {getPageTitle()}
+              </h1>
+            </div>
+            
+            {/* 内容区 */}
+            <Content
+              className="app-content"
+              style={{
+                background: enableCyber ? '#0f0f1a' : '#ffffff',
+                padding: 24,
+                borderRadius: 6,
+                minHeight: 280,
+                margin: '16px 24px 24px',
+                border: enableCyber ? '1px solid #1a1a2e' : '1px solid #f0f0f0',
+              }}
+            >
+              {children}
+            </Content>
+          </Layout>
         </Layout>
+        
+        {/* 版本信息弹窗 */}
+        <VersionModal 
+          visible={versionModalVisible}
+          onCancel={hideVersionModal}
+        />
       </Layout>
-      
-      {/* 版本信息弹窗 */}
-      <VersionModal 
-        visible={versionModalVisible}
-        onCancel={hideVersionModal}
-      />
-    </Layout>
+    </ConfigProvider>
   );
 };
 
-export default AppLayout; 
+export default AppLayout;

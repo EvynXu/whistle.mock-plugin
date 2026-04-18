@@ -6,7 +6,7 @@ const FeatureCard = ({ feature }) => {
   
   // 生成随机的主题色（实际项目中可能会根据某种规则来确定）
   const getRandomColor = () => {
-    const colors = ['#1890ff', '#13c2c2', '#52c41a', '#faad14', '#722ed1'];
+    const colors = ['#00f0ff', '#00ff41', '#f0e800', '#ff00a0', '#bd00ff'];
     return colors[Math.floor(Math.random() * colors.length)];
   };
   

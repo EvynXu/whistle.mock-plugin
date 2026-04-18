@@ -59,37 +59,44 @@ const Home = () => {
   ];
 
   return (
-    <div>
+    <div className="bg-cyber-black">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Whistle Mock Plugin
+      <section className="hero-cyber py-24 relative">
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <div className="cyber-tag mb-6">API MOCK TOOL v1.2</div>
+          <h1 className="text-5xl md:text-7xl font-display font-black mb-6 text-white tracking-wider">
+            Whistle <span className="text-cyber-cyan text-glow-cyan">Mock</span> Plugin
           </h1>
-          <p className="text-xl md:text-2xl mb-8 text-primary-100">
+          <p className="text-xl md:text-2xl mb-10 text-cyber-muted max-w-3xl mx-auto">
             强大的 API 接口模拟工具，提供完整的接口 Mock 解决方案
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/quickstart" className="inline-block px-8 py-4 bg-primary-700 text-white rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-all duration-200 shadow-lg hover:shadow-xl text-center">
+            <Link to="/quickstart" className="btn-cyber-filled text-center">
               快速开始
             </Link>
-            <Link to="/features" className="inline-block px-8 py-4 bg-white/10 backdrop-blur-sm text-white border-2 border-white rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-all duration-200 text-center">
+            <Link to="/features" className="btn-cyber text-center">
               了解更多
             </Link>
           </div>
         </div>
+        
+        {/* Decorative elements */}
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyber-cyan/50 to-transparent" />
       </section>
 
       {/* Quick Install */}
-      <section className="py-16 bg-white">
+      <section className="py-20 bg-cyber-dark relative">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4 text-center">
-              一分钟快速安装
-            </h2>
-            <p className="text-gray-600 mb-8 text-center">
-              通过 npm 或 yarn 快速安装插件，立即开始使用
-            </p>
+            <div className="text-center mb-10">
+              <div className="cyber-tag mb-4">INSTALLATION</div>
+              <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-4 tracking-wide">
+                一分钟快速安装
+              </h2>
+              <p className="text-cyber-muted">
+                通过 npm 或 yarn 快速安装插件，立即开始使用
+              </p>
+            </div>
             <CodeBlock
               code={`# 通过 npm 安装
 npm install whistle.mock-plugin -g
@@ -107,11 +114,14 @@ w2 start`}
       </section>
 
       {/* Features */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-20 bg-cyber-black relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="section-title">核心功能特性</h2>
-            <p className="section-subtitle">
+          <div className="text-center mb-14">
+            <div className="cyber-tag mb-4">FEATURES</div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-4 tracking-wide">
+              核心功能特性
+            </h2>
+            <p className="text-cyber-muted max-w-2xl mx-auto">
               为开发者提供全方位的 API Mock 解决方案
             </p>
           </div>
@@ -124,25 +134,28 @@ w2 start`}
       </section>
 
       {/* Use Cases */}
-      <section className="py-16 bg-white">
+      <section className="py-20 bg-cyber-dark relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="section-title">使用场景</h2>
-            <p className="section-subtitle">
+          <div className="text-center mb-14">
+            <div className="cyber-tag mb-4">USE CASES</div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-4 tracking-wide">
+              使用场景
+            </h2>
+            <p className="text-cyber-muted">
               适用于开发、测试、演示等多个阶段
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {useCases.map((useCase, index) => (
-              <div key={index} className="card">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">
+              <div key={index} className="card-cyber">
+                <h3 className="text-2xl font-display font-bold text-white mb-4 tracking-wide">
                   {useCase.title}
                 </h3>
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {useCase.items.map((item, i) => (
-                    <li key={i} className="flex items-start">
-                      <span className="text-primary-600 mr-2">✓</span>
-                      <span className="text-gray-600">{item}</span>
+                    <li key={i} className="flex items-start font-mono text-sm">
+                      <span className="text-cyber-cyan mr-3 mt-0.5">{'>'}</span>
+                      <span className="text-cyber-muted">{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -153,18 +166,21 @@ w2 start`}
       </section>
 
       {/* Quick Example */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-20 bg-cyber-black relative">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="section-title">快速示例</h2>
-              <p className="section-subtitle">
+            <div className="text-center mb-14">
+              <div className="cyber-tag mb-4">EXAMPLE</div>
+              <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-4 tracking-wide">
+                快速示例
+              </h2>
+              <p className="text-cyber-muted">
                 几分钟内创建你的第一个 Mock 接口
               </p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="card">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">
                   1. 创建接口配置
                 </h3>
                 <CodeBlock
@@ -187,11 +203,11 @@ w2 start`}
                   language="json"
                 />
               </div>
-              <div className="card">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">
                   2. 启用并测试
                 </h3>
-                <p className="text-gray-600 mb-4">
+                <p className="text-cyber-muted mb-4">
                   在插件管理界面中启用接口，然后发送请求：
                 </p>
                 <CodeBlock
@@ -215,23 +231,24 @@ w2 start`}
       </section>
 
       {/* CTA */}
-      <section className="py-16 bg-primary-600 text-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold mb-4">
+      <section className="py-20 bg-cyber-dark relative border-t border-cyber-border">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyber-magenta/50 to-transparent" />
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <h2 className="text-4xl md:text-5xl font-display font-bold text-white mb-4 tracking-wide">
             准备好开始了吗？
           </h2>
-          <p className="text-xl text-primary-100 mb-8">
+          <p className="text-xl text-cyber-muted mb-10 max-w-2xl mx-auto">
             立即安装并体验强大的 API Mock 功能
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/quickstart" className="inline-block px-8 py-4 bg-primary-700 text-white rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-all duration-200 shadow-lg hover:shadow-xl text-center">
+            <Link to="/quickstart" className="btn-cyber-filled text-center">
               查看快速开始指南
             </Link>
             <a
               href="https://github.com/EvynXu/whistle.mock-plugin"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block px-8 py-4 bg-white/10 backdrop-blur-sm text-white border-2 border-white rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-all duration-200 text-center"
+              className="btn-cyber text-center"
             >
               访问 GitHub
             </a>

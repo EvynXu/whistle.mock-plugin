@@ -221,7 +221,7 @@ const MockData = () => {
   };
 
   const viewInterfaces = (feature) => {
-    // 导航到该功能的接口列表页面
+    localStorage.setItem('selectedFeatureId', feature.id);
     history.push(`/interface/${feature.id}`);
   };
 
@@ -454,7 +454,7 @@ const MockData = () => {
       <Col xs={24} sm={12} md={8} lg={6} key={feature.id} style={{ marginBottom: 16 }}>
         <Badge.Ribbon 
           text={feature.active ? '已启用' : '已禁用'} 
-          color={feature.active ? '#52c41a' : '#f5222d'}
+          color={feature.active ? '#00ff41' : '#f5222d'}
           style={{ display: 'block' }}
         >
           <Card
@@ -566,7 +566,7 @@ const MockData = () => {
         width: 100,
         align: 'center',
         render: (count) => (
-          <Badge count={count || 0} showZero style={{ backgroundColor: '#1890ff' }} />
+          <Badge count={count || 0} showZero style={{ backgroundColor: '#1677ff' }} />
         ),
       },
       {
@@ -664,7 +664,7 @@ const MockData = () => {
               <Badge 
                 count="V2" 
                 style={{ 
-                  backgroundColor: '#52c41a',
+                  backgroundColor: '#00ff41',
                   fontSize: '12px',
                   height: '20px',
                   lineHeight: '20px',
@@ -689,7 +689,7 @@ const MockData = () => {
               type="primary" 
               icon={<ExportOutlined />}
               onClick={importFeatureConfig}
-              style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+              style={{ backgroundColor: '#00ff41', borderColor: '#00ff41' }}
             >
               导入功能
             </Button>

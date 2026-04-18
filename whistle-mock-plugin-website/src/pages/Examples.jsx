@@ -3,32 +3,35 @@ import CodeBlock from '../components/CodeBlock';
 
 const Examples = () => {
   return (
-    <div className="py-12">
+    <div className="bg-cyber-black">
       {/* Hero */}
-      <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-16">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">示例</h1>
-          <p className="text-xl text-primary-100 max-w-2xl mx-auto">
+      <section className="hero-cyber py-16">
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <div className="cyber-tag mb-4">EXAMPLES</div>
+          <h1 className="text-4xl md:text-5xl font-display font-black text-white tracking-wide mb-4">
+            示例
+          </h1>
+          <p className="text-xl text-cyber-muted max-w-2xl mx-auto">
             实际应用场景和配置示例
           </p>
         </div>
       </section>
 
       {/* Content */}
-      <section className="py-16">
+      <section className="py-20 bg-cyber-dark relative">
         <div className="container mx-auto px-4 max-w-5xl">
           {/* Example 1 */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <div className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">
               示例 1：用户管理系统
             </h2>
-            <p className="text-gray-600 mb-6 text-lg">
+            <p className="text-cyber-muted mb-6 text-lg">
               完整的用户管理接口，包括用户列表、用户详情、创建用户等功能
             </p>
 
             <div className="space-y-6">
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">用户列表接口</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">用户列表接口</h3>
                 <CodeBlock
                   code={`{
   "name": "用户列表",
@@ -76,8 +79,8 @@ const Examples = () => {
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">用户详情接口</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">用户详情接口</h3>
                 <CodeBlock
                   code={`{
   "name": "用户详情",
@@ -124,8 +127,8 @@ const Examples = () => {
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">创建用户接口</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">创建用户接口</h3>
                 <CodeBlock
                   code={`{
   "name": "创建用户",
@@ -172,17 +175,17 @@ const Examples = () => {
           </div>
 
           {/* Example 2 */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <div className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">
               示例 2：电商商品管理
             </h2>
-            <p className="text-gray-600 mb-6 text-lg">
+            <p className="text-cyber-muted mb-6 text-lg">
               电商系统的商品相关接口，包括商品列表、分类、详情等
             </p>
 
             <div className="space-y-6">
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">商品列表接口</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">商品列表接口</h3>
                 <CodeBlock
                   code={`{
   "name": "商品列表",
@@ -221,8 +224,8 @@ const Examples = () => {
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">商品详情接口</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">商品详情接口</h3>
                 <CodeBlock
                   code={`{
   "name": "商品详情",
@@ -292,16 +295,16 @@ const Examples = () => {
           </div>
 
           {/* Example 3 */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <div className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">
               示例 3：文章博客系统
             </h2>
-            <p className="text-gray-600 mb-6 text-lg">
+            <p className="text-cyber-muted mb-6 text-lg">
               博客系统的文章管理接口
             </p>
 
-            <div className="card">
-              <h3 className="text-xl font-bold mb-4">文章列表接口</h3>
+            <div className="card-cyber">
+              <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">文章列表接口</h3>
               <CodeBlock
                 code={`{
   "name": "文章列表",
@@ -345,17 +348,17 @@ const Examples = () => {
           </div>
 
           {/* Example 4 */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <div className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">
               示例 4：数据统计图表
             </h2>
-            <p className="text-gray-600 mb-6 text-lg">
+            <p className="text-cyber-muted mb-6 text-lg">
               后台管理系统的统计数据接口
             </p>
 
             <div className="space-y-6">
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">总览统计</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">总览统计</h3>
                 <CodeBlock
                   code={`{
   "name": "总览统计",
@@ -394,8 +397,8 @@ const Examples = () => {
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">趋势图数据</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">趋势图数据</h3>
                 <CodeBlock
                   code={`{
   "name": "销售趋势",
@@ -421,17 +424,17 @@ const Examples = () => {
           </div>
 
           {/* Example 5 */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <div className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">
               示例 5：文件上传和下载
             </h2>
-            <p className="text-gray-600 mb-6 text-lg">
+            <p className="text-cyber-muted mb-6 text-lg">
               文件处理相关接口的 Mock 配置
             </p>
 
             <div className="space-y-6">
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">文件上传接口</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">文件上传接口</h3>
                 <CodeBlock
                   code={`{
   "name": "文件上传",
@@ -475,8 +478,8 @@ const Examples = () => {
                 />
               </div>
 
-              <div className="card">
-                <h3 className="text-xl font-bold mb-4">文件列表接口</h3>
+              <div className="card-cyber">
+                <h3 className="text-xl font-display font-bold text-white mb-4 tracking-wide">文件列表接口</h3>
                 <CodeBlock
                   code={`{
   "name": "文件列表",
@@ -513,15 +516,15 @@ const Examples = () => {
           </div>
 
           {/* Example 6 */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <div className="mb-20">
+            <h2 className="text-3xl font-display font-bold text-white mb-6 tracking-wide">
               示例 6：错误处理和边界场景
             </h2>
-            <p className="text-gray-600 mb-6 text-lg">
+            <p className="text-cyber-muted mb-6 text-lg">
               各种错误状态和边界情况的 Mock 配置
             </p>
 
-            <div className="card">
+            <div className="card-cyber">
               <CodeBlock
                 code={`{
   "name": "综合接口",
@@ -598,28 +601,30 @@ const Examples = () => {
           </div>
 
           {/* Tips */}
-          <div className="card bg-gradient-to-br from-primary-50 to-primary-100 border-2 border-primary-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">💡 使用提示</h2>
-            <ul className="space-y-2 text-gray-700">
+          <div className="card-cyber border-cyber-cyan/30">
+            <h2 className="text-2xl font-display font-bold text-white mb-4 tracking-wide">
+              <span className="text-cyber-cyan">{'>'}</span> 使用提示
+            </h2>
+            <ul className="space-y-2 text-cyber-muted font-mono text-sm">
               <li className="flex items-start">
-                <span className="text-primary-600 mr-2">•</span>
+                <span className="text-cyber-cyan mr-3">{'>'}</span>
                 <span>复制这些示例到你的项目中，根据实际需求进行修改</span>
               </li>
               <li className="flex items-start">
-                <span className="text-primary-600 mr-2">•</span>
+                <span className="text-cyber-cyan mr-3">{'>'}</span>
                 <span>为每个接口配置多个响应场景，方便测试不同情况</span>
               </li>
               <li className="flex items-start">
-                <span className="text-primary-600 mr-2">•</span>
+                <span className="text-cyber-cyan mr-3">{'>'}</span>
                 <span>使用 Mock.js 语法生成随机数据，让测试更真实</span>
               </li>
               <li className="flex items-start">
-                <span className="text-primary-600 mr-2">•</span>
+                <span className="text-cyber-cyan mr-3">{'>'}</span>
                 <span>设置适当的响应延迟，模拟真实网络环境</span>
               </li>
               <li className="flex items-start">
-                <span className="text-primary-600 mr-2">•</span>
-                <span>查看<a href="/documentation" className="text-primary-600 hover:underline font-medium">完整文档</a>了解更多配置选项</span>
+                <span className="text-cyber-cyan mr-3">{'>'}</span>
+                <span>查看<a href="/documentation" className="text-cyber-cyan hover:text-cyber-cyan/80 underline">完整文档</a>了解更多配置选项</span>
               </li>
             </ul>
           </div>

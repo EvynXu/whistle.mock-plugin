@@ -22,6 +22,15 @@
  * @property {string} name - 响应名称
  * @property {string} description - 响应描述
  * @property {string} content - 响应内容，使用 Mock.js 语法
+ * @property {Array<ParamMatcher>} paramMatchers - 响应级入参匹配规则，运行时按顺序匹配，第一个满足所有规则的响应被返回；无规则的响应作为默认兜底
+ */
+
+/**
+ * 参数匹配规则数据模型
+ * @typedef {Object} ParamMatcher
+ * @property {string} paramPath - 参数路径，支持嵌套路径（如 data.user.id）
+ * @property {string} paramValue - 期望值
+ * @property {string} matchType - 匹配类型，可选值: 'exact'(精确匹配), 'contains'(包含), 'regex'(正则)
  */
 
 /**

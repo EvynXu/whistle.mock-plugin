@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ReactSortable } from 'react-sortablejs';
 import ReactDOM from 'react-dom';
-import { Card, Button, Space, Badge, Row, Col, Input, Select, Tooltip, message, AutoComplete } from 'antd';
+import { Card, Button, Space, Badge, Row, Col, Input, Select, Tooltip, message, Tag, Divider } from 'antd';
 import { 
   CodeOutlined, 
   EyeOutlined, 
@@ -13,12 +13,21 @@ import {
   EditOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
-  MenuOutlined
+  MenuOutlined,
+  FilterOutlined,
+  PlusOutlined,
+  QuestionCircleOutlined
 } from '@ant-design/icons';
 import { generateResponseId } from './utils';
 
 const { TextArea } = Input;
 const { Option } = Select;
+
+const MATCH_TYPE_LABELS = {
+  exact: '精确',
+  contains: '包含',
+  regex: '正则',
+};
 
 const ResponseContentEditor = ({ 
   form,
@@ -33,6 +42,20 @@ const ResponseContentEditor = ({
   const [isTextareaFullscreen, setIsTextareaFullscreen] = useState(false);
   const [showSorting, setShowSorting] = useState(false);
 
+  const [responseParamMatcherEnabled, setResponseParamMatcherEnabled] = useState(() => {
+    const v = localStorage.getItem('responseParamMatcherEnabled');
+    return v === null ? true : v !== 'false';
+  });
+
+  useEffect(() => {
+    const handleStorage = () => {
+      const v = localStorage.getItem('responseParamMatcherEnabled');
+      setResponseParamMatcherEnabled(v === null ? true : v !== 'false');
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   // 查找激活的响应
   const activeResponseIndex = responses.findIndex(r => r.id === activeResponseId);
   const activeResponse = activeResponseIndex >= 0 ? responses[activeResponseIndex] : null;
@@ -46,7 +69,6 @@ const ResponseContentEditor = ({
   }, [responses]);
 
   const handleAfterSort = (newList) => {
-    // 将排序后的列表写回表单 responses 字段；activeResponseId 不变
     setFieldsValue({ responses: newList });
   };
 
@@ -70,7 +92,6 @@ const ResponseContentEditor = ({
     const newResponseId = generateResponseId();
     let currentResponses = getFieldValue('responses') || [];
     
-    // 确保数组格式
     if (!Array.isArray(currentResponses)) {
       try {
         if (typeof currentResponses === 'string') {
@@ -89,12 +110,12 @@ const ResponseContentEditor = ({
       id: newResponseId,
       name: `响应 ${currentResponses.length + 1}`,
       description: '',
-      content: '{\n  "code": 0,\n  "message": "success",\n  "data": {}\n}'
+      content: '{\n  "code": 0,\n  "message": "success",\n  "data": {}\n}',
+      paramMatchers: []
     };
     
     const updatedResponses = [...currentResponses, newResponse];
     
-    // 更新表单字段
     setFieldsValue({ 
       responses: updatedResponses,
       activeResponseId: newResponseId
@@ -112,7 +133,6 @@ const ResponseContentEditor = ({
     
     const updatedResponses = currentResponses.filter(resp => resp.id !== responseId);
     
-    // 如果删除的是当前选中的响应，切换到第一个响应
     let newActiveId = activeResponseId;
     if (responseId === activeResponseId) {
       newActiveId = updatedResponses[0]?.id;
@@ -170,6 +190,44 @@ const ResponseContentEditor = ({
     }
   };
 
+  // 更新当前响应的 paramMatchers
+  const updateActiveResponseParamMatchers = (paramMatchers) => {
+    if (activeResponseIndex >= 0) {
+      const currentResponses = getFieldValue('responses') || [];
+      const newResponses = [...currentResponses];
+      newResponses[activeResponseIndex] = {
+        ...newResponses[activeResponseIndex],
+        paramMatchers
+      };
+      setFieldsValue({ responses: newResponses });
+    }
+  };
+
+  // 添加入参匹配规则
+  const handleAddParamMatcher = () => {
+    const currentMatchers = (activeResponse && activeResponse.paramMatchers) || [];
+    updateActiveResponseParamMatchers([
+      ...currentMatchers,
+      { paramPath: '', paramValue: '', matchType: 'exact' }
+    ]);
+  };
+
+  // 删除入参匹配规则
+  const handleRemoveParamMatcher = (index) => {
+    const currentMatchers = (activeResponse && activeResponse.paramMatchers) || [];
+    const newMatchers = currentMatchers.filter((_, i) => i !== index);
+    updateActiveResponseParamMatchers(newMatchers);
+  };
+
+  // 更新入参匹配规则某个字段
+  const handleParamMatcherChange = (index, field, value) => {
+    const currentMatchers = (activeResponse && activeResponse.paramMatchers) || [];
+    const newMatchers = currentMatchers.map((m, i) => 
+      i === index ? { ...m, [field]: value } : m
+    );
+    updateActiveResponseParamMatchers(newMatchers);
+  };
+
   // 格式化JSON内容
   const formatJsonContent = () => {
     if (!activeResponse || !activeResponse.content) {
@@ -216,7 +274,7 @@ const ResponseContentEditor = ({
             onClick={toggleTextareaFullscreen}
             size="small"
             type="text"
-            style={{ color: '#ffffff' }}
+            style={{ color: '#595959' }}
           >
             退出全屏 (ESC)
           </Button>
@@ -230,6 +288,81 @@ const ResponseContentEditor = ({
         />
       </div>,
       document.body
+    );
+  };
+
+  // 渲染响应级入参匹配规则区域
+  const renderParamMatchers = () => {
+    if (!activeResponse) return null;
+
+    const matchers = activeResponse.paramMatchers || [];
+
+    return (
+      <div style={{ marginBottom: '12px' }}>
+        <Divider orientation="left" orientationMargin={0} style={{ margin: '0 0 10px 0', fontSize: '12px' }}>
+          <Space size={6}>
+            <FilterOutlined style={{ color: '#1677ff' }} />
+            <span style={{ fontWeight: 'bold', color: '#333' }}>入参匹配规则</span>
+            {matchers.length > 0 && (
+              <Tag color="blue" style={{ fontSize: '11px', padding: '0 4px' }}>{matchers.length}条</Tag>
+            )}
+            <Tooltip title="满足所有规则时返回此响应；无规则的响应作为默认兜底。响应按列表顺序依次检查，第一个匹配的响应被返回。">
+              <QuestionCircleOutlined style={{ color: '#bbb', cursor: 'help', fontSize: '12px' }} />
+            </Tooltip>
+          </Space>
+        </Divider>
+        <div>
+          {matchers.map((matcher, index) => (
+            <div key={index} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+              <Input
+                style={{ flex: 1 }}
+                placeholder="参数路径（如：userId 或 data.user.id）"
+                value={matcher.paramPath || ''}
+                onChange={(e) => handleParamMatcherChange(index, 'paramPath', e.target.value)}
+                size="small"
+              />
+              <Input
+                style={{ flex: 1 }}
+                placeholder="期望值（如：123 或 admin）"
+                value={matcher.paramValue || ''}
+                onChange={(e) => handleParamMatcherChange(index, 'paramValue', e.target.value)}
+                size="small"
+              />
+              <Select
+                style={{ width: 90 }}
+                value={matcher.matchType || 'exact'}
+                onChange={(val) => handleParamMatcherChange(index, 'matchType', val)}
+                size="small"
+              >
+                <Option value="exact">精确匹配</Option>
+                <Option value="contains">包含</Option>
+                <Option value="regex">正则</Option>
+              </Select>
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                size="small"
+                onClick={() => handleRemoveParamMatcher(index)}
+              />
+            </div>
+          ))}
+          <Button
+            type="dashed"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={handleAddParamMatcher}
+            style={{ width: '100%' }}
+          >
+            添加匹配规则
+          </Button>
+          {matchers.length === 0 && (
+            <div style={{ color: '#bbb', fontSize: '12px', marginTop: '6px', textAlign: 'center' }}>
+              无规则时此响应作为默认兜底响应
+            </div>
+          )}
+        </div>
+      </div>
     );
   };
 
@@ -249,11 +382,10 @@ const ResponseContentEditor = ({
         <div style={{ 
           textAlign: 'center', 
           padding: '40px 20px',
-          background: '#fafafa',
           borderRadius: '6px',
           border: '1px dashed #d9d9d9'
         }}>
-          <FileTextOutlined style={{ fontSize: '32px', color: '#d9d9d9', marginBottom: '12px' }} />
+          <FileTextOutlined style={{ fontSize: '32px', color: '#bfbfbf', marginBottom: '12px' }} />
           <div style={{ color: '#999', marginBottom: '16px' }}>暂无响应数据</div>
           <Button 
             type="primary" 
@@ -275,7 +407,7 @@ const ResponseContentEditor = ({
           <span>响应内容编辑</span>
           <Badge 
             count={responses.length} 
-            style={{ backgroundColor: '#52c41a' }} 
+            style={{ backgroundColor: '#00ff41' }} 
           />
         </div>
       }
@@ -300,9 +432,7 @@ const ResponseContentEditor = ({
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
-              gap: '4px',
-              borderColor: '#1890ff',
-              color: '#1890ff'
+              gap: '4px'
             }}
           >
             添加响应
@@ -316,8 +446,8 @@ const ResponseContentEditor = ({
               display: 'flex', 
               alignItems: 'center', 
               gap: '4px',
-              borderColor: '#52c41a',
-              color: '#52c41a'
+              borderColor: '#00ff41',
+              color: '#00ff41'
             }}
           >
             预览
@@ -383,7 +513,6 @@ const ResponseContentEditor = ({
             
             <div style={{ position: 'relative' }}>
               {isEditing ? (
-                // 编辑模式：显示输入框
                 <Input.Group compact>
                   <Input
                     style={{ width: 'calc(100% - 80px)' }}
@@ -407,41 +536,16 @@ const ResponseContentEditor = ({
                   />
                 </Input.Group>
               ) : (
-                // 选择模式：显示下拉选择器
                 <Input.Group compact>
                   <Select
                     style={{ width: 'calc(100% - 40px)' }}
                     placeholder="选择要编辑的响应"
                     value={activeResponseId}
                     onChange={handleResponseSelect}
-                    optionLabelProp="label"
                   >
                     {responses.map((resp, index) => (
-                      <Option 
-                        key={resp.id} 
-                        value={resp.id}
-                        label={
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                            <span>{resp.name || `响应 ${index + 1}`}</span>
-                          </div>
-                        }
-                      >
-                        <div style={{ padding: '4px 0' }}>
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'space-between',
-                            marginBottom: '4px'
-                          }}>
-                            <span style={{ fontWeight: 'bold' }}>
-                              {resp.name || `响应 ${index + 1}`}
-                            </span>
-                            {resp.id === activeResponseId && (
-                              <Badge status="processing" text="当前选中" />
-                            )}
-                          </div>
-                        </div>
+                      <Option key={resp.id} value={resp.id}>
+                        {resp.name || `响应 ${index + 1}`}
                       </Option>
                     ))}
                   </Select>
@@ -483,6 +587,9 @@ const ResponseContentEditor = ({
           </Col>
         </Row>
       </div>
+
+      {/* 响应级入参匹配规则区域 */}
+      {activeResponse && responseParamMatcherEnabled && renderParamMatchers()}
 
       {/* 响应内容编辑区域 */}
       {activeResponse && (
@@ -535,4 +642,4 @@ const ResponseContentEditor = ({
   );
 };
 
-export default ResponseContentEditor; 
+export default ResponseContentEditor;
