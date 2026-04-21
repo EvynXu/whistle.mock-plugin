@@ -529,6 +529,31 @@ const ruleManager = {
     if (this.dataManager && typeof this.dataManager.logRequest === 'function') {
       const parsedUrl = url.parse(req.url);
       try {
+        // 获取功能模块名称
+        let featureName = '';
+        if (interfaceObj.featureId) {
+          try {
+            const features = await this.dataManager.getFeatures();
+            const feature = features.find(f => f.id === interfaceObj.featureId);
+            if (feature && feature.name) {
+              featureName = feature.name;
+            }
+          } catch (err) {
+            this.log(`[规则处理器] 获取功能模块信息失败: ${err.message}`);
+          }
+        }
+        
+        // 获取实际命中的响应名称
+        let responseName = '';
+        if (result && result.mockInfo && result.mockInfo.responseName) {
+          responseName = result.mockInfo.responseName;
+        } else {
+          const headerResponse = res.getHeader('X-Whistle-Mock-Response');
+          if (headerResponse) {
+            responseName = headerResponse;
+          }
+        }
+        
         this.dataManager.logRequest({
           type: 'mock_hit',
           eventType: 'mock_hit',
@@ -541,6 +566,8 @@ const ruleManager = {
           proxyType: proxyType,
           interfaceName: interfaceObj.name,
           interfaceId: interfaceObj.id,
+          featureName: featureName,
+          responseName: responseName,
           responseData: result,
           responseTime: new Date().toISOString(),
           contentType: res.getHeader('Content-Type') || config.contentType

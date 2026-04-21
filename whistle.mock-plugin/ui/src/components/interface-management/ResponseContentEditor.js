@@ -407,7 +407,7 @@ const ResponseContentEditor = ({
           <span>响应内容编辑</span>
           <Badge 
             count={responses.length} 
-            style={{ backgroundColor: '#00ff41' }} 
+            style={{ backgroundColor: '#52c41a' }} 
           />
         </div>
       }
@@ -446,8 +446,8 @@ const ResponseContentEditor = ({
               display: 'flex', 
               alignItems: 'center', 
               gap: '4px',
-              borderColor: '#00ff41',
-              color: '#00ff41'
+              borderColor: '#52c41a',
+              color: '#52c41a'
             }}
           >
             预览

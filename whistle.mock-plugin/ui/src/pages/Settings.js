@@ -78,11 +78,7 @@ const Settings = () => {
     setCyberThemeEnabled(checked);
     localStorage.setItem('cyberTheme', String(checked));
     window.dispatchEvent(new Event('storage'));
-    message.success(checked ? '赛博朋克主题已开启，刷新页面后生效' : '经典主题已开启，刷新页面后生效');
-    // 1.5秒后自动刷新
-    setTimeout(() => {
-      window.location.reload();
-    }, 1500);
+    message.success(checked ? '赛博朋克主题已开启' : '经典主题已开启');
   };
 
   const showMatcherRuleModal = (type) => {

@@ -32,7 +32,17 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '100mb'}));
 app.use(bodyParser.json({ limit: '100mb' }));
 
 // 处理CGI请求
-app.all('/cgi-bin/*', function(req, res) {
+app.all('/cgi-bin/*', async function(req, res) {
+  // CORS 预检处理
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.status(204).end();
+    return;
+  }
+
   if (req.headers.origin) {
     res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -63,10 +73,16 @@ app.all('/cgi-bin/*', function(req, res) {
   }
 
   try {
-    // 提供数据目录给CGI处理程序
-    controller.call({ dataDir: DATA_DIR }, req, res);
+    // 提供数据目录给CGI处理程序（支持 async controller）
+    const result = controller.call({ dataDir: DATA_DIR }, req, res);
+    if (result && typeof result.then === 'function') {
+      await result;
+    }
   } catch(e) {
-    res.status(500).end(e.stack);
+    console.error('[ui-server] CGI 执行错误:', e.message || e);
+    if (!res.headersSent) {
+      res.status(500).json({ code: 500, message: e.message || 'Internal Server Error' });
+    }
   }
 });
 

@@ -252,7 +252,7 @@ const InterfaceTestModal = ({
                                     <span>
                                       <span style={{ color: '#d9d9d9' }}>{value}</span>
                                       {' '} → {' '}
-                                      <span style={{ color: '#00ff41', fontWeight: 'bold' }}>{generatedValue}</span>
+                                      <span style={{ color: '#52c41a', fontWeight: 'bold' }}>{generatedValue}</span>
                                       <span style={{ color: '#8c8c8c', fontSize: '12px' }}> (随机生成)</span>
                                     </span>
                                   ) : generatedValue}

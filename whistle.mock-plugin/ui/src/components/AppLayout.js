@@ -7,10 +7,14 @@ import {
   FileTextOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  ExperimentOutlined
+  ExperimentOutlined,
+  BarChartOutlined,
+  ThunderboltOutlined
 } from '@ant-design/icons';
 import { Link, useLocation } from 'react-router-dom';
 import VersionModal from './VersionModal';
+import KeyboardShortcutsHelp from './KeyboardShortcutsHelp';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import '../styles/app-layout.css';
 
 const { Header, Content, Sider } = Layout;
@@ -20,6 +24,17 @@ const AppLayout = ({ children }) => {
   const currentPath = location.pathname;
   const [collapsed, setCollapsed] = useState(false);
   const [versionModalVisible, setVersionModalVisible] = useState(false);
+  const [shortcutsHelpVisible, setShortcutsHelpVisible] = useState(false);
+  
+  // 注册全局键盘快捷键
+  useKeyboardShortcuts();
+  
+  // 监听快捷键帮助事件
+  useEffect(() => {
+    const handleHelp = () => setShortcutsHelpVisible(true);
+    window.addEventListener('keyboard-shortcuts-help', handleHelp);
+    return () => window.removeEventListener('keyboard-shortcuts-help', handleHelp);
+  }, []);
   
   // 赛博朋克主题开关
   const [enableCyber, setEnableCyber] = useState(() => {
@@ -84,6 +99,8 @@ const AppLayout = ({ children }) => {
   const getSelectedKeys = () => {
     if (currentPath === '/' || currentPath === '#/') return ['1'];
     if (currentPath.startsWith('/interface') || currentPath.includes('/interface')) return ['2'];
+    if (currentPath === '/stats' || currentPath.includes('/stats')) return ['4'];
+    if (currentPath === '/sniffer' || currentPath.includes('/sniffer')) return ['5'];
     if (currentPath === '/settings' || currentPath.includes('/settings')) return ['3'];
     return [];
   };
@@ -101,6 +118,10 @@ const AppLayout = ({ children }) => {
       if (currentPath.includes('/interface/') && currentPath !== '/interface/') {
         breadcrumbs.push({ path: currentPath, title: '功能接口详情' });
       }
+    } else if (currentPath === '/stats') {
+      breadcrumbs.push({ path: '/stats', title: '请求统计' });
+    } else if (currentPath === '/sniffer') {
+      breadcrumbs.push({ path: '/sniffer', title: '接口嗅探' });
     } else if (currentPath === '/settings') {
       breadcrumbs.push({ path: '/settings', title: '系统设置' });
     }
@@ -112,6 +133,8 @@ const AppLayout = ({ children }) => {
   const getPageTitle = () => {
     if (currentPath === '/' || currentPath === '#/') return '功能模块管理';
     if (currentPath.startsWith('/interface')) return '接口配置管理';
+    if (currentPath === '/stats') return '请求统计';
+    if (currentPath === '/sniffer') return '接口嗅探';
     if (currentPath === '/settings') return '系统设置';
     return 'Whistle Mock Plugin';
   };
@@ -127,6 +150,16 @@ const AppLayout = ({ children }) => {
       key: '2',
       icon: <ApiOutlined />,
       label: <Link to="/interface">接口管理</Link>,
+    },
+    {
+      key: '4',
+      icon: <BarChartOutlined />,
+      label: <Link to="/stats">请求统计</Link>,
+    },
+    {
+      key: '5',
+      icon: <ThunderboltOutlined />,
+      label: <Link to="/sniffer">接口嗅探</Link>,
     },
     {
       key: '3',
@@ -256,6 +289,12 @@ const AppLayout = ({ children }) => {
         <VersionModal 
           visible={versionModalVisible}
           onCancel={hideVersionModal}
+        />
+        
+        {/* 快捷键帮助弹窗 */}
+        <KeyboardShortcutsHelp
+          visible={shortcutsHelpVisible}
+          onClose={() => setShortcutsHelpVisible(false)}
         />
       </Layout>
     </ConfigProvider>

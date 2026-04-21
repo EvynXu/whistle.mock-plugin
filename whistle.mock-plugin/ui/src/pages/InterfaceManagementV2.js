@@ -2,7 +2,7 @@
  * InterfaceManagementV2.js - 接口管理页面
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useHistory } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import { 
@@ -87,6 +87,7 @@ const InterfaceManagement = () => {
   const [currentResponseId, setCurrentResponseId] = useState(null);
   
   // 搜索状态
+  const searchRef = useRef(null);
   const [searchValue, setSearchValue] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -135,6 +136,29 @@ const InterfaceManagement = () => {
       fetchInterfaces();
     }
   }, [selectedFeatureId]);
+
+  // 键盘快捷键监听
+  useEffect(() => {
+    const handleSave = () => {
+      if (modalVisible) {
+        handleSubmit();
+      }
+    };
+    const handleNew = () => {
+      handleAddInterface();
+    };
+    const handleFocusSearch = () => {
+      searchRef.current?.focus();
+    };
+    window.addEventListener('shortcut-save', handleSave);
+    window.addEventListener('shortcut-new-interface', handleNew);
+    window.addEventListener('shortcut-focus-search', handleFocusSearch);
+    return () => {
+      window.removeEventListener('shortcut-save', handleSave);
+      window.removeEventListener('shortcut-new-interface', handleNew);
+      window.removeEventListener('shortcut-focus-search', handleFocusSearch);
+    };
+  }, [modalVisible]);
 
   // 监听数据管理显示模式变化
   useEffect(() => {
@@ -1006,7 +1030,7 @@ const InterfaceManagement = () => {
                 <div key={key}>
                   {key}: {value}
                   {value && value.startsWith('@') && (
-                    <span style={{ color: '#00ff41' }}> (随机)</span>
+                    <span style={{ color: '#52c41a' }}> (随机)</span>
                   )}
                 </div>
               ))}
@@ -1058,7 +1082,7 @@ const InterfaceManagement = () => {
                 {interfaceMatchers.filter(m => m.paramPath).map((m, i) => (
                   <div key={i} style={{ fontSize: '12px' }}>
                     {m.paramPath}: {m.paramValue}
-                    <span style={{ color: '#00ff41', marginLeft: 4 }}>
+                    <span style={{ color: '#52c41a', marginLeft: 4 }}>
                       ({m.matchType === 'exact' ? '精确' : m.matchType === 'contains' ? '包含' : '正则'})
                     </span>
                   </div>
@@ -1074,7 +1098,7 @@ const InterfaceManagement = () => {
                     {resp.paramMatchers.filter(m => m.paramPath).map((m, mi) => (
                       <div key={mi} style={{ fontSize: '12px', paddingLeft: 8 }}>
                         {m.paramPath}: {m.paramValue}
-                        <span style={{ color: '#00ff41', marginLeft: 4 }}>
+                        <span style={{ color: '#52c41a', marginLeft: 4 }}>
                           ({m.matchType === 'exact' ? '精确' : m.matchType === 'contains' ? '包含' : '正则'})
                         </span>
                       </div>
@@ -1231,6 +1255,7 @@ const InterfaceManagement = () => {
               </div>
               
               <Search
+                ref={searchRef}
                 placeholder="搜索接口名称或URL"
                 onSearch={handleSearch}
                 value={searchValue}
@@ -1312,7 +1337,7 @@ const InterfaceManagement = () => {
                   ) : (
                     <Badge 
                       count={`共 ${filteredInterfaces.length} 个接口`} 
-                      style={{ backgroundColor: '#00ff41' }} 
+                      style={{ backgroundColor: '#52c41a' }} 
                     />
                   )}
                 </span>

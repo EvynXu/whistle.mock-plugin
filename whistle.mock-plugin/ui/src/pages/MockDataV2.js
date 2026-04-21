@@ -3,6 +3,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useRef } from 'react';
 import { useHistory } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import { Card, Row, Col, Button, Modal, Form, Input, message, Switch, Empty, Spin, Typography, Tooltip, Badge, Select, Pagination, Table, Space, Tag } from 'antd';
@@ -56,6 +57,24 @@ const MockData = () => {
   useEffect(() => {
     fetchFeatures();
   }, []);
+
+  // 键盘快捷键监听
+  useEffect(() => {
+    const handleSave = () => {
+      if (showModal) {
+        handleSubmit();
+      }
+    };
+    const handleNew = () => {
+      openModal();
+    };
+    window.addEventListener('shortcut-save', handleSave);
+    window.addEventListener('shortcut-new-interface', handleNew);
+    return () => {
+      window.removeEventListener('shortcut-save', handleSave);
+      window.removeEventListener('shortcut-new-interface', handleNew);
+    };
+  }, [showModal]);
 
   // 获取所有功能模块
   const fetchFeatures = async () => {
@@ -454,7 +473,7 @@ const MockData = () => {
       <Col xs={24} sm={12} md={8} lg={6} key={feature.id} style={{ marginBottom: 16 }}>
         <Badge.Ribbon 
           text={feature.active ? '已启用' : '已禁用'} 
-          color={feature.active ? '#00ff41' : '#f5222d'}
+          color={feature.active ? '#52c41a' : '#f5222d'}
           style={{ display: 'block' }}
         >
           <Card
@@ -661,17 +680,6 @@ const MockData = () => {
           <div className="title-section">
             <div className="title-with-badge">
               <h1 className="page-title">功能模块管理</h1>
-              <Badge 
-                count="V2" 
-                style={{ 
-                  backgroundColor: '#00ff41',
-                  fontSize: '12px',
-                  height: '20px',
-                  lineHeight: '20px',
-                  borderRadius: '10px',
-                  marginLeft: '12px'
-                }} 
-              />
             </div>
             <div className="page-description">
               创建和管理功能模块，为每个功能配置独立的接口
@@ -689,7 +697,7 @@ const MockData = () => {
               type="primary" 
               icon={<ExportOutlined />}
               onClick={importFeatureConfig}
-              style={{ backgroundColor: '#00ff41', borderColor: '#00ff41' }}
+              style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
             >
               导入功能
             </Button>

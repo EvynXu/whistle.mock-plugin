@@ -14,6 +14,8 @@ require('./styles/cyber-theme.css');
 import MockData from './pages/MockDataV2';
 import InterfaceManagement from './pages/InterfaceManagementV2';
 import Settings from './pages/Settings';
+import Stats from './pages/Stats';
+import Sniffer from './pages/Sniffer';
 
 const App = () => {
   return (
@@ -23,6 +25,8 @@ const App = () => {
           <Route exact path="/" component={MockData} />
           <Route exact path="/interface" component={InterfaceManagement} />
           <Route path="/interface/:featureId" component={InterfaceManagement} />
+          <Route path="/stats" component={Stats} />
+          <Route path="/sniffer" component={Sniffer} />
           <Route path="/settings" component={Settings} />
           <Redirect to="/" />
         </Switch>

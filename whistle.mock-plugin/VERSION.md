@@ -1,5 +1,41 @@
 # 🔄 版本更新记录
 
+## v1.2.2-beta.28
+
+### ✨ Feature
+- **请求统计-最近命中记录增强**：增加"模块"列展示命中接口所属功能模块；去掉冗余的"响应"列
+- **Top 10 功能模块命中**：原"Top 10 未命中 URL"（实际无数据）改为"Top 10 功能模块命中排行"，按模块聚合命中次数
+- **最近命中记录筛选**：去掉分页，固定展示 20 条；新增日期选择器和 URL 关键字输入框，支持按日期精确筛选和 URL 模糊匹配
+
+### 🎨 UI
+- **亮色主题颜色优化**：将组件中硬编码的刺眼霓虹绿 `#00ff41` 替换为标准柔和绿 `#52c41a`，在亮色主题下视觉更舒适（赛博朋克主题仍通过 CSS 覆盖保持霓虹效果）
+- **去掉 V2 标签**：功能模块管理页面右上角 "V2" 标签移除
+
+### 🔧 Technical
+- **后端日志字段扩展**：`ruleManager.js` 记录 `mock_hit` 日志时新增 `featureName`（功能模块名称）和 `responseName`（命中响应名称）字段
+- **stats API 增强**：`cgi-bin/stats?type=recent` 支持 `date`（YYYY-MM-DD）和 `url`（模糊匹配）查询参数过滤
+
+## v1.2.2-beta.26
+
+### ✨ Feature
+- **主题切换免刷新**：关闭 Settings 中的强制刷新逻辑，主题切换通过 `storage` 事件 + `body.cyber-theme` class 动态切换即时生效
+- **请求统计面板**：新增「请求统计」页面（Ctrl+4），展示近7天命中趋势、Top 10 命中接口、Top 10 未命中 URL、最近命中记录
+- **从真实接口导入**：接口编辑表单新增「从真实接口导入」区域，输入真实 API URL 后一键抓取响应，自动生成 Mock.js 模板并应用到当前响应
+- **全局键盘快捷键**：
+  - `Ctrl+1/2/3/4` — 快速切换功能模块/接口管理/系统设置/请求统计
+  - `Ctrl+S` — 保存当前表单（Modal/Drawer 打开时）
+  - `Ctrl+Shift+N` — 新建接口/功能模块
+  - `Ctrl+K` — 聚焦搜索框
+  - `Shift+?` — 显示快捷键帮助
+
+### 🔧 Technical
+- **新增 `app/cgi-bin/stats.js`**：后端统计 API，支持 overview/top/timeline/recent 四种查询维度
+- **新增 `app/cgi-bin/proxy-fetch.js`**：后端代理抓取真实接口响应
+- **新增 `ui/src/pages/Stats.js`**：请求统计前端页面
+- **新增 `ui/src/hooks/useKeyboardShortcuts.js`**：全局键盘快捷键 Hook
+- **新增 `ui/src/components/KeyboardShortcutsHelp.js`**：快捷键帮助弹窗
+- **新增 `ui/src/components/interface-management/RealResponseRecorder.js`**：真实响应抓取与 Mock 模板生成组件
+
 ## v1.2.2-beta.25
 
 ### 🐛 Fix
