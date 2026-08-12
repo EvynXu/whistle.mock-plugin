@@ -1,46 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Spin, Alert } from 'antd';
+import ReactMarkdown from 'react-markdown';
 import '../styles/version-modal.css';
-
-/**
- * 简单的Markdown渲染器组件
- * @param {Object} props - 组件属性
- * @param {string} props.children - 要渲染的Markdown文本
- */
-const SimpleMarkdownRenderer = ({ children }) => {
-  const renderMarkdown = (text) => {
-    return text
-      .split('\n')
-      .map((line, index) => {
-        // 处理标题
-        if (line.startsWith('# ')) {
-          return <h1 key={index}>{line.substring(2)}</h1>;
-        } 
-        if (line.startsWith('## ')) {
-          return <h2 key={index}>{line.substring(3)}</h2>;
-        }
-        if (line.startsWith('### ')) {
-          return <h3 key={index}>{line.substring(4)}</h3>;
-        }
-        
-        // 处理列表项
-        if (line.startsWith('- ')) {
-          return <li key={index}>{line.substring(2)}</li>;
-        }
-        
-        // 处理空行
-        if (line.trim() === '') {
-          return <br key={index} />;
-        }
-        
-        // 处理加粗文本
-        const boldText = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        return <p key={index} dangerouslySetInnerHTML={{ __html: boldText }} />;
-      });
-  };
-
-  return <div className="simple-markdown">{renderMarkdown(children)}</div>;
-};
 
 /**
  * 获取版本信息的请求函数
@@ -125,7 +86,9 @@ const VersionModal = ({ visible, onCancel }) => {
         
         {!loading && !error && versionContent && (
           <div className="version-markdown-content">
-            <SimpleMarkdownRenderer>{versionContent}</SimpleMarkdownRenderer>
+            <ReactMarkdown>
+              {versionContent.replace(/^#\s*🔄?\s*版本更新记录\s*\n+/, '')}
+            </ReactMarkdown>
           </div>
         )}
       </div>

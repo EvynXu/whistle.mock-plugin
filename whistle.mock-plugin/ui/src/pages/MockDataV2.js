@@ -6,8 +6,8 @@ import React, { useState, useEffect } from 'react';
 import { useRef } from 'react';
 import { useHistory } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
-import { Card, Row, Col, Button, Modal, Form, Input, message, Switch, Empty, Spin, Typography, Tooltip, Badge, Select, Pagination, Table, Space, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined, ExportOutlined, InfoCircleOutlined, CalendarOutlined, SortAscendingOutlined, AppstoreOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Button, Modal, Form, Input, message, Switch, Empty, Spin, Typography, Tooltip, Badge, Select, Pagination, Table, Space, Tag, Checkbox } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined, ExportOutlined, ImportOutlined, InfoCircleOutlined, CalendarOutlined, SortAscendingOutlined, AppstoreOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import '../styles/mock-data.css';
 import axios from 'axios';
 
@@ -30,6 +30,11 @@ const MockData = () => {
   const [mockFeatures, setMockFeatures] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [currentFeature, setCurrentFeature] = useState(null);
+
+  // 导出功能弹窗状态
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedExportIds, setSelectedExportIds] = useState([]);
+  const [exporting, setExporting] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [form] = Form.useForm();
@@ -273,6 +278,65 @@ const MockData = () => {
     }
   };
 
+  // 打开导出弹窗（默认全选）
+  const openExportModal = () => {
+    if (mockFeatures.length === 0) {
+      message.warning('暂无可导出的功能模块');
+      return;
+    }
+    setSelectedExportIds(mockFeatures.map(f => f.id));
+    setShowExportModal(true);
+  };
+
+  // 导出选中的功能模块
+  const handleExportSelected = async () => {
+    if (selectedExportIds.length === 0) {
+      message.warning('请至少选择一个功能模块');
+      return;
+    }
+
+    try {
+      setExporting(true);
+
+      const selectedFeatures = mockFeatures.filter(f => selectedExportIds.includes(f.id));
+      const configs = [];
+
+      // 逐个拉取接口配置，组装成与单功能导出一致的结构
+      for (const feature of selectedFeatures) {
+        const response = await fetch(`/cgi-bin/interfaces?featureId=${feature.id}`);
+        const result = await response.json();
+        configs.push({
+          ...feature,
+          interfaces: result.code === 0 ? result.data : []
+        });
+      }
+
+      // 只选一个时导出单个对象，兼容旧版单功能导入；多个时导出数组
+      const exportData = configs.length === 1 ? configs[0] : configs;
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      const exportFileName = configs.length === 1
+        ? `whistle-mock-feature-${configs[0].id}.json`
+        : `whistle-mock-features-${configs.length}.json`;
+
+      const linkElement = document.createElement('a');
+      linkElement.href = url;
+      linkElement.download = exportFileName;
+      linkElement.click();
+      URL.revokeObjectURL(url);
+
+      message.success(`成功导出 ${configs.length} 个功能模块`);
+      setShowExportModal(false);
+    } catch (error) {
+      console.error('导出配置错误:', error);
+      message.error('导出失败: ' + error.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const importFeatureConfig = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -285,80 +349,94 @@ const MockData = () => {
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
-          const config = JSON.parse(event.target.result);
-          
-          // 验证导入的配置
-          if (!config.name) {
+          const parsed = JSON.parse(event.target.result);
+          // 兼容单个功能（对象）与多个功能（数组）两种导出格式
+          const configs = Array.isArray(parsed) ? parsed : [parsed];
+
+          // 过滤掉缺少名称的无效配置
+          const validConfigs = configs.filter(config => config && config.name);
+          if (validConfigs.length === 0) {
             message.error('无效的配置文件: 缺少功能名称');
             return;
           }
-          
-          // 创建新功能
-          const featureData = {
-            name: config.name,
-            description: config.description || '',
-            active: config.active !== false
-          };
-          
-          // 保存功能
-          const featureResponse = await fetch('/cgi-bin/features', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(featureData)
-          });
-          
-          const featureResult = await featureResponse.json();
-          
-          if (featureResult.code === 0) {
-            const newFeature = featureResult.data;
-            
-            // 导入接口配置
-            if (Array.isArray(config.interfaces) && config.interfaces.length > 0) {
-              message.loading({ content: '正在导入接口配置...', key: 'importInfo' });
-              
-              let successCount = 0;
-              let errorCount = 0;
-              
-              for (const interfaceItem of config.interfaces) {
-                try {
-                  // 创建接口，使用新功能ID
-                  const interfaceData = {
-                    ...interfaceItem,
-                    featureId: newFeature.id,
-                    id: undefined // 不使用原接口ID
-                  };
-                  
-                  await fetch('/cgi-bin/interfaces', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(interfaceData)
-                  });
-                  
-                  successCount++;
-                } catch (error) {
-                  console.error('导入接口配置失败:', error);
-                  errorCount++;
+
+          message.loading({ content: '正在导入功能配置...', key: 'importInfo' });
+
+          let featureSuccess = 0;
+          let featureError = 0;
+          let interfaceSuccess = 0;
+          let interfaceError = 0;
+
+          for (const config of validConfigs) {
+            try {
+              // 创建新功能
+              const featureData = {
+                name: config.name,
+                description: config.description || '',
+                active: config.active !== false
+              };
+
+              const featureResponse = await fetch('/cgi-bin/features', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(featureData)
+              });
+
+              const featureResult = await featureResponse.json();
+
+              if (featureResult.code === 0) {
+                featureSuccess++;
+                const newFeature = featureResult.data;
+
+                // 导入接口配置
+                if (Array.isArray(config.interfaces) && config.interfaces.length > 0) {
+                  for (const interfaceItem of config.interfaces) {
+                    try {
+                      // 创建接口，使用新功能ID
+                      const interfaceData = {
+                        ...interfaceItem,
+                        featureId: newFeature.id,
+                        id: undefined // 不使用原接口ID
+                      };
+
+                      await fetch('/cgi-bin/interfaces', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(interfaceData)
+                      });
+
+                      interfaceSuccess++;
+                    } catch (error) {
+                      console.error('导入接口配置失败:', error);
+                      interfaceError++;
+                    }
+                  }
                 }
-              }
-              
-              if (errorCount > 0) {
-                message.info({ content: `导入完成，成功 ${successCount} 个接口，失败 ${errorCount} 个接口`, key: 'importInfo', duration: 3 });
               } else {
-                message.success({ content: `成功导入 ${successCount} 个接口`, key: 'importInfo', duration: 2 });
+                featureError++;
+                console.error('导入功能失败:', featureResult.message);
               }
-            } else {
-              message.success('功能导入成功（无接口配置）');
+            } catch (error) {
+              featureError++;
+              console.error('导入功能错误:', error);
             }
-            
-            // 刷新功能列表
-            fetchFeatures();
-          } else {
-            message.error('导入功能失败: ' + featureResult.message);
           }
+
+          const interfaceSummary = interfaceSuccess > 0 || interfaceError > 0
+            ? `，共导入 ${interfaceSuccess} 个接口${interfaceError > 0 ? `（${interfaceError} 个失败）` : ''}`
+            : '';
+          message.success({
+            content: `导入完成：成功 ${featureSuccess} 个功能${featureError > 0 ? `，失败 ${featureError} 个功能` : ''}${interfaceSummary}`,
+            key: 'importInfo',
+            duration: 3
+          });
+
+          // 刷新功能列表
+          fetchFeatures();
         } catch (error) {
           console.error('导入配置错误:', error);
           message.error('导入失败: ' + error.message);
@@ -693,13 +771,22 @@ const MockData = () => {
             >
               新建功能
             </Button>
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               icon={<ExportOutlined />}
               onClick={importFeatureConfig}
               style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
             >
               导入功能
+            </Button>
+            <Button
+              type="primary"
+              icon={<ImportOutlined />}
+              onClick={openExportModal}
+              disabled={mockFeatures.length === 0}
+              style={mockFeatures.length === 0 ? undefined : { backgroundColor: '#fa8c16', borderColor: '#fa8c16' }}
+            >
+              导出功能
             </Button>
           </div>
         </div>
@@ -917,6 +1004,83 @@ const MockData = () => {
             </Button>
           </div>
         </Form>
+      </Modal>
+
+      {/* 导出功能弹窗 */}
+      <Modal
+        title="导出功能"
+        open={showExportModal}
+        onCancel={() => setShowExportModal(false)}
+        footer={null}
+        destroyOnClose
+        width={520}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12
+          }}
+        >
+          <Checkbox
+            indeterminate={selectedExportIds.length > 0 && selectedExportIds.length < mockFeatures.length}
+            checked={mockFeatures.length > 0 && selectedExportIds.length === mockFeatures.length}
+            onChange={(e) => setSelectedExportIds(e.target.checked ? mockFeatures.map(f => f.id) : [])}
+          >
+            全选
+          </Checkbox>
+          <Text type="secondary">
+            已选择 {selectedExportIds.length} / {mockFeatures.length}
+          </Text>
+        </div>
+
+        <div
+          style={{
+            maxHeight: 360,
+            overflowY: 'auto',
+            border: '1px solid #f0f0f0',
+            borderRadius: 8,
+            padding: '4px 12px'
+          }}
+        >
+          <Checkbox.Group
+            value={selectedExportIds}
+            onChange={(values) => setSelectedExportIds(values)}
+            style={{ width: '100%' }}
+          >
+            {mockFeatures.map(feature => (
+              <div
+                key={feature.id}
+                style={{
+                  padding: '8px 0',
+                  borderBottom: '1px solid #fafafa'
+                }}
+              >
+                <Checkbox value={feature.id} style={{ width: '100%' }}>
+                  <span style={{ fontWeight: 500 }}>{feature.name}</span>
+                  <span style={{ color: '#999', marginLeft: 8, fontSize: 12 }}>
+                    {feature.interfaceCount || 0} 个接口
+                  </span>
+                </Checkbox>
+              </div>
+            ))}
+          </Checkbox.Group>
+        </div>
+
+        <div className="form-actions" style={{ marginTop: 16 }}>
+          <Button onClick={() => setShowExportModal(false)}>
+            取消
+          </Button>
+          <Button
+            type="primary"
+            loading={exporting}
+            disabled={selectedExportIds.length === 0}
+            onClick={handleExportSelected}
+          >
+            导出 ({selectedExportIds.length})
+          </Button>
+        </div>
       </Modal>
     </AppLayout>
   );

@@ -10,6 +10,9 @@ import './App.css';
 // 赛博朋克主题 CSS（规则均带 body.cyber-theme 前缀，默认不生效）
 require('./styles/cyber-theme.css');
 
+// 大地色系主题 CSS（规则均带 body.earth-theme 前缀，默认不生效）
+require('./styles/earth-theme.css');
+
 // 导入页面组件
 import MockData from './pages/MockDataV2';
 import InterfaceManagement from './pages/InterfaceManagementV2';

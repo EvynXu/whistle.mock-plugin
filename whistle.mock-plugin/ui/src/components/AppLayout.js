@@ -19,6 +19,8 @@ import '../styles/app-layout.css';
 
 const { Header, Content, Sider } = Layout;
 
+const THEMES = ['light', 'cyber', 'earth'];
+
 const AppLayout = ({ children }) => {
   const location = useLocation();
   const currentPath = location.pathname;
@@ -36,18 +38,31 @@ const AppLayout = ({ children }) => {
     return () => window.removeEventListener('keyboard-shortcuts-help', handleHelp);
   }, []);
   
-  // 赛博朋克主题开关
-  const [enableCyber, setEnableCyber] = useState(() => {
-    return localStorage.getItem('cyberTheme') !== 'false';
+  // 主题切换（兼容旧版 cyberTheme 存储）
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved && THEMES.includes(saved)) return saved;
+    // 兼容旧版 boolean 存储
+    const oldCyber = localStorage.getItem('cyberTheme');
+    return oldCyber === 'false' ? 'light' : oldCyber === 'true' ? 'cyber' : 'light';
   });
 
   useEffect(() => {
-    document.body.classList.toggle('cyber-theme', enableCyber);
-  }, [enableCyber]);
+    document.body.classList.remove('cyber-theme', 'earth-theme');
+    if (currentTheme !== 'light') {
+      document.body.classList.add(`${currentTheme}-theme`);
+    }
+  }, [currentTheme]);
 
   useEffect(() => {
     const handleStorage = () => {
-      setEnableCyber(localStorage.getItem('cyberTheme') !== 'false');
+      const saved = localStorage.getItem('theme');
+      if (saved && THEMES.includes(saved)) {
+        setCurrentTheme(saved);
+      } else {
+        const oldCyber = localStorage.getItem('cyberTheme');
+        setCurrentTheme(oldCyber === 'false' ? 'light' : 'cyber');
+      }
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
@@ -82,6 +97,35 @@ const AppLayout = ({ children }) => {
     algorithm: theme.darkAlgorithm,
   }), []);
 
+  const earthTheme = useMemo(() => ({
+    token: {
+      colorPrimary: '#b87333',
+      colorPrimaryHover: '#c9894d',
+      colorPrimaryActive: '#9a5f2a',
+      colorSuccess: '#6b8e23',
+      colorWarning: '#d4a017',
+      colorError: '#c0392b',
+      colorInfo: '#8d6e63',
+      colorText: '#3d3630',
+      colorTextSecondary: '#6d6459',
+      colorTextTertiary: '#9e9488',
+      colorBorder: '#e0d8cf',
+      colorBorderSecondary: '#d5cdc2',
+      colorBgBase: '#faf6f0',
+      colorBgContainer: '#fdfcfa',
+      colorBgElevated: '#f5f0e8',
+      colorBgLayout: '#f0ebe3',
+      colorBgSpotlight: '#f5f0e8',
+      borderRadius: 6,
+      borderRadiusSM: 4,
+      borderRadiusLG: 8,
+      wireframe: false,
+      fontFamily: "'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      fontFamilyCode: "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace",
+    },
+    algorithm: theme.defaultAlgorithm,
+  }), []);
+
   const lightTheme = useMemo(() => ({
     token: {
       borderRadius: 6,
@@ -90,6 +134,69 @@ const AppLayout = ({ children }) => {
     },
     algorithm: theme.defaultAlgorithm,
   }), []);
+
+  const activeTheme = useMemo(() => {
+    if (currentTheme === 'cyber') return cyberTheme;
+    if (currentTheme === 'earth') return earthTheme;
+    return lightTheme;
+  }, [currentTheme, cyberTheme, earthTheme, lightTheme]);
+
+  // 主题颜色映射（用于 inline style）
+  const t = useMemo(() => {
+    switch (currentTheme) {
+      case 'cyber':
+        return {
+          headerBg: '#0f0f1a',
+          headerBorder: '#1a1a2e',
+          logoIcon: '#00ff41',
+          logoGradient: 'linear-gradient(135deg, #00f0ff, #00ff41)',
+          versionColor: '#6b7280',
+          siderBg: '#0f0f1a',
+          wrapperBg: '#0a0a12',
+          breadcrumbLink: '#a0a0a0',
+          breadcrumbCurrent: '#e0e0e0',
+          titleColor: '#e0e0e0',
+          titleFont: "'Orbitron', sans-serif",
+          titleLetterSpacing: '0.5px',
+          contentBg: '#0f0f1a',
+          contentBorder: '#1a1a2e',
+        };
+      case 'earth':
+        return {
+          headerBg: '#fdfcfa',
+          headerBorder: '#e0d8cf',
+          logoIcon: '#b87333',
+          logoGradient: 'linear-gradient(135deg, #b87333, #d4a017)',
+          versionColor: '#6d6459',
+          siderBg: '#f5f0e8',
+          wrapperBg: '#f0ebe3',
+          breadcrumbLink: '#6d6459',
+          breadcrumbCurrent: '#3d3630',
+          titleColor: '#3d3630',
+          titleFont: undefined,
+          titleLetterSpacing: undefined,
+          contentBg: '#fdfcfa',
+          contentBorder: '#e0d8cf',
+        };
+      default: // light
+        return {
+          headerBg: '#ffffff',
+          headerBorder: '#f0f0f0',
+          logoIcon: '#52c41a',
+          logoGradient: 'linear-gradient(135deg, #1890ff, #52c41a)',
+          versionColor: '#000000d9',
+          siderBg: '#ffffff',
+          wrapperBg: '#f5f5f5',
+          breadcrumbLink: '#000000d9',
+          breadcrumbCurrent: '#000000d9',
+          titleColor: '#000000d9',
+          titleFont: undefined,
+          titleLetterSpacing: undefined,
+          contentBg: '#ffffff',
+          contentBorder: '#f0f0f0',
+        };
+    }
+  }, [currentTheme]);
   
   // 版本弹窗控制方法
   const showVersionModal = () => setVersionModalVisible(true);
@@ -171,23 +278,19 @@ const AppLayout = ({ children }) => {
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <ConfigProvider theme={enableCyber ? cyberTheme : lightTheme}>
+    <ConfigProvider theme={activeTheme}>
       <Layout className="app-layout">
         {/* 顶部导航栏 */}
-        <Header className="app-header" style={{ background: enableCyber ? '#0f0f1a' : '#ffffff', borderBottom: enableCyber ? '1px solid #1a1a2e' : '1px solid #f0f0f0' }}>
+        <Header className="app-header" style={{ background: t.headerBg, borderBottom: `1px solid ${t.headerBorder}` }}>
           <div className="header-left">
             <div className="logo-container">
               <div className="logo-icon-group">
-                <ExperimentOutlined className="logo-icon logo-icon-secondary" style={{ color: enableCyber ? '#00ff41' : '#52c41a' }} />
+                <ExperimentOutlined className="logo-icon logo-icon-secondary" style={{ color: t.logoIcon }} />
               </div>
               <div 
                 className="logo-text" 
-                style={enableCyber ? {
-                  background: 'linear-gradient(135deg, #00f0ff, #00ff41)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                } : {
-                  background: 'linear-gradient(135deg, #1890ff, #52c41a)',
+                style={{
+                  background: t.logoGradient,
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                 }}
@@ -210,7 +313,7 @@ const AppLayout = ({ children }) => {
                 className="version-button"
                 onClick={showVersionModal}
               >
-                <span style={{ color: enableCyber ? '#6b7280' : '#000000d9', fontFamily: "'Share Tech Mono', monospace" }}>
+                <span style={{ color: t.versionColor, fontFamily: "'Share Tech Mono', monospace" }}>
                   v{__APP_VERSION__}
                 </span>
               </Button>
@@ -226,7 +329,7 @@ const AppLayout = ({ children }) => {
             collapsed={collapsed} 
             collapsible 
             trigger={null}
-            style={{ background: enableCyber ? '#0f0f1a' : '#ffffff' }}
+            style={{ background: t.siderBg }}
           >
             <Menu
               mode="inline"
@@ -236,22 +339,22 @@ const AppLayout = ({ children }) => {
                 height: '100%', 
                 borderRight: 0, 
                 padding: '8px',
-                background: enableCyber ? '#0f0f1a' : '#ffffff',
+                background: t.siderBg,
               }}
             />
           </Sider>
 
           {/* 主内容区 */}
-          <Layout className="app-content-wrapper" style={{ padding: 0, background: enableCyber ? '#0a0a12' : '#f5f5f5' }}>
+          <Layout className="app-content-wrapper" style={{ padding: 0, background: t.wrapperBg }}>
             {/* 面包屑和标题 */}
             <div style={{ padding: '16px 24px 0' }}>
               <Breadcrumb className="app-breadcrumb" style={{ marginBottom: 16 }}>
                 {breadcrumbs.map((crumb, index) => (
                   <Breadcrumb.Item key={index}>
                     {index < breadcrumbs.length - 1 ? (
-                      <Link to={crumb.path} style={{ color: enableCyber ? '#a0a0a0' : '#000000d9' }}>{crumb.title}</Link>
+                      <Link to={crumb.path} style={{ color: t.breadcrumbLink }}>{crumb.title}</Link>
                     ) : (
-                      <span style={{ color: enableCyber ? '#e0e0e0' : '#000000d9', fontWeight: 500 }}>{crumb.title}</span>
+                      <span style={{ color: t.breadcrumbCurrent, fontWeight: 500 }}>{crumb.title}</span>
                     )}
                   </Breadcrumb.Item>
                 ))}
@@ -260,9 +363,9 @@ const AppLayout = ({ children }) => {
                 margin: 0, 
                 fontSize: 22, 
                 fontWeight: 700, 
-                color: enableCyber ? '#e0e0e0' : '#000000d9',
-                fontFamily: enableCyber ? "'Orbitron', sans-serif" : undefined,
-                letterSpacing: enableCyber ? '0.5px' : undefined,
+                color: t.titleColor,
+                fontFamily: t.titleFont,
+                letterSpacing: t.titleLetterSpacing,
               }}>
                 {getPageTitle()}
               </h1>
@@ -272,12 +375,12 @@ const AppLayout = ({ children }) => {
             <Content
               className="app-content"
               style={{
-                background: enableCyber ? '#0f0f1a' : '#ffffff',
+                background: t.contentBg,
                 padding: 24,
                 borderRadius: 6,
                 minHeight: 280,
                 margin: '16px 24px 24px',
-                border: enableCyber ? '1px solid #1a1a2e' : '1px solid #f0f0f0',
+                border: `1px solid ${t.contentBorder}`,
               }}
             >
               {children}

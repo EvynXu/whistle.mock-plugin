@@ -1,6 +1,6 @@
 {
   "name": "whistle.mock-plugins",
-  "version": "1.2.2-beta.28",
+  "version": "1.3.1",
   "description": "Whistle 插件，用于快速创建 API 模拟数据",
   "main": "lib/index.js",
   "scripts": {

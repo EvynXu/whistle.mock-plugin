@@ -4,8 +4,13 @@ import '../styles/feature-card.css';
 const FeatureCard = ({ feature }) => {
   const { name, description, active, interfaceCount, createdAt } = feature;
   
-  // 生成随机的主题色（实际项目中可能会根据某种规则来确定）
+  // 生成随机的主题色（根据当前主题选择色系）
   const getRandomColor = () => {
+    const isEarth = document.body.classList.contains('earth-theme');
+    if (isEarth) {
+      const colors = ['#b87333', '#6b8e23', '#d4a017', '#8d6e63', '#c0392b'];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
     const colors = ['#00f0ff', '#00ff41', '#f0e800', '#ff00a0', '#bd00ff'];
     return colors[Math.floor(Math.random() * colors.length)];
   };

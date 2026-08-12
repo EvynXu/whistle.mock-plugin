@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
-import { Card, Typography, Switch, Space, Modal, Button, message } from 'antd';
+import { Card, Typography, Switch, Space, Modal, Button, message, Radio } from 'antd';
 import { QuestionCircleOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import '../styles/settings.css';
@@ -16,7 +16,7 @@ const Settings = () => {
   const [interfaceFormDisplayMode, setInterfaceFormDisplayMode] = useState('modal');
   const [interfaceParamMatcherEnabled, setInterfaceParamMatcherEnabled] = useState(true);
   const [responseParamMatcherEnabled, setResponseParamMatcherEnabled] = useState(true);
-  const [cyberThemeEnabled, setCyberThemeEnabled] = useState(true);
+  const [currentTheme, setCurrentTheme] = useState('light');
 
   useEffect(() => {
     const savedMode = localStorage.getItem('dataManagementDisplayMode');
@@ -41,9 +41,16 @@ const Settings = () => {
       if (savedResponseParamMatcher !== null) setResponseParamMatcherEnabled(savedResponseParamMatcher !== 'false');
     });
 
-    // 读取赛博朋克主题开关（默认开启）
-    const savedCyber = localStorage.getItem('cyberTheme');
-    setCyberThemeEnabled(savedCyber !== 'false');
+    // 读取主题设置（兼容旧版 cyberTheme）
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      setCurrentTheme(savedTheme);
+    } else {
+      const oldCyber = localStorage.getItem('cyberTheme');
+      const themeValue = oldCyber === 'false' ? 'light' : oldCyber === 'true' ? 'cyber' : 'light';
+      setCurrentTheme(themeValue);
+      localStorage.setItem('theme', themeValue);
+    }
   }, []);
 
   const handleDisplayModeChange = (checked) => {
@@ -74,11 +81,15 @@ const Settings = () => {
     window.dispatchEvent(new Event('storage'));
   };
 
-  const handleCyberThemeChange = (checked) => {
-    setCyberThemeEnabled(checked);
-    localStorage.setItem('cyberTheme', String(checked));
+  const handleThemeChange = (e) => {
+    const newTheme = e.target.value;
+    setCurrentTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    // 兼容旧版存储
+    localStorage.setItem('cyberTheme', String(newTheme === 'cyber'));
     window.dispatchEvent(new Event('storage'));
-    message.success(checked ? '赛博朋克主题已开启' : '经典主题已开启');
+    const themeNames = { light: '经典亮色', cyber: '赛博朋克', earth: '大地色系' };
+    message.success(`${themeNames[newTheme]}主题已开启`);
   };
 
   const showMatcherRuleModal = (type) => {
@@ -246,21 +257,38 @@ const Settings = () => {
           <div className="settings-item">
             <div className="settings-item-header">
               <div>
-                <div className="settings-item-title">赛博朋克风格</div>
+                <div className="settings-item-title">界面主题</div>
                 <div className="settings-item-description">
-                  启用深色赛博朋克霓虹主题，关闭则恢复经典亮色主题
+                  选择插件的界面主题风格
                 </div>
               </div>
-              <Space>
-                <Text type="secondary">
-                  {cyberThemeEnabled ? '已开启' : '已关闭'}
-                </Text>
-                <Switch
-                  checked={cyberThemeEnabled}
-                  onChange={handleCyberThemeChange}
-                />
-              </Space>
             </div>
+            <Radio.Group
+              value={currentTheme}
+              onChange={handleThemeChange}
+              style={{ marginTop: 12 }}
+            >
+              <Space direction="vertical">
+                <Radio value="light">
+                  <Space>
+                    <span style={{ display: 'inline-block', width: 16, height: 16, borderRadius: 4, background: '#1890ff', verticalAlign: 'middle', marginRight: 4 }} />
+                    经典亮色 — Ant Design 默认亮色风格
+                  </Space>
+                </Radio>
+                <Radio value="cyber">
+                  <Space>
+                    <span style={{ display: 'inline-block', width: 16, height: 16, borderRadius: 4, background: 'linear-gradient(135deg, #00f0ff, #00ff41)', verticalAlign: 'middle', marginRight: 4 }} />
+                    赛博朋克 — 深色霓虹科技风格
+                  </Space>
+                </Radio>
+                <Radio value="earth">
+                  <Space>
+                    <span style={{ display: 'inline-block', width: 16, height: 16, borderRadius: 4, background: 'linear-gradient(135deg, #b87333, #d4a017)', verticalAlign: 'middle', marginRight: 4 }} />
+                    大地色系 — 暖色调自然舒适风格
+                  </Space>
+                </Radio>
+              </Space>
+            </Radio.Group>
           </div>
         </Card>
       </div>
