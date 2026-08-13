@@ -1,5 +1,20 @@
 # 🔄 版本更新记录
 
+## v1.4.0-beta.0
+
+### ✨ Feature
+- **WebDAV 模块同步**：新增 WebDAV 同步能力，可将功能模块及接口配置同步到 WebDAV 服务器
+- **连接管理**：支持配置 WebDAV 地址与账号密码，支持测试连接、连接、刷新状态与断开连接
+- **推送 / 拉取**：支持按模块推送至远端或从远端拉取，支持强制覆盖（force）并处理远端清单冲突
+- **同步设置开关**：系统设置新增「WebDAV 同步」开关，开启后在功能模块管理页显示同步入口
+- **同步状态展示**：同步弹窗展示连接状态、最近同步时间与远端模块清单
+
+### 🔧 Technical
+- 新增后端 `app/cgi-bin/webdav.js` 与 `lib/webdav-sync.js`，实现 WebDAV 客户端与同步逻辑
+- 新增前端 `ui/src/components/WebDavSyncModal.js` 与 `ui/src/styles/webdav-sync.css`
+- 新增 `ui/src/utils/api-error.js`，统一解析 WebDAV 错误响应
+- 新增 `test/webdav-sync.test.js`、`test/api-error.test.js` 单元测试
+
 ## v1.3.1
 
 ### ✨ Feature
