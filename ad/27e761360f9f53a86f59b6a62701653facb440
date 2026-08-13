@@ -1,0 +1,25 @@
+whistle.mock-plugin/app/public/js/index.js
+  s_33aebc39c33fea::t_79afa1184b6e18 2
+whistle.mock-plugin/package.json
+  s_33aebc39c33fea::t_7dc9969d7af9d8 3
+whistle.mock-plugin/VERSION.md
+  s_33aebc39c33fea::t_e63d87085ade9d 3-17
+whistle.mock-plugin/app/public/js/index.js.LICENSE.txt
+  s_33aebc39c33fea::t_79afa1184b6e18 106-107,114-115,122-123,170-171,196-197,213-214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "ad27e761360f9f53a86f59b6a62701653facb440",
+  "prompts": {},
+  "sessions": {
+    "s_33aebc39c33fea": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ff9df-9548-7280-9bc3-d67e76b5b499",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "xw22895 <xw22895@ly.com>"
+    }
+  }
+}
