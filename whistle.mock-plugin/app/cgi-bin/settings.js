@@ -4,6 +4,7 @@ const path = require('path');
 const DEFAULT_SETTINGS = {
   interfaceParamMatcherEnabled: true,
   responseParamMatcherEnabled: true,
+  webDavSyncEnabled: false,
 };
 
 module.exports = function(req, res) {

@@ -6,8 +6,9 @@ import React, { useState, useEffect } from 'react';
 import { useRef } from 'react';
 import { useHistory } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
+import WebDavSyncModal from '../components/WebDavSyncModal';
 import { Card, Row, Col, Button, Modal, Form, Input, message, Switch, Empty, Spin, Typography, Tooltip, Badge, Select, Pagination, Table, Space, Tag, Checkbox } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined, ExportOutlined, ImportOutlined, InfoCircleOutlined, CalendarOutlined, SortAscendingOutlined, AppstoreOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined, ExportOutlined, ImportOutlined, InfoCircleOutlined, CalendarOutlined, SortAscendingOutlined, AppstoreOutlined, UnorderedListOutlined, CloudSyncOutlined } from '@ant-design/icons';
 import '../styles/mock-data.css';
 import axios from 'axios';
 
@@ -35,6 +36,8 @@ const MockData = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedExportIds, setSelectedExportIds] = useState([]);
   const [exporting, setExporting] = useState(false);
+  const [webDavSyncEnabled, setWebDavSyncEnabled] = useState(false);
+  const [showWebDavModal, setShowWebDavModal] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [form] = Form.useForm();
@@ -61,7 +64,18 @@ const MockData = () => {
   // 加载功能列表
   useEffect(() => {
     fetchFeatures();
+    fetchWebDavSetting();
   }, []);
+
+  const fetchWebDavSetting = async () => {
+    try {
+      const response = await axios.get('/cgi-bin/settings');
+      setWebDavSyncEnabled(response.data.webDavSyncEnabled == true);
+    } catch (error) {
+      console.error('读取 WebDAV 同步设置失败:', error);
+      setWebDavSyncEnabled(false);
+    }
+  };
 
   // 键盘快捷键监听
   useEffect(() => {
@@ -788,6 +802,16 @@ const MockData = () => {
             >
               导出功能
             </Button>
+            {webDavSyncEnabled && (
+              <Button
+                type="primary"
+                icon={<CloudSyncOutlined />}
+                onClick={() => setShowWebDavModal(true)}
+                style={{ backgroundColor: '#0891b2', borderColor: '#0891b2' }}
+              >
+                WebDAV
+              </Button>
+            )}
           </div>
         </div>
 
@@ -1082,8 +1106,17 @@ const MockData = () => {
           </Button>
         </div>
       </Modal>
+
+      <WebDavSyncModal
+        open={showWebDavModal}
+        onClose={() => setShowWebDavModal(false)}
+        onPulled={async () => {
+          await fetchFeatures();
+          await refreshCacheAfterUpdate();
+        }}
+      />
     </AppLayout>
   );
 };
 
-export default MockData; 
+export default MockData;

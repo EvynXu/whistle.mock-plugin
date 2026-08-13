@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
 import { Card, Typography, Switch, Space, Modal, Button, message, Radio } from 'antd';
-import { QuestionCircleOutlined } from '@ant-design/icons';
+import { CloudSyncOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import '../styles/settings.css';
 
@@ -16,6 +16,8 @@ const Settings = () => {
   const [interfaceFormDisplayMode, setInterfaceFormDisplayMode] = useState('modal');
   const [interfaceParamMatcherEnabled, setInterfaceParamMatcherEnabled] = useState(true);
   const [responseParamMatcherEnabled, setResponseParamMatcherEnabled] = useState(true);
+  const [webDavSyncEnabled, setWebDavSyncEnabled] = useState(false);
+  const [webDavSettingSaving, setWebDavSettingSaving] = useState(false);
   const [currentTheme, setCurrentTheme] = useState('light');
 
   useEffect(() => {
@@ -31,6 +33,7 @@ const Settings = () => {
       const rpm = data.responseParamMatcherEnabled !== false;
       setInterfaceParamMatcherEnabled(ipm);
       setResponseParamMatcherEnabled(rpm);
+      setWebDavSyncEnabled(data.webDavSyncEnabled == true);
       localStorage.setItem('interfaceParamMatcherEnabled', String(ipm));
       localStorage.setItem('responseParamMatcherEnabled', String(rpm));
       window.dispatchEvent(new Event('storage'));
@@ -79,6 +82,21 @@ const Settings = () => {
     localStorage.setItem('responseParamMatcherEnabled', String(checked));
     syncSettingsToBackend({ responseParamMatcherEnabled: checked });
     window.dispatchEvent(new Event('storage'));
+  };
+
+  const handleWebDavSyncChange = async (checked) => {
+    const previous = webDavSyncEnabled;
+    setWebDavSyncEnabled(checked);
+    setWebDavSettingSaving(true);
+    try {
+      await axios.put('/cgi-bin/settings', { webDavSyncEnabled: checked });
+      message.success(`WebDAV 同步功能已${checked ? '开启' : '关闭'}`);
+    } catch (error) {
+      setWebDavSyncEnabled(previous);
+      message.error('保存 WebDAV 同步设置失败');
+    } finally {
+      setWebDavSettingSaving(false);
+    }
   };
 
   const handleThemeChange = (e) => {
@@ -247,6 +265,30 @@ const Settings = () => {
                 <Switch
                   checked={responseParamMatcherEnabled}
                   onChange={handleResponseParamMatcherChange}
+                />
+              </Space>
+            </div>
+          </div>
+        </Card>
+
+        <Card title="同步设置" className="settings-card" style={{ marginTop: 24 }}>
+          <div className="settings-item">
+            <div className="settings-item-header">
+              <div>
+                <div className="settings-item-title">
+                  <CloudSyncOutlined style={{ marginRight: 8 }} />
+                  WebDAV 同步
+                </div>
+                <div className="settings-item-description">
+                  开启后，在功能模块管理页显示 WebDAV 入口；关闭不会清除已保存的连接配置
+                </div>
+              </div>
+              <Space>
+                <Text type="secondary">{webDavSyncEnabled ? '已开启' : '已关闭'}</Text>
+                <Switch
+                  checked={webDavSyncEnabled}
+                  loading={webDavSettingSaving}
+                  onChange={handleWebDavSyncChange}
                 />
               </Space>
             </div>

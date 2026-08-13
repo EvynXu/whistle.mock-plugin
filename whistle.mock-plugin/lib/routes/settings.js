@@ -11,6 +11,7 @@ fs.ensureDirSync(DATA_DIR);
 const DEFAULT_SETTINGS = {
   interfaceParamMatcherEnabled: true,
   responseParamMatcherEnabled: true,
+  webDavSyncEnabled: false,
 };
 
 const getSettings = () => {
