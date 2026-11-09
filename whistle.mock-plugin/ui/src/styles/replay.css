@@ -1,0 +1,16 @@
+.mm-replay-panel { width: 100%; }
+.mm-replay-inputs {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(0, 2fr) minmax(0, 2fr);
+  gap: 8px;
+}
+.mm-replay-track { position: relative; height: 8px; overflow: hidden; border-radius: 4px; background: var(--mm-subtle, #e5e7eb); }
+.mm-replay-track span { position: absolute; height: 100%; background: var(--mm-primary, #4f65eb); }
+@media (max-width: 720px) { .mm-replay-inputs { grid-template-columns: 1fr; } }
+
+.mm-replay-preview { border: 1px solid var(--mm-border, #ddd); border-radius: 10px; overflow: hidden; }
+.mm-replay-preview-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; }
+.mm-replay-preview-stage { display: grid; place-items: center; min-height: 230px; padding: 12px; background: var(--mm-subtle, #eceef2); }
+.mm-replay-preview-image { display: block; width: auto; max-width: 100%; height: auto; max-height: 64vh; cursor: pointer; user-select: none; }
+.mm-replay-preview-image:focus-visible { outline: 2px solid var(--mm-primary, #4f65eb); outline-offset: 3px; }
+.mm-replay-preview-placeholder { width: min(340px, 100%); height: 270px; }

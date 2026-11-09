@@ -7,6 +7,7 @@ const summarize = item => {
   for (const key of ['url', 'startTime', 'endTime', 'requestTime', 'responseTime', 'reqError', 'resError']) {
     if (item[key] !== undefined) row[key] = item[key];
   }
+  if (item.req?.ip) row.clientIp = item.req.ip;
   if (item.req?.method) row.method = item.req.method;
   if (item.res?.statusCode !== undefined) row.status = item.res.statusCode;
   if (item.res?.size !== undefined) row.size = item.res.size;

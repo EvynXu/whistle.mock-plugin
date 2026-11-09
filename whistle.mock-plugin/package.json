@@ -65,7 +65,11 @@
     "lib/",
     "app/cgi-bin/",
     "app/public/",
+    "scripts/replay-session.js",
     "VERSION.md",
     "README.md"
-  ]
+  ],
+  "optionalDependencies": {
+    "playwright-core": "1.62.1"
+  }
 }

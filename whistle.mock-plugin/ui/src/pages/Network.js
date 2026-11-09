@@ -4,6 +4,7 @@ import { ClearOutlined, PauseCircleOutlined, PlayCircleOutlined, ReloadOutlined 
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import SaveMockDrawer from '../components/SaveMockDrawer';
+import ReplayDrawer from '../components/ReplayDrawer';
 import { fetchNetwork, fetchSession } from '../utils/network/client';
 import { MAX_ROWS, mergeRows, sessionDetail } from '../utils/network/model';
 import { formatJSONForDisplay } from '../utils/network/format';
@@ -43,6 +44,8 @@ export default function Network() {
     [detailLoading, setDetailLoading] = useState(false),
     [detailRetry, setDetailRetry] = useState(0);
   const [saveCapture, setSaveCapture] = useState(null);
+  const [replayOpen, setReplayOpen] = useState(false);
+  const devices = useMemo(() => [...new Set(rows.map(row => row.clientIp).filter(Boolean))].sort(), [rows]);
   useEffect(() => {
     const host = tableHost.current;
     if (!host) return;
@@ -206,6 +209,7 @@ export default function Network() {
     children: <pre className="mm-capture-body">{JSON.stringify(detail.session[part]?.headers || {}, null, 2)}</pre>
   }]} />;
   return <div className="mm-network-page"><PageHeader kicker="WHISTLE NETWORK" title="抓包列表" description="查看 Whistle 已捕获的请求，直接将响应转为 Mock，无需重新发送。" actions={<>
+    <Button onClick={() => setReplayOpen(true)}>故障复现</Button>
     <Button icon={running ? <PauseCircleOutlined /> : <PlayCircleOutlined />} onClick={() => setRunning(value => !value)}>{running ? '暂停同步' : '继续同步'}</Button>
     <Button aria-label="重新载入最近请求" icon={<ReloadOutlined />} onClick={() => clear(true)} /><Button icon={<ClearOutlined />} onClick={() => clear(false)}>清空本页</Button>
   </>} />
@@ -232,6 +236,7 @@ export default function Network() {
       }} pagination={false} locale={{
         emptyText: <Empty description={error ? '连接 Whistle 后查看抓包数据' : '暂无匹配请求，请确认请求已经过 Whistle 代理'} />
       }} /></div>
+    <ReplayDrawer open={replayOpen} onClose={() => setReplayOpen(false)} devices={devices} />
     <Drawer title="抓包详情" open={!!selected} onClose={() => setSelected(null)} width="min(900px, 100vw)" extra={<Button aria-label="刷新抓包详情" icon={<ReloadOutlined />} onClick={() => setDetailRetry(v => v + 1)} />} footer={<Space wrap><Button disabled={!detail?.canSave} type="primary" onClick={capture}>保存为 Mock</Button><Button disabled={!detail?.response.available} onClick={() => copy(detail.response.text)}>复制响应体</Button></Space>}>
       <Spin spinning={detailLoading}>{detailError && <Alert type="error" message={detailError} action={<Button onClick={() => setDetailRetry(v => v + 1)}>重试</Button>} />}
         {detail && <><div className="mm-network-detail-url"><Tag>{detail.session.req?.method}</Tag><Tag>{detail.session.res?.statusCode || '进行中'}</Tag><Typography.Text copyable>{detail.session.url}</Typography.Text></div>

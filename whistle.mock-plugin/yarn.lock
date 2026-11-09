@@ -4558,6 +4558,11 @@
   dependencies:
     "find-up" "^6.3.0"
 
+"playwright-core@1.62.1":
+  "integrity" "sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw=="
+  "resolved" "https://registry.npmjs.org/playwright-core/-/playwright-core-1.62.1.tgz"
+  "version" "1.62.1"
+
 "postcss-modules-extract-imports@^3.1.0":
   "integrity" "sha512-k3kNe0aNFQDAZGbin48pL2VNidTF0w4/eASDsxlyspobzU3wZQLOGj7L9gfRe0Jo9/4uud09DsjFNH7winGv8Q=="
   "resolved" "https://registry.npmmirror.com/postcss-modules-extract-imports/-/postcss-modules-extract-imports-3.1.0.tgz"
@@ -6192,3 +6197,8 @@
 
 "yocto-queue@^1.0.0":
   "version" "1.2.0"
+
+playwright-core@1.62.1:
+  version "1.62.1"
+  resolved "https://registry.npmjs.org/playwright-core/-/playwright-core-1.62.1.tgz"
+  integrity sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==
