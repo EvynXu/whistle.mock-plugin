@@ -4,13 +4,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRef } from 'react';
-import { useHistory } from 'react-router-dom';
-import AppLayout from '../components/AppLayout';
+import { Link, useHistory } from 'react-router-dom';
 import WebDavSyncModal from '../components/WebDavSyncModal';
 import { Card, Row, Col, Button, Modal, Form, Input, message, Switch, Empty, Spin, Typography, Tooltip, Badge, Select, Pagination, Table, Space, Tag, Checkbox } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined, ExportOutlined, ImportOutlined, InfoCircleOutlined, CalendarOutlined, SortAscendingOutlined, AppstoreOutlined, UnorderedListOutlined, CloudSyncOutlined } from '@ant-design/icons';
 import '../styles/mock-data.css';
 import axios from 'axios';
+import PageHeader from '../components/PageHeader';
 
 const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -36,6 +36,8 @@ const MockData = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedExportIds, setSelectedExportIds] = useState([]);
   const [exporting, setExporting] = useState(false);
+  const [moduleSearch, setModuleSearch] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [webDavSyncEnabled, setWebDavSyncEnabled] = useState(false);
   const [showWebDavModal, setShowWebDavModal] = useState(false);
 
@@ -99,18 +101,19 @@ const MockData = () => {
   const fetchFeatures = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const response = await fetch('/cgi-bin/features');
       const result = await response.json();
-      
+
       if (result.code === 0) {
         setMockFeatures(result.data || []);
       } else {
         console.error('获取功能模块失败:', result.message);
-        message.error('获取功能模块失败: ' + result.message);
+        setLoadError(result.message || '获取模块失败');
       }
     } catch (error) {
       console.error('获取功能模块错误:', error);
-      message.error('获取功能模块失败, 请检查网络连接');
+      setLoadError('获取功能模块失败，请检查网络连接');
     } finally {
       setLoading(false);
     }
@@ -154,12 +157,12 @@ const MockData = () => {
       const featureData = {
         ...values
       };
-      
+
       // 如果是编辑已有功能，添加ID
       if (currentFeature) {
         featureData.id = currentFeature.id;
       }
-      
+
       setLoading(true);
       const response = await fetch('/cgi-bin/features', {
         method: 'POST',
@@ -168,15 +171,15 @@ const MockData = () => {
         },
         body: JSON.stringify(featureData)
       });
-      
+
       const result = await response.json();
-      
+
       if (result.code === 0) {
         // 刷新功能列表
         message.success(currentFeature ? '功能模块更新成功' : '功能模块创建成功');
         fetchFeatures();
         closeModal();
-        
+
         // 刷新缓存
         refreshCacheAfterUpdate();
       } else {
@@ -201,16 +204,16 @@ const MockData = () => {
           active: !currentActive
         })
       });
-      
+
       const result = await response.json();
-      
+
       if (result.code === 0) {
         message.success(`${currentActive ? '禁用' : '启用'}功能模块成功`);
         // 更新本地状态
-        setMockFeatures(mockFeatures.map(feature => 
+        setMockFeatures(mockFeatures.map(feature =>
           feature.id === id ? { ...feature, active: !currentActive } : feature
         ));
-        
+
         // 刷新缓存 - 功能启用状态变化是最关键的需要刷新缓存的操作
         refreshCacheAfterUpdate();
       } else {
@@ -235,14 +238,14 @@ const MockData = () => {
           const response = await fetch(`/cgi-bin/features?id=${id}`, {
             method: 'DELETE'
           });
-          
+
           const result = await response.json();
-          
+
           if (result.code === 0) {
             message.success('功能模块已成功删除');
             // 更新本地状态
             setMockFeatures(mockFeatures.filter(f => f.id !== id));
-            
+
             // 刷新缓存
             refreshCacheAfterUpdate();
           } else {
@@ -268,23 +271,23 @@ const MockData = () => {
       // 获取该功能的所有接口
       const response = await fetch(`/cgi-bin/interfaces?featureId=${feature.id}`);
       const result = await response.json();
-      
+
       // 创建完整配置
       const config = {
         ...feature,
         interfaces: result.code === 0 ? result.data : []
       };
-      
+
       const dataStr = JSON.stringify(config, null, 2);
       const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-      
+
       const exportFileDefaultName = `whistle-mock-feature-${feature.id}.json`;
-      
+
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
       linkElement.setAttribute('download', exportFileDefaultName);
       linkElement.click();
-      
+
       message.success('配置导出成功');
     } catch (error) {
       console.error('导出配置错误:', error);
@@ -355,11 +358,11 @@ const MockData = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    
+
     input.onchange = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
@@ -456,10 +459,10 @@ const MockData = () => {
           message.error('导入失败: ' + error.message);
         }
       };
-      
+
       reader.readAsText(file);
     };
-    
+
     input.click();
   };
 
@@ -486,37 +489,37 @@ const MockData = () => {
 
   // 获取排序后的功能列表
   const getSortedFeatures = () => {
-    const sorted = [...mockFeatures].sort((a, b) => {
+    const sorted = mockFeatures.filter(f => `${f.name} ${f.description || ''}`.toLowerCase().includes(moduleSearch.toLowerCase())).sort((a, b) => {
       let aValue, bValue;
-      
+
       switch (listConfig.sortBy) {
         case 'name':
           aValue = a.name || '';
           bValue = b.name || '';
-          return listConfig.sortOrder === 'ascend' 
+          return listConfig.sortOrder === 'ascend'
             ? aValue.localeCompare(bValue, 'zh-CN')
             : bValue.localeCompare(aValue, 'zh-CN');
-            
+
         case 'createdAt':
           aValue = new Date(a.createdAt || 0).getTime();
           bValue = new Date(b.createdAt || 0).getTime();
           return listConfig.sortOrder === 'ascend' ? aValue - bValue : bValue - aValue;
-          
+
         case 'interfaceCount':
           aValue = a.interfaceCount || 0;
           bValue = b.interfaceCount || 0;
           return listConfig.sortOrder === 'ascend' ? aValue - bValue : bValue - aValue;
-          
+
         case 'active':
           aValue = a.active ? 1 : 0;
           bValue = b.active ? 1 : 0;
           return listConfig.sortOrder === 'ascend' ? aValue - bValue : bValue - aValue;
-          
+
         default:
           return 0;
       }
     });
-    
+
     return sorted;
   };
 
@@ -528,109 +531,15 @@ const MockData = () => {
     return sortedFeatures.slice(startIndex, endIndex);
   };
 
-  // 渲染功能模块卡片
-  const renderFeatureCard = (feature) => {
-    const formattedDate = feature.createdAt 
-      ? new Date(feature.createdAt).toLocaleDateString()
-      : '未知日期';
-
-    // 处理卡片点击事件
-    const handleCardClick = (e) => {
-      // 检查点击目标是否是开关或其父元素
-      const target = e.target;
-      const switchElement = target.closest('.ant-switch') || target.closest('.feature-name .ant-switch');
-      
-      // 如果点击的是开关区域，则不执行跳转
-      if (switchElement) {
-        return;
-      }
-      
-      // 检查是否点击了操作按钮区域
-      const actionElement = target.closest('.ant-card-actions') || target.closest('.ant-card-actions li');
-      if (actionElement) {
-        return;
-      }
-      
-      // 执行跳转到接口管理界面
-      viewInterfaces(feature);
-    };
-
-    // 处理开关点击事件，阻止事件冒泡
-    const handleSwitchClick = (checked, e) => {
-      e.stopPropagation(); // 阻止事件冒泡到卡片
-      handleToggleActive(feature.id, feature.active);
-    };
-    
-    return (
-      <Col xs={24} sm={12} md={8} lg={6} key={feature.id} style={{ marginBottom: 16 }}>
-        <Badge.Ribbon 
-          text={feature.active ? '已启用' : '已禁用'} 
-          color={feature.active ? '#52c41a' : '#f5222d'}
-          style={{ display: 'block' }}
-        >
-          <Card
-            className={`feature-card ${!feature.active ? 'inactive-feature' : ''}`}
-            onClick={handleCardClick}
-            style={{ cursor: 'pointer' }}
-            actions={[
-              <Tooltip title="管理接口">
-                <ApiOutlined key="interfaces" onClick={(e) => {
-                  e.stopPropagation();
-                  viewInterfaces(feature);
-                }} />
-              </Tooltip>,
-              <Tooltip title="编辑功能">
-                <EditOutlined key="edit" onClick={(e) => {
-                  e.stopPropagation();
-                  openModal(feature);
-                }} />
-              </Tooltip>,
-              <Tooltip title="删除功能">
-                <DeleteOutlined key="delete" onClick={(e) => {
-                  e.stopPropagation();
-                  deleteFeature(feature.id);
-                }} />
-              </Tooltip>,
-              <Tooltip title="导出配置">
-                <ExportOutlined key="export" onClick={(e) => {
-                  e.stopPropagation();
-                  exportFeatureConfig(feature);
-                }} />
-              </Tooltip>
-            ]}
-          >
-            <div className="feature-card-content">
-              <div className="feature-name">
-                <Title level={4} ellipsis={{ tooltip: feature.name }}>
-                  {feature.name}
-                </Title>
-
-                <Switch
-                  checked={feature.active}
-                  onChange={handleSwitchClick}
-                  size="small"
-                  onClick={() => {event.stopPropagation()}}
-                />
-              </div>
-              
-              <Paragraph className="feature-description" ellipsis={{ rows: 2, expandable: false, tooltip: feature.description }}>
-                {feature.description || '无描述'}
-              </Paragraph>
-              
-              <div className="feature-stat">
-                <span>
-                  <InfoCircleOutlined /> {feature.interfaceCount || 0} 个接口
-                </span>
-                <span className="feature-date">
-                  <CalendarOutlined /> {formattedDate}
-                </span>
-              </div>
-            </div>
-          </Card>
-        </Badge.Ribbon>
-      </Col>
-    );
-  };
+  const renderFeatureCard = feature => (
+    <Col xs={24} sm={12} xl={8} key={feature.id}>
+      <Card className="mm-module-card">
+        <div className="mm-module-card-header"><Link className="mm-module-card-link" to={`/interface/${feature.id}`} aria-label={`查看 ${feature.name} 的接口`} title={feature.description || feature.name} onClick={() => localStorage.setItem('selectedFeatureId', feature.id)}>{feature.name}</Link><Switch aria-label={`启用模块 ${feature.name}`} checked={feature.active !== false} onChange={() => handleToggleActive(feature.id, feature.active)} size="small" /></div>
+        <Paragraph ellipsis={{rows:2,tooltip:feature.description}} className="mm-module-card-description">{feature.description || '暂无模块说明'}</Paragraph>
+        <div className="mm-module-card-footer"><span>{feature.interfaceCount || 0} 个接口 · {feature.active !== false ? '已启用' : '已禁用'}</span><Space className="mm-module-card-actions"><Button type="text" size="small" aria-label={`编辑 ${feature.name}`} icon={<EditOutlined />} onClick={() => openModal(feature)} /><Button type="text" size="small" aria-label={`导出 ${feature.name}`} icon={<ExportOutlined />} onClick={() => exportFeatureConfig(feature)} /><Button type="text" size="small" danger aria-label={`删除 ${feature.name}`} icon={<DeleteOutlined />} onClick={() => deleteFeature(feature.id)} /></Space></div>
+      </Card>
+    </Col>
+  );
 
   // 渲染列表视图
   const renderListView = () => {
@@ -754,10 +663,11 @@ const MockData = () => {
       <Table
         columns={columns}
         dataSource={getPaginatedFeatures()}
+        scroll={{ x: 760 }}
         rowKey="id"
         pagination={false}
         onRow={(record) => ({
-          onClick: () => viewInterfaces(record),
+          onClick: (e) => { if (!e.target.closest('button, a, input')) viewInterfaces(record); },
           style: { cursor: 'pointer' }
         })}
         rowClassName={(record) => !record.active ? 'inactive-row' : ''}
@@ -766,167 +676,58 @@ const MockData = () => {
   };
 
   return (
-    <AppLayout>
+    <>
       <div className="page-container">
-        <div className="page-title-bar">
-          <div className="title-section">
-            <div className="title-with-badge">
-              <h1 className="page-title">功能模块管理</h1>
-            </div>
-            <div className="page-description">
-              创建和管理功能模块，为每个功能配置独立的接口
-            </div>
-          </div>
+        <PageHeader kicker="MODULES" title="功能模块" description="按业务组织接口，集中管理配置与启用状态。" actions={
           <div className="page-actions">
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               icon={<PlusOutlined />}
               onClick={() => openModal()}
             >
               新建功能
             </Button>
             <Button
-              type="primary"
-              icon={<ExportOutlined />}
+              type="default"
+              icon={<ImportOutlined />}
               onClick={importFeatureConfig}
-              style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+
             >
               导入功能
             </Button>
             <Button
-              type="primary"
-              icon={<ImportOutlined />}
+              type="default"
+              icon={<ExportOutlined />}
               onClick={openExportModal}
               disabled={mockFeatures.length === 0}
-              style={mockFeatures.length === 0 ? undefined : { backgroundColor: '#fa8c16', borderColor: '#fa8c16' }}
+
             >
               导出功能
             </Button>
             {webDavSyncEnabled && (
               <Button
-                type="primary"
+                type="default"
                 icon={<CloudSyncOutlined />}
                 onClick={() => setShowWebDavModal(true)}
-                style={{ backgroundColor: '#0891b2', borderColor: '#0891b2' }}
+
               >
                 WebDAV
               </Button>
             )}
           </div>
-        </div>
+        } />
+        <div className="mm-module-search"><Input.Search placeholder="搜索模块名称或说明" value={moduleSearch} allowClear onChange={e => { setModuleSearch(e.target.value); saveListConfig({ current: 1 }); }} style={{ maxWidth: 360 }} /></div>
+        {loadError && <div role="alert" className="mm-error"><span>{loadError}</span> <Button onClick={fetchFeatures}>重试</Button></div>}
 
-        {/* 控制面板 */}
-        {mockFeatures.length > 0 && !loading && (
-          <Card className="control-panel-card" style={{ marginBottom: 24 }}>
-            <Row gutter={[24, 16]} align="middle">
-              {/* 统计信息区域 */}
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div className="stats-section">
-                  <div className="stats-item">
-                    <span className="stats-number">{mockFeatures.length}</span>
-                    <span className="stats-label">功能模块</span>
-                  </div>
-                  <div className="stats-item">
-                    <span className="stats-number">
-                      {mockFeatures.filter(f => f.active).length}
-                    </span>
-                    <span className="stats-label">已启用</span>
-                  </div>
-                  <div className="stats-item">
-                    <span className="stats-number">
-                      {mockFeatures.reduce((sum, f) => sum + (f.interfaceCount || 0), 0)}
-                    </span>
-                    <span className="stats-label">接口总数</span>
-                  </div>
-                </div>
-              </Col>
-              
-              {/* 排序和视图控制区域 */}
-              <Col xs={24} sm={12} md={8} lg={9}>
-                <div className="sort-controls">
-                  <div className="control-group">
-                    <span className="control-label">
-                      <SortAscendingOutlined /> 排序方式
-                    </span>
-                    <Select
-                      value={listConfig.sortBy}
-                      onChange={handleSortChange}
-                      style={{ width: 120 }}
-                      size="middle"
-                    >
-                      <Select.Option value="name">名称</Select.Option>
-                      <Select.Option value="createdAt">创建时间</Select.Option>
-                      <Select.Option value="interfaceCount">接口数量</Select.Option>
-                      <Select.Option value="active">状态</Select.Option>
-                    </Select>
-                    <Select
-                      value={listConfig.sortOrder}
-                      onChange={handleSortOrderChange}
-                      style={{ width: 80 }}
-                      size="middle"
-                    >
-                      <Select.Option value="ascend">升序</Select.Option>
-                      <Select.Option value="descend">降序</Select.Option>
-                    </Select>
-                  </div>
-                </div>
-              </Col>
-              
-              {/* 视图切换区域 */}
-              <Col xs={24} sm={12} md={4} lg={3}>
-                <div className="view-mode-controls">
-                  <Button.Group>
-                    <Tooltip title="卡片视图">
-                      <Button
-                        type={listConfig.viewMode === 'card' ? 'primary' : 'default'}
-                        icon={<AppstoreOutlined />}
-                        onClick={() => handleViewModeChange('card')}
-                      />
-                    </Tooltip>
-                    <Tooltip title="列表视图">
-                      <Button
-                        type={listConfig.viewMode === 'list' ? 'primary' : 'default'}
-                        icon={<UnorderedListOutlined />}
-                        onClick={() => handleViewModeChange('list')}
-                      />
-                    </Tooltip>
-                  </Button.Group>
-                </div>
-              </Col>
-              
-              {/* 分页控制区域 */}
-              <Col xs={24} sm={24} md={12} lg={6}>
-                <div className="pagination-controls">
-                  <div className="control-group">
-                    <span className="control-label">每页显示</span>
-                    <Select
-                      value={listConfig.pageSize}
-                      onChange={handlePageSizeChange}
-                      style={{ width: 80 }}
-                      size="middle"
-                    >
-                      <Select.Option value={8}>8</Select.Option>
-                      <Select.Option value={12}>12</Select.Option>
-                      <Select.Option value={16}>16</Select.Option>
-                      <Select.Option value={24}>24</Select.Option>
-                    </Select>
-                    <span className="page-info">
-                      第 {(listConfig.current - 1) * listConfig.pageSize + 1}-{Math.min(listConfig.current * listConfig.pageSize, mockFeatures.length)} 条
-                    </span>
-                  </div>
-                </div>
-              </Col>
-            </Row>
-          </Card>
-        )}
-        
+        <div className="mm-module-toolbar"><Space wrap><span>{mockFeatures.length} 个模块</span><span>{mockFeatures.filter(f => f.active !== false).length} 个已启用</span><span>{mockFeatures.reduce((sum, f) => sum + (f.interfaceCount || 0), 0)} 个接口</span></Space><Space wrap><Select aria-label="模块排序" value={listConfig.sortBy} onChange={handleSortChange} style={{width:120}} options={[{value:'name',label:'按名称'},{value:'createdAt',label:'按创建时间'},{value:'interfaceCount',label:'按接口数'},{value:'active',label:'按状态'}]} /><Select aria-label="排序方向" value={listConfig.sortOrder} onChange={handleSortOrderChange} style={{width:85}} options={[{value:'ascend',label:'升序'},{value:'descend',label:'降序'}]} /><Button aria-label="卡片视图" type={listConfig.viewMode === 'card' ? 'primary' : 'default'} icon={<AppstoreOutlined />} onClick={() => handleViewModeChange('card')} /><Button aria-label="列表视图" type={listConfig.viewMode === 'list' ? 'primary' : 'default'} icon={<UnorderedListOutlined />} onClick={() => handleViewModeChange('list')} /></Space></div>
+
         <Card className="feature-list-card">
           {loading ? (
             <div className="loading-state">
               <Spin size="large" />
               <div className="loading-text">正在加载功能模块...</div>
             </div>
-          ) : mockFeatures.length > 0 ? (
+          ) : getSortedFeatures().length > 0 ? (
             <>
               {listConfig.viewMode === 'card' ? (
                 <Row gutter={[20, 20]} className="feature-grid">
@@ -935,19 +736,20 @@ const MockData = () => {
               ) : (
                 renderListView()
               )}
-              
+
               {/* 分页组件 */}
-              {mockFeatures.length > listConfig.pageSize && (
+              {getSortedFeatures().length > 0 && (
                 <div className="pagination-wrapper">
                   <Pagination
                     current={listConfig.current}
                     pageSize={listConfig.pageSize}
-                    total={mockFeatures.length}
+                    total={getSortedFeatures().length}
                     onChange={handlePageChange}
-                    onShowSizeChange={handlePageChange}
-                    showSizeChanger={false}
+                    onShowSizeChange={(_, size) => handlePageSizeChange(size)}
+                    showSizeChanger={true}
+                    pageSizeOptions={['8','12','16','24']}
                     showQuickJumper={true}
-                    showTotal={(total, range) => 
+                    showTotal={(total, range) =>
                       `第 ${range[0]}-${range[1]} 条，共 ${total} 个功能模块`
                     }
                     size="default"
@@ -966,7 +768,7 @@ const MockData = () => {
               }
               description={
                 <div className="empty-description">
-                  <div className="empty-title">暂无功能模块</div>
+                  <div className="empty-title">暂无功能模块或没有匹配结果</div>
                   <div className="empty-subtitle">创建您的第一个功能模块，开始管理接口</div>
                 </div>
               }
@@ -983,7 +785,7 @@ const MockData = () => {
           )}
         </Card>
       </div>
-      
+
       <Modal
         title={currentFeature ? '编辑功能' : '新建功能'}
         open={showModal}
@@ -992,7 +794,7 @@ const MockData = () => {
         destroyOnClose
         width={500}
       >
-        <Form 
+        <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
@@ -1009,13 +811,13 @@ const MockData = () => {
           >
             <Input placeholder="请输入功能名称" />
           </Form.Item>
-          
+
           <Form.Item
             name="description"
             label="功能描述"
           >
-            <TextArea 
-              placeholder="请输入功能描述（可选）" 
+            <TextArea
+              placeholder="请输入功能描述（可选）"
               autoSize={{ minRows: 3, maxRows: 6 }}
             />
           </Form.Item>
@@ -1115,7 +917,7 @@ const MockData = () => {
           await refreshCacheAfterUpdate();
         }}
       />
-    </AppLayout>
+    </>
   );
 };
 

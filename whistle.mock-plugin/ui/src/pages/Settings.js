@@ -1,341 +1,91 @@
-import React, { useState, useEffect } from 'react';
-import AppLayout from '../components/AppLayout';
-import { Card, Typography, Switch, Space, Modal, Button, message, Radio } from 'antd';
-import { CloudSyncOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react';
+import { Alert, App, Button, Card, Radio, Space, Spin, Switch, Typography } from 'antd';
 import axios from 'axios';
-import '../styles/settings.css';
-
-const { Text } = Typography;
-
-const syncSettingsToBackend = (patch) => {
-  axios.put('/cgi-bin/settings', patch).catch(() => {});
-};
-
-const Settings = () => {
-  const [displayMode, setDisplayMode] = useState('modal');
-  const [interfaceFormDisplayMode, setInterfaceFormDisplayMode] = useState('modal');
-  const [interfaceParamMatcherEnabled, setInterfaceParamMatcherEnabled] = useState(true);
-  const [responseParamMatcherEnabled, setResponseParamMatcherEnabled] = useState(true);
-  const [webDavSyncEnabled, setWebDavSyncEnabled] = useState(false);
-  const [webDavSettingSaving, setWebDavSettingSaving] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState('light');
-
-  useEffect(() => {
-    const savedMode = localStorage.getItem('dataManagementDisplayMode');
-    if (savedMode) setDisplayMode(savedMode);
-
-    const savedInterfaceFormMode = localStorage.getItem('interfaceFormDisplayMode');
-    if (savedInterfaceFormMode) setInterfaceFormDisplayMode(savedInterfaceFormMode);
-
-    // 优先从后端读取入参匹配开关，保持前后端一致
-    axios.get('/cgi-bin/settings').then(({ data }) => {
-      const ipm = data.interfaceParamMatcherEnabled !== false;
-      const rpm = data.responseParamMatcherEnabled !== false;
-      setInterfaceParamMatcherEnabled(ipm);
-      setResponseParamMatcherEnabled(rpm);
-      setWebDavSyncEnabled(data.webDavSyncEnabled == true);
-      localStorage.setItem('interfaceParamMatcherEnabled', String(ipm));
-      localStorage.setItem('responseParamMatcherEnabled', String(rpm));
-      window.dispatchEvent(new Event('storage'));
-    }).catch(() => {
-      const savedInterfaceParamMatcher = localStorage.getItem('interfaceParamMatcherEnabled');
-      if (savedInterfaceParamMatcher !== null) setInterfaceParamMatcherEnabled(savedInterfaceParamMatcher !== 'false');
-      const savedResponseParamMatcher = localStorage.getItem('responseParamMatcherEnabled');
-      if (savedResponseParamMatcher !== null) setResponseParamMatcherEnabled(savedResponseParamMatcher !== 'false');
-    });
-
-    // 读取主题设置（兼容旧版 cyberTheme）
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      setCurrentTheme(savedTheme);
-    } else {
-      const oldCyber = localStorage.getItem('cyberTheme');
-      const themeValue = oldCyber === 'false' ? 'light' : oldCyber === 'true' ? 'cyber' : 'light';
-      setCurrentTheme(themeValue);
-      localStorage.setItem('theme', themeValue);
-    }
-  }, []);
-
-  const handleDisplayModeChange = (checked) => {
-    const newMode = checked ? 'drawer' : 'modal';
-    setDisplayMode(newMode);
-    localStorage.setItem('dataManagementDisplayMode', newMode);
-    window.dispatchEvent(new Event('storage'));
-  };
-
-  const handleInterfaceFormDisplayModeChange = (checked) => {
-    const newMode = checked ? 'drawer' : 'modal';
-    setInterfaceFormDisplayMode(newMode);
-    localStorage.setItem('interfaceFormDisplayMode', newMode);
-    window.dispatchEvent(new Event('storage'));
-  };
-
-  const handleInterfaceParamMatcherChange = (checked) => {
-    setInterfaceParamMatcherEnabled(checked);
-    localStorage.setItem('interfaceParamMatcherEnabled', String(checked));
-    syncSettingsToBackend({ interfaceParamMatcherEnabled: checked });
-    window.dispatchEvent(new Event('storage'));
-  };
-
-  const handleResponseParamMatcherChange = (checked) => {
-    setResponseParamMatcherEnabled(checked);
-    localStorage.setItem('responseParamMatcherEnabled', String(checked));
-    syncSettingsToBackend({ responseParamMatcherEnabled: checked });
-    window.dispatchEvent(new Event('storage'));
-  };
-
-  const handleWebDavSyncChange = async (checked) => {
-    const previous = webDavSyncEnabled;
-    setWebDavSyncEnabled(checked);
-    setWebDavSettingSaving(true);
+import UIVersionSelector from '../components/UIVersionSelector';
+import PageModeSelector from '../components/PageModeSelector';
+import PageHeader from '../components/PageHeader';
+import { useTheme } from '../theme/ThemeProvider';
+export default function Settings() {
+  const {
+      currentTheme,
+      setTheme
+    } = useTheme(),
+    {
+      message
+    } = App.useApp();
+  const [settings, setSettings] = useState({
+    interfaceParamMatcherEnabled: true,
+    responseParamMatcherEnabled: true,
+    webDavSyncEnabled: false
+  });
+  const [loading, setLoading] = useState(true),
+    [saving, setSaving] = useState(''),
+    [error, setError] = useState('');
+  const load = async () => {
+    setLoading(true);
+    setError('');
     try {
-      await axios.put('/cgi-bin/settings', { webDavSyncEnabled: checked });
-      message.success(`WebDAV 同步功能已${checked ? '开启' : '关闭'}`);
-    } catch (error) {
-      setWebDavSyncEnabled(previous);
-      message.error('保存 WebDAV 同步设置失败');
+      const {
+        data
+      } = await axios.get('/cgi-bin/settings');
+      setSettings(data);
+    } catch (e) {
+      setError('读取设置失败，请重试。');
     } finally {
-      setWebDavSettingSaving(false);
+      setLoading(false);
     }
   };
-
-  const handleThemeChange = (e) => {
-    const newTheme = e.target.value;
-    setCurrentTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    // 兼容旧版存储
-    localStorage.setItem('cyberTheme', String(newTheme === 'cyber'));
-    window.dispatchEvent(new Event('storage'));
-    const themeNames = { light: '经典亮色', cyber: '赛博朋克', earth: '大地色系' };
-    message.success(`${themeNames[newTheme]}主题已开启`);
-  };
-
-  const showMatcherRuleModal = (type) => {
-    if (type === 'interface') {
-      Modal.info({
-        title: '接口入参匹配规则说明',
-        width: 560,
-        content: (
-          <div>
-            <p>用于区分同一 URL 下的不同接口定义（接口级匹配）。</p>
-            <p>执行顺序与优先级：</p>
-            <ul>
-              <li>先进行 URL 匹配，命中多个接口时，按接口匹配条件顺序查找第一条命中规则。</li>
-              <li>若命中规则且配置了目标响应，则直接返回该响应（最高优先级）。</li>
-              <li>若命中规则但未配置目标响应，则进入“响应入参匹配”阶段继续判断。</li>
-              <li>若本开关关闭，则跳过接口级匹配，直接走“响应入参匹配”（若开启）。</li>
-            </ul>
-            <p>兜底逻辑：</p>
-            <ul>
-              <li>若最终没有任何入参规则命中，系统返回默认响应。</li>
-              <li>支持嵌套参数路径，例如：data.user.id。</li>
-            </ul>
-          </div>
-        )
+  useEffect(() => {
+    load();
+  }, []);
+  const save = async (key, value) => {
+    setSaving(key);
+    try {
+      const {
+        data
+      } = await axios.put('/cgi-bin/settings', {
+        [key]: value
       });
-      return;
+      setSettings(data);
+      localStorage.setItem(key, String(value));
+      window.dispatchEvent(new Event('storage'));
+      message.success('设置已保存并生效');
+    } catch (e) {
+      message.error('保存失败，设置未改变');
+    } finally {
+      setSaving('');
     }
-
-    Modal.info({
-      title: '响应入参匹配规则说明',
-      width: 560,
-      content: (
-        <div>
-          <p>用于在同一接口内，根据请求参数选择具体响应（响应级匹配）。</p>
-          <p>执行顺序与优先级：</p>
-          <ul>
-            <li>仅在“接口入参匹配”未直接确定目标响应时才会执行。</li>
-            <li>按响应配置顺序匹配，命中第一条规则即返回对应响应。</li>
-            <li>支持精确匹配、包含匹配、正则匹配。</li>
-            <li>若本开关关闭，则跳过响应级匹配，直接使用默认响应。</li>
-          </ul>
-          <p>兜底逻辑：</p>
-          <ul>
-            <li>开启但未命中任一规则时，使用默认响应。</li>
-            <li>与接口级都关闭时，请求将直接返回默认响应。</li>
-          </ul>
-        </div>
-      )
-    });
   };
-
-  return (
-    <AppLayout>
-      <div className="page-container">
-        <div className="page-title-bar">
-          <div>
-            <h1 className="page-title">系统设置</h1>
-            <div className="page-description">
-              配置插件的全局设置项和界面选项
-            </div>
-          </div>
-        </div>
-
-        <Card title="界面设置" className="settings-card">
-          <div className="settings-item">
-            <div className="settings-item-header">
-              <div>
-                <div className="settings-item-title">数据管理交互</div>
-                <div className="settings-item-description">
-                  选择数据管理的显示方式
-                </div>
-              </div>
-              <Space>
-                <Text type="secondary">
-                  {displayMode === 'drawer' ? '抽屉模式' : '弹窗模式'}
-                </Text>
-                <Switch 
-                  checked={displayMode === 'drawer'}
-                  onChange={handleDisplayModeChange}
-                />
-              </Space>
-            </div>
-          </div>
-
-          <div className="settings-item">
-            <div className="settings-item-header">
-              <div>
-                <div className="settings-item-title">接口表单交互</div>
-                <div className="settings-item-description">
-                  选择添加/编辑接口的显示方式
-                </div>
-              </div>
-              <Space>
-                <Text type="secondary">
-                  {interfaceFormDisplayMode === 'drawer' ? '抽屉模式' : '弹窗模式'}
-                </Text>
-                <Switch 
-                  checked={interfaceFormDisplayMode === 'drawer'}
-                  onChange={handleInterfaceFormDisplayModeChange}
-                />
-              </Space>
-            </div>
-          </div>
-
-          <div className="settings-item">
-            <div className="settings-item-header">
-              <div>
-                <div className="settings-item-title">
-                  接口入参匹配
-                  <Button
-                    type="text"
-                    size="small"
-                    className="settings-help-icon"
-                    icon={<QuestionCircleOutlined />}
-                    onClick={() => showMatcherRuleModal('interface')}
-                  />
-                </div>
-                <div className="settings-item-description">
-                  是否在接口编辑表单中显示「接口匹配条件」配置区域
-                </div>
-              </div>
-              <Space>
-                <Text type="secondary">
-                  {interfaceParamMatcherEnabled ? '已开启' : '已关闭'}
-                </Text>
-                <Switch
-                  checked={interfaceParamMatcherEnabled}
-                  onChange={handleInterfaceParamMatcherChange}
-                />
-              </Space>
-            </div>
-          </div>
-
-          <div className="settings-item">
-            <div className="settings-item-header">
-              <div>
-                <div className="settings-item-title">
-                  响应入参匹配
-                  <Button
-                    type="text"
-                    size="small"
-                    className="settings-help-icon"
-                    icon={<QuestionCircleOutlined />}
-                    onClick={() => showMatcherRuleModal('response')}
-                  />
-                </div>
-                <div className="settings-item-description">
-                  是否在响应内容编辑器中显示「入参匹配规则」配置区域
-                </div>
-              </div>
-              <Space>
-                <Text type="secondary">
-                  {responseParamMatcherEnabled ? '已开启' : '已关闭'}
-                </Text>
-                <Switch
-                  checked={responseParamMatcherEnabled}
-                  onChange={handleResponseParamMatcherChange}
-                />
-              </Space>
-            </div>
-          </div>
-        </Card>
-
-        <Card title="同步设置" className="settings-card" style={{ marginTop: 24 }}>
-          <div className="settings-item">
-            <div className="settings-item-header">
-              <div>
-                <div className="settings-item-title">
-                  <CloudSyncOutlined style={{ marginRight: 8 }} />
-                  WebDAV 同步
-                </div>
-                <div className="settings-item-description">
-                  开启后，在功能模块管理页显示 WebDAV 入口；关闭不会清除已保存的连接配置
-                </div>
-              </div>
-              <Space>
-                <Text type="secondary">{webDavSyncEnabled ? '已开启' : '已关闭'}</Text>
-                <Switch
-                  checked={webDavSyncEnabled}
-                  loading={webDavSettingSaving}
-                  onChange={handleWebDavSyncChange}
-                />
-              </Space>
-            </div>
-          </div>
-        </Card>
-
-        <Card title="主题设置" className="settings-card" style={{ marginTop: 24 }}>
-          <div className="settings-item">
-            <div className="settings-item-header">
-              <div>
-                <div className="settings-item-title">界面主题</div>
-                <div className="settings-item-description">
-                  选择插件的界面主题风格
-                </div>
-              </div>
-            </div>
-            <Radio.Group
-              value={currentTheme}
-              onChange={handleThemeChange}
-              style={{ marginTop: 12 }}
-            >
-              <Space direction="vertical">
-                <Radio value="light">
-                  <Space>
-                    <span style={{ display: 'inline-block', width: 16, height: 16, borderRadius: 4, background: '#1890ff', verticalAlign: 'middle', marginRight: 4 }} />
-                    经典亮色 — Ant Design 默认亮色风格
-                  </Space>
-                </Radio>
-                <Radio value="cyber">
-                  <Space>
-                    <span style={{ display: 'inline-block', width: 16, height: 16, borderRadius: 4, background: 'linear-gradient(135deg, #00f0ff, #00ff41)', verticalAlign: 'middle', marginRight: 4 }} />
-                    赛博朋克 — 深色霓虹科技风格
-                  </Space>
-                </Radio>
-                <Radio value="earth">
-                  <Space>
-                    <span style={{ display: 'inline-block', width: 16, height: 16, borderRadius: 4, background: 'linear-gradient(135deg, #b87333, #d4a017)', verticalAlign: 'middle', marginRight: 4 }} />
-                    大地色系 — 暖色调自然舒适风格
-                  </Space>
-                </Radio>
-              </Space>
-            </Radio.Group>
-          </div>
-        </Card>
-      </div>
-    </AppLayout>
-  );
-};
-
-export default Settings; 
+  const row = (key, title, description) => <div className="mm-setting-row"><div><h3>{title}</h3><p>{description}</p></div><Space><Typography.Text type="secondary">{settings[key] ? '已开启' : '已关闭'}</Typography.Text><Switch aria-label={title} checked={settings[key] === true} disabled={!!saving || !!error} loading={saving === key} onChange={value => save(key, value)} /></Space></div>;
+  return <div className="page-container"><PageHeader kicker="PREFERENCES" title="系统设置" description="外观偏好保存在当前浏览器，匹配和同步设置保存到插件。" />{error && <Alert type="error" message={error} action={<Button onClick={load}>重试</Button>} />}
+    <Spin spinning={loading}><div className="mm-settings-layout"><nav aria-label="设置分类" className="mm-settings-nav"><a href="#page-mode" onClick={e => { e.preventDefault(); document.getElementById('page-mode')?.scrollIntoView({ behavior: 'smooth' }); }}>打开方式</a><a href="#appearance" onClick={e => {
+            e.preventDefault();
+            document.getElementById('appearance')?.scrollIntoView({
+              behavior: 'smooth'
+            });
+          }}>外观</a><a href="#matching" onClick={e => {
+            e.preventDefault();
+            document.getElementById('matching')?.scrollIntoView({
+              behavior: 'smooth'
+            });
+          }}>匹配规则</a><a href="#sync" onClick={e => {
+            e.preventDefault();
+            document.getElementById('sync')?.scrollIntoView({
+              behavior: 'smooth'
+            });
+          }}>数据同步</a><a href="#editing" onClick={e => {
+            e.preventDefault();
+            document.getElementById('editing')?.scrollIntoView({
+              behavior: 'smooth'
+            });
+          }}>编辑与布局</a></nav><div>
+      <PageModeSelector />
+      <Card id="appearance" title="外观" className="mm-settings-section"><UIVersionSelector /><p className="mm-settings-description">选择主题后立即生效。赛博朋克和大地色系沿用统一工作台布局。</p><Radio.Group value={currentTheme} onChange={e => setTheme(e.target.value)} className="mm-theme-options">{[['light', '经典浅色', '清爽背景，适合日间工作'], ['dark', '深色工作台', '低亮度背景，代码更聚焦'], ['cyber', '赛博朋克', '深色底与青色强调'], ['earth', '大地色系', '温暖底色与铜色强调']].map(([value, label, desc]) => <Radio key={value} value={value}><span><strong>{label}</strong><small>{desc}</small></span></Radio>)}</Radio.Group></Card>
+      <Card id="matching" title="匹配规则" className="mm-settings-section">{row('interfaceParamMatcherEnabled', '接口入参匹配', '按请求参数选择接口，同时显示接口匹配条件；关闭后跳过接口级参数检查。')}{row('responseParamMatcherEnabled', '响应入参匹配', '按请求参数选择同一接口的响应；关闭后使用默认响应（接口级目标响应仍优先）。')}<Alert type="info" showIcon message="支持精确、包含、正则匹配和嵌套参数路径。响应条件按顺序检查；没有命中时使用默认响应。" /></Card>
+      <Card id="sync" title="数据同步" className="mm-settings-section">{row('webDavSyncEnabled', 'WebDAV 同步入口', '开启后可从功能模块页面连接 WebDAV、推送和拉取配置。关闭入口不会清除连接配置。')}<Typography.Text type="secondary">连接状态与覆盖冲突会在同步窗口中单独显示。</Typography.Text></Card>
+      <Card id="editing" title="编辑与布局" className="mm-settings-section"><div className="mm-setting-row"><div><h3>接口工作台</h3><p>接口规则和响应使用统一编辑区；浏览器保存面板宽度、模块选择及列表密度。</p></div><Button onClick={() => {
+                ['mm-panel-widths', 'mm-tree-collapsed', 'mm-list-density', 'mm-interface-view', 'mm-hidden-columns'].forEach(k => localStorage.removeItem(k));
+                message.success('布局偏好已重置，下次进入工作台生效');
+              }}>恢复默认布局</Button></div><Typography.Text type="secondary">修改草稿需保存后生效；离开前提示未保存内容。旧版弹窗/抽屉偏好不再影响工作台。</Typography.Text></Card>
+    </div></div></Spin></div>;
+}

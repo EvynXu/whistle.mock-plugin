@@ -57,6 +57,9 @@ export const useKeyboardShortcuts = () => {
       return;
     }
 
+    if (e.isComposing || e.altKey) return;
+    if (isInput && !(ctrlOrCmd && e.key.toLowerCase() === 's' && !e.shiftKey)) return;
+
     // Ctrl/Cmd + 数字键 导航
     if (ctrlOrCmd && !e.shiftKey && /^[1-5]$/.test(e.key)) {
       e.preventDefault();

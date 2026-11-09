@@ -1,0 +1,21 @@
+// Isolated UI preview: CGI writes are confined to a temporary fixture directory.
+const fs = require('fs-extra');
+const os = require('os');
+const path = require('path');
+const http = require('http');
+const storage = require('../lib/storage');
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockmaster-ui3-'));
+storage.DATA_DIR = dir;
+storage.FILES_DIR = path.join(dir,'files');
+storage.LOGS_DIR = path.join(dir,'logs');
+const now = new Date().toISOString();
+fs.writeJsonSync(path.join(dir,'features.json'),{features:[{id:'orders',name:'订单中心',description:'订单查询与交易流程',active:true,interfaceCount:3},{id:'users',name:'用户服务',description:'登录与用户资料',active:true,interfaceCount:1},{id:'payments',name:'支付服务',description:'支付与退款流程',active:false,interfaceCount:0}]});
+const create=(id,name,urlPattern,method='GET',group='订单查询')=>({id,name,urlPattern,httpMethod:method,featureId:'orders',group,proxyType:'response',active:true,httpStatus:200,responseDelay:0,contentType:'application/json; charset=utf-8',responses:[{id:`${id}-ok`,name:'正常返回',content:JSON.stringify({code:0,data:{orderId:'10001',status:'success'}},null,2),paramMatchers:[]},{id:`${id}-empty`,name:'空数据',content:'{"code":0,"data":[]}',paramMatchers:[]}],activeResponseId:`${id}-ok`,createdAt:now,updatedAt:now});
+fs.writeJsonSync(path.join(dir,'interfaces.json'),{interfaces:[create('detail','订单详情','/api/orders/detail'),create('list','订单列表','/api/orders/list'),create('create','提交订单','/api/orders/create','POST','订单操作'),{...create('user','用户资料','/api/user/info'),featureId:'users',group:'资料'}]});
+fs.writeJsonSync(path.join(dir,'logs.json'),{logs:[{id:'hit1',timestamp:now,eventType:'mock_hit',url:'https://example.com/api/orders/detail',method:'GET',status:200,interfaceId:'detail',interfaceName:'订单详情',featureId:'orders',featureName:'订单中心'}]});
+const server=http.createServer();
+require('../lib/ui-server')(server,{});
+const port=Number(process.env.MOCKMASTER_PREVIEW_PORT || 9083);
+server.listen(port,'127.0.0.1',()=>console.log(`UI preview http://127.0.0.1:${port} · isolated fixtures`));
+const stop=()=>server.close(()=>{fs.removeSync(dir);process.exit(0);});
+process.on('SIGINT',stop);process.on('SIGTERM',stop);

@@ -1,0 +1,7 @@
+.mm-local-address { max-width:210px; min-width:0; }
+.mm-ip-label { font:12px 'SFMono-Regular',Consolas,monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mm-ip-panel { min-width:220px; max-height:min(420px,70vh); overflow:auto; max-width:min(380px,calc(100vw - 40px)); }
+.mm-ip-panel-heading,.mm-ip-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.mm-ip-row { padding:5px 0; }.mm-ip-row .ant-typography { min-width:0; overflow-wrap:anywhere; }.mm-ip-row>.ant-btn { flex-shrink:0; }
+.mm-ip-hint { font-size:12px; margin:4px 0 8px!important; }
+@media(max-width:480px) { .mm-local-address { max-width:148px; padding-inline:4px; } }

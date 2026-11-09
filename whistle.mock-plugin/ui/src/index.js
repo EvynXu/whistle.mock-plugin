@@ -1,50 +1,8 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
-import { HashRouter as Router, Switch, Route, Redirect } from 'react-router-dom';
+import { createRoot } from 'react-dom/client';
 
-// 导入样式
-import 'antd/dist/reset.css';
-import './styles/global.css';
-import './App.css';
-
-// 赛博朋克主题 CSS（规则均带 body.cyber-theme 前缀，默认不生效）
-require('./styles/cyber-theme.css');
-
-// 大地色系主题 CSS（规则均带 body.earth-theme 前缀，默认不生效）
-require('./styles/earth-theme.css');
-
-// 导入页面组件
-import MockData from './pages/MockDataV2';
-import InterfaceManagement from './pages/InterfaceManagementV2';
-import Settings from './pages/Settings';
-import Stats from './pages/Stats';
-import Sniffer from './pages/Sniffer';
-
-const App = () => {
-  return (
-    <Router>
-      <div className="App">
-        <Switch>
-          <Route exact path="/" component={MockData} />
-          <Route exact path="/interface" component={InterfaceManagement} />
-          <Route path="/interface/:featureId" component={InterfaceManagement} />
-          <Route path="/stats" component={Stats} />
-          <Route path="/sniffer" component={Sniffer} />
-          <Route path="/settings" component={Settings} />
-          <Redirect to="/" />
-        </Switch>
-      </div>
-    </Router>
-  );
-};
-
-// 确保使用正确的渲染方法，兼容React 18和旧版本
-const root = document.getElementById('root');
-if (ReactDOM.createRoot) {
-  // React 18+
-  const rootElement = ReactDOM.createRoot(root);
-  rootElement.render(<App />);
-} else {
-  // 旧版本React
-  ReactDOM.render(<App />, root);
-}
+// Each UI loads its own styles. Reload on switching prevents legacy CSS leakage.
+const loadUI = localStorage.getItem('mm-ui-version') === 'legacy'
+  ? import('./legacy/index')
+  : import('./ModernApp');
+loadUI.then(({ default: App }) => createRoot(document.getElementById('root')).render(<App />));

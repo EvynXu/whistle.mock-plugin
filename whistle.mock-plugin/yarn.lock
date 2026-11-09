@@ -826,6 +826,87 @@
   "resolved" "https://registry.npmmirror.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz"
   "version" "0.2.3"
 
+"@codemirror/autocomplete@^6.0.0":
+  "integrity" "sha512-yF8RhOf2SXlg00+qtupzLhrglcas61boqaONiNcbPIebHCpJocpqTBA6dyrtUrQO47hqyTdeob/3XnYilT7TaQ=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@codemirror/autocomplete/-/autocomplete-6.20.4.tgz"
+  "version" "6.20.4"
+  dependencies:
+    "@codemirror/language" "^6.0.0"
+    "@codemirror/state" "^6.0.0"
+    "@codemirror/view" "^6.17.0"
+    "@lezer/common" "^1.0.0"
+
+"@codemirror/commands@^6.0.0", "@codemirror/commands@^6.11.1":
+  "integrity" "sha512-O/4hG3SC1YwcmQ0d2UVNDs+AsaNWd1iHVxbTeEBuqH+6bExAiPK3iS/BvpY6rZGURALv4ZD3sIgcCmRvw3ehBg=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@codemirror/commands/-/commands-6.11.1.tgz"
+  "version" "6.11.1"
+  dependencies:
+    "@codemirror/language" "^6.0.0"
+    "@codemirror/state" "^6.7.0"
+    "@codemirror/view" "^6.27.0"
+    "@lezer/common" "^1.1.0"
+
+"@codemirror/lang-json@^6.0.2":
+  "integrity" "sha512-x2OtO+AvwEHrEwR0FyyPtfDUiloG3rnVTSZV1W8UteaLL8/MajQd8DpvUb2YVzC+/T18aSDv0H9mu+xw0EStoQ=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@codemirror/lang-json/-/lang-json-6.0.2.tgz"
+  "version" "6.0.2"
+  dependencies:
+    "@codemirror/language" "^6.0.0"
+    "@lezer/json" "^1.0.0"
+
+"@codemirror/language@^6.0.0", "@codemirror/language@^6.13.1":
+  "integrity" "sha512-zfvU2r3TyylQLMj/te+5CnQ0rSqZi8B1oTCBbQkagcLW4Xc6imab6qN+pEJhsuNOLaJqiRyBXp9UhWA1DhVvDw=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@codemirror/language/-/language-6.13.1.tgz"
+  "version" "6.13.1"
+  dependencies:
+    "@codemirror/state" "^6.0.0"
+    "@codemirror/streamparser" "^6.0.0"
+    "@codemirror/view" "^6.23.0"
+    "@lezer/common" "^1.5.0"
+    "@lezer/highlight" "^1.0.0"
+    "@lezer/lr" "^1.0.0"
+    "style-mod" "^4.0.0"
+
+"@codemirror/lint@^6.0.0", "@codemirror/lint@^6.9.7":
+  "integrity" "sha512-28/+iWLYxKxsvGYhSYL7zaCZqLz5+FFFDq9tVsvGv9kv8RY4fFAchJ5WX9M3YrrRlTIsECjsXPqeNgnSmNP2dg=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@codemirror/lint/-/lint-6.9.7.tgz"
+  "version" "6.9.7"
+  dependencies:
+    "@codemirror/state" "^6.0.0"
+    "@codemirror/view" "^6.42.0"
+    "crelt" "^1.0.5"
+
+"@codemirror/search@^6.0.0", "@codemirror/search@^6.7.2":
+  "integrity" "sha512-gUYkYhT2+n/+VGZ+8EzE5WFkYZUZYm1VOKDudIsNqh42uRVQJ0a6Yss9sdKT3MeOYfuL1N6AZA57oza0Oyr0LA=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@codemirror/search/-/search-6.7.2.tgz"
+  "version" "6.7.2"
+  dependencies:
+    "@codemirror/state" "^6.0.0"
+    "@codemirror/view" "^6.37.0"
+    "crelt" "^1.0.5"
+
+"@codemirror/state@^6.0.0", "@codemirror/state@^6.7.0", "@codemirror/state@^6.7.6":
+  "integrity" "sha512-kAz+AncRtKuIknedxT1bq4XwXv4UowhbkHU1myPrtVb/jZtImWuV5BXzv5vK6i3kYACsdiZiQKFQQ5Mq7elW8w=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@codemirror/state/-/state-6.7.6.tgz"
+  "version" "6.7.6"
+  dependencies:
+    "@marijn/find-cluster-break" "^1.0.0"
+
+"@codemirror/streamparser@^6.0.0":
+  "integrity" "sha512-JTFPF6xrfjt0mnfGPgzcLiMwYmvIyNaoizp8BYzv8FE8KrT6GBGDZ190rtt+O7Wke3gG/MFHyiY9YGNeimof4w=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@codemirror/streamparser/-/streamparser-6.0.0.tgz"
+  "version" "6.0.0"
+
+"@codemirror/view@^6.0.0", "@codemirror/view@^6.17.0", "@codemirror/view@^6.23.0", "@codemirror/view@^6.27.0", "@codemirror/view@^6.37.0", "@codemirror/view@^6.42.0", "@codemirror/view@^6.43.15":
+  "integrity" "sha512-HHsfpqFeHyXLs983pSRe38Xajs0vFWZQ2BuX0m7Ki8w3jZ5iD8cuR3lBz2/5/X53Dhf32SBHKh6rtSTB6tKeGw=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@codemirror/view/-/view-6.43.15.tgz"
+  "version" "6.43.15"
+  dependencies:
+    "@codemirror/state" "^6.7.0"
+    "crelt" "^1.0.6"
+    "style-mod" "^4.1.0"
+    "w3c-keyname" "^2.2.4"
+
 "@discoveryjs/json-ext@^0.5.0":
   "integrity" "sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw=="
   "resolved" "https://registry.npmmirror.com/@discoveryjs/json-ext/-/json-ext-0.5.7.tgz"
@@ -1093,6 +1174,39 @@
   "integrity" "sha512-Vo+PSpZG2/fmgmiNzYK9qWRh8h/CHrwD0mo1h1DzL4yzHNSfWYujGTYsWGreD000gcgmZ7K4Ys6Tx9TxtsKdDw=="
   "resolved" "https://registry.npmmirror.com/@leichtgewicht/ip-codec/-/ip-codec-2.0.5.tgz"
   "version" "2.0.5"
+
+"@lezer/common@^1.0.0", "@lezer/common@^1.1.0", "@lezer/common@^1.2.0", "@lezer/common@^1.3.0", "@lezer/common@^1.5.0":
+  "integrity" "sha512-xt3Q4z64xM+xhg4M7NXqw1N//1O74bUFo5kz6fwMeC4qwxSuRdwkYSmjcqCEEKYkNw5e67f2hcNqBoNERAEU0w=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@lezer/common/-/common-1.5.4.tgz"
+  "version" "1.5.4"
+
+"@lezer/highlight@^1.0.0", "@lezer/highlight@^1.2.5":
+  "integrity" "sha512-O1GMVKgtf5YspFaRzpmqkVgMtIk2HG9uMAbH6wdAIdNh3TVzCsch/+cRi+6l2//UGDKe6NB9BW3cvuR5ezMQ0w=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@lezer/highlight/-/highlight-1.2.5.tgz"
+  "version" "1.2.5"
+  dependencies:
+    "@lezer/common" "^1.3.0"
+
+"@lezer/json@^1.0.0":
+  "integrity" "sha512-BP9KzdF9Y35PDpv04r0VeSTKDeox5vVr3efE7eBbx3r4s3oNLfunchejZhjArmeieBH+nVOpgIiBJpEAv8ilqQ=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@lezer/json/-/json-1.0.3.tgz"
+  "version" "1.0.3"
+  dependencies:
+    "@lezer/common" "^1.2.0"
+    "@lezer/highlight" "^1.0.0"
+    "@lezer/lr" "^1.0.0"
+
+"@lezer/lr@^1.0.0":
+  "integrity" "sha512-UwgZcl1R66H2hDzBrA7kWyYmX6s8p5TQ+e/t7CuvgCtBEPxbEPaHYHu+pJBvTvDotEJpuQkJjbXuHiw5Cixxgw=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@lezer/lr/-/lr-1.4.11.tgz"
+  "version" "1.4.11"
+  dependencies:
+    "@lezer/common" "^1.0.0"
+
+"@marijn/find-cluster-break@^1.0.0":
+  "integrity" "sha512-Wy0V7+SGUjnF9/TkiM1hKVDPj7jKXduPNboMVtHTA8dySMURWqfg/JZ9E2Sq8JgSJmkl7k7Qe9FLeMSrSraWmQ=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@marijn/find-cluster-break/-/find-cluster-break-1.0.4.tgz"
+  "version" "1.0.4"
 
 "@rc-component/async-validator@^5.0.3":
   "integrity" "sha512-qgGdcVIF604M9EqjNF0hbUTz42bz/RDtxWdWuU5EQe3hi7M8ob54B6B35rOsvX5eSvIHIzT9iH1R3n+hk3CGfg=="
@@ -1408,6 +1522,13 @@
   "integrity" "sha512-hKormJbkJqzQGhziax5PItDUTMAM9uE2XXQmM37dyd4hVM+5aVl7oVxMVUiVQn2oCQFN/LKCZdvSM0pFRqbSmQ=="
   "resolved" "https://registry.npmmirror.com/@types/range-parser/-/range-parser-1.2.7.tgz"
   "version" "1.2.7"
+
+"@types/react@>=16":
+  "integrity" "sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/@types/react/-/react-19.3.0.tgz"
+  "version" "19.3.0"
+  dependencies:
+    "csstype" "^3.2.2"
 
 "@types/retry@0.12.0":
   "integrity" "sha512-wWKOClTTiizcZhXnPY4wikVAwmdYHp8q6DmC+EJUzAMsycb7HB32Kh9RN4+0gExjmPmZSAQjgURXIGATPegAvA=="
@@ -2081,10 +2202,28 @@
     "kind-of" "^6.0.2"
     "shallow-clone" "^3.0.0"
 
+"clsx@^2.1.1":
+  "integrity" "sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/clsx/-/clsx-2.1.1.tgz"
+  "version" "2.1.1"
+
 "co@^4.6.0":
   "integrity" "sha512-QVb0dM5HvG+uaxitm8wONl7jltx8dqhfU33DcqtOZcLSVIKSDDLDi7+0LbAKiyI8hD9u42m2YxXSkMGWThaecQ=="
   "resolved" "https://registry.npmmirror.com/co/-/co-4.6.0.tgz"
   "version" "4.6.0"
+
+"codemirror@^6.0.2":
+  "integrity" "sha512-VhydHotNW5w1UGK0Qj96BwSk/Zqbp9WbnyK2W/eVMv4QyF41INRGpjUhFJY7/uDNuudSc33a/PKr4iDqRduvHw=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/codemirror/-/codemirror-6.0.2.tgz"
+  "version" "6.0.2"
+  dependencies:
+    "@codemirror/autocomplete" "^6.0.0"
+    "@codemirror/commands" "^6.0.0"
+    "@codemirror/language" "^6.0.0"
+    "@codemirror/lint" "^6.0.0"
+    "@codemirror/search" "^6.0.0"
+    "@codemirror/state" "^6.0.0"
+    "@codemirror/view" "^6.0.0"
 
 "collect-v8-coverage@^1.0.0":
   "integrity" "sha512-lHl4d5/ONEbLlJvaJNtsF/Lz+WvB07u2ycqTYbdrq7UypDXailES4valYb2eWiJFxZlVmpGekfqoxQhzyFdT4Q=="
@@ -2232,6 +2371,11 @@
     "jest-util" "^29.7.0"
     "prompts" "^2.0.1"
 
+"crelt@^1.0.5", "crelt@^1.0.6":
+  "integrity" "sha512-aK6BbWfhf4U/wCcLHKPJl/xa6VkVstRaPywWtMKGwuOLc/wZTyQYuoxgvZnNsBvv7Kg3YTBQYYBCggcviQczuA=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/crelt/-/crelt-1.0.7.tgz"
+  "version" "1.0.7"
+
 "cross-env@^7.0.3":
   "integrity" "sha512-+/HKd6EgcQCJGh2PSjZuUitQBQynKor4wrFbRg4DtAgS1aWO+gU52xpH7M9ScGgXSYmAVS9bIJ8EzuaGw0oNAw=="
   "resolved" "https://registry.npmmirror.com/cross-env/-/cross-env-7.0.3.tgz"
@@ -2283,10 +2427,10 @@
   "resolved" "https://registry.npmmirror.com/cssesc/-/cssesc-3.0.0.tgz"
   "version" "3.0.0"
 
-"csstype@^3.1.3":
-  "integrity" "sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw=="
-  "resolved" "https://registry.npmmirror.com/csstype/-/csstype-3.1.3.tgz"
-  "version" "3.1.3"
+"csstype@^3.1.3", "csstype@^3.2.2":
+  "integrity" "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/csstype/-/csstype-3.2.3.tgz"
+  "version" "3.2.3"
 
 "dayjs@^1.11.11", "dayjs@>= 1.x":
   "integrity" "sha512-oaMBel6gjolK862uaPQOVTA7q3TZhuSvuMQAAglQDOWYO9A91IrAOUJEyKVlqJlHE0vq5p5UXxzdPfMH/x6xNg=="
@@ -4492,7 +4636,7 @@
     "kleur" "^3.0.3"
     "sisteransi" "^1.0.5"
 
-"prop-types@^15.0.0", "prop-types@^15.6.2":
+"prop-types@^15.0.0", "prop-types@^15.6.2", "prop-types@^15.8.1", "prop-types@15.x":
   "integrity" "sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg=="
   "resolved" "https://registry.npmmirror.com/prop-types/-/prop-types-15.8.1.tgz"
   "version" "15.8.1"
@@ -4878,13 +5022,21 @@
     "rc-resize-observer" "^1.0.0"
     "rc-util" "^5.36.0"
 
-"react-dom@*", "react-dom@^18.2.0", "react-dom@>=16.0.0", "react-dom@>=16.11.0", "react-dom@>=16.9.0":
+"react-dom@*", "react-dom@^18.2.0", "react-dom@>= 16.3", "react-dom@>= 16.3.0", "react-dom@>=16.0.0", "react-dom@>=16.11.0", "react-dom@>=16.9.0":
   "integrity" "sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw=="
   "resolved" "https://registry.npmmirror.com/react-dom/-/react-dom-18.3.1.tgz"
   "version" "18.3.1"
   dependencies:
     "loose-envify" "^1.1.0"
     "scheduler" "^0.23.2"
+
+"react-draggable@^4.5.0":
+  "integrity" "sha512-pmqDx72EqhMGoJe/x42ZO2wJ9TIz7qJ5OPnFu6lVWWznEuJumlSjR+J0V4tNyDFhUo6dVvv56FeiTqN+arTgnw=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/react-draggable/-/react-draggable-4.7.2.tgz"
+  "version" "4.7.2"
+  dependencies:
+    "clsx" "^2.1.1"
+    "prop-types" "^15.8.1"
 
 "react-is@^16.13.1", "react-is@^16.6.0", "react-is@^16.7.0":
   "integrity" "sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ=="
@@ -4922,6 +5074,14 @@
     "unist-util-visit" "^4.0.0"
     "vfile" "^5.0.0"
 
+"react-resizable@^3.0.5":
+  "integrity" "sha512-3NKQ0SLZV7rs3LQHeXlOzDSRQfFrkX6TVet77/Qk03zqiZyee37b7N8/gwDJAA8UUjRz7PdWCCy49hcso45SMQ=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/react-resizable/-/react-resizable-3.2.0.tgz"
+  "version" "3.2.0"
+  dependencies:
+    "prop-types" "15.x"
+    "react-draggable" "^4.5.0"
+
 "react-router-dom@^5.3.0":
   "version" "5.3.0"
   dependencies:
@@ -4955,7 +5115,7 @@
     "classnames" "2.3.1"
     "tiny-invariant" "1.2.0"
 
-"react@*", "react@^0.14.0 || ^15.0.0 || ^16.0.0 || ^17.0.0", "react@^18.2.0", "react@^18.3.1", "react@>=15", "react@>=16", "react@>=16.0.0", "react@>=16.11.0", "react@>=16.9.0":
+"react@*", "react@^0.14.0 || ^15.0.0 || ^16.0.0 || ^17.0.0", "react@^18.2.0", "react@^18.3.1", "react@>= 16.3", "react@>= 16.3.0", "react@>=15", "react@>=16", "react@>=16.0.0", "react@>=16.11.0", "react@>=16.9.0":
   "integrity" "sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ=="
   "resolved" "https://registry.npmmirror.com/react/-/react-18.3.1.tgz"
   "version" "18.3.1"
@@ -5499,6 +5659,11 @@
   "resolved" "https://registry.npmmirror.com/style-loader/-/style-loader-3.3.4.tgz"
   "version" "3.3.4"
 
+"style-mod@^4.0.0", "style-mod@^4.1.0":
+  "integrity" "sha512-XXWIQt633/EpAFx8aZDOTjBzrCaGmhvEQlQo6MVPfa2OzO2cWo+4hV9h+6UkHYlXGfy+ODXKUdP7Pthmcu5ATw=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/style-mod/-/style-mod-4.1.4.tgz"
+  "version" "4.1.4"
+
 "style-to-object@^0.4.0":
   "integrity" "sha512-HYNoHZa2GorYNyqiCaBgsxvcJIn7OHq6inEga+E6Ke3m5JkoqpQbnFssk4jwe+K7AhGa2fcha4wSOf1Kn01dMg=="
   "resolved" "https://registry.npmmirror.com/style-to-object/-/style-to-object-0.4.4.tgz"
@@ -5810,6 +5975,11 @@
     "is-buffer" "^2.0.0"
     "unist-util-stringify-position" "^3.0.0"
     "vfile-message" "^3.0.0"
+
+"w3c-keyname@^2.2.4":
+  "integrity" "sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ=="
+  "resolved" "http://nexus.17usoft.com/repository/npm-flight-group/w3c-keyname/-/w3c-keyname-2.2.8.tgz"
+  "version" "2.2.8"
 
 "walker@^1.0.8":
   "integrity" "sha512-ts/8E8l5b7kY0vlWLewOkDXMmPdLcVV4GmOQLyxuSswIJsweeFZtAsMF7k1Nszz+TYBQrlYRmzOnr398y1JemQ=="

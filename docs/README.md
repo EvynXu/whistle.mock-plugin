@@ -4,6 +4,12 @@
 
 ## 功能文档
 
+### 项目规划
+
+- [项目待办](roadmap.md) - 代码审阅后的可靠性修复、功能扩展与 UI 升级清单
+- [UI 工作台升级方案](ui-workbench-redesign.md) - 页面布局问题、设计方向和分阶段验收
+- [UI 3.0 改动点与待办](ui-3.0-todo.md) - 25 项可执行任务、涉及页面、依赖和验收标准
+
 ### URL重定向功能
 
 URL重定向功能允许用户将特定URL的请求重定向到另一个目标URL。这对于前端开发、接口测试和调试非常有用。
@@ -43,4 +49,6 @@ URL重定向功能允许用户将特定URL的请求重定向到另一个目标UR
 
 ## 问题反馈
 
-如果你发现文档中的错误或有改进建议，请[提交Issue](https://github.com/your-username/whistle.mock-plugin/issues)。 
+如果你发现文档中的错误或有改进建议，请[提交Issue](https://github.com/your-username/whistle.mock-plugin/issues)。
+
+- [AI 控制插件 Skill](../skills/whistle-mock-control/SKILL.md)：通过本地 API 查询抓包列表与请求/响应详情、从抓包创建或追加 Mock，并管理模块、接口、多响应、匹配设置、统计和服务 IP；含标准库 Python 客户端。

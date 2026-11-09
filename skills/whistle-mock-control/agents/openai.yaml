@@ -1,0 +1,4 @@
+interface:
+  display_name: "Whistle Mock 控制"
+  short_description: "读取本地 Whistle 抓包详情、转为 Mock，并管理接口、多响应与匹配设置"
+  default_prompt: "使用 $whistle-mock-control 查找相关抓包与响应，按要求转为 Mock 或切换已有接口场景。"

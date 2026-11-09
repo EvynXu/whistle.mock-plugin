@@ -1,0 +1,10 @@
+/* Keep the shared capture page inside the classic shell and its viewport. */
+.legacy-network-layout { height:100vh; height:100dvh; min-height:0; overflow:hidden; }
+.legacy-network-layout>.ant-layout { height:100%; min-height:0; }
+.legacy-network-layout .app-sider { height:calc(100vh - 64px); height:calc(100dvh - 64px); }
+.legacy-network-layout .app-content-wrapper { height:calc(100vh - 64px); height:calc(100dvh - 64px); min-height:0; min-width:0; }
+.legacy-network-context { display:flex; flex-direction:column; flex:1; min-height:0; min-width:0; }
+@media(max-width:768px) {
+  .legacy-network-layout .app-sider.ant-layout-sider-collapsed { display:none; }
+  .legacy-network-layout .app-content-wrapper { margin-left:0; }
+}

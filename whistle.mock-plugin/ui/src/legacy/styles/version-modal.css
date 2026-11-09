@@ -1,0 +1,116 @@
+/* 版本弹窗样式 */
+.version-modal .ant-modal-content {
+  padding: 0;
+}
+
+.version-modal .ant-modal-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.version-modal .ant-modal-body {
+  padding: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.version-modal-content {
+  padding: 24px;
+}
+
+.version-modal-loading {
+  text-align: center;
+  padding: 40px;
+}
+
+.version-modal-loading p {
+  margin-top: 16px;
+  color: #666;
+}
+
+/* 版本号按钮样式 */
+.version-button {
+  padding: 4px 8px;
+  height: auto;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.version-button:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.version-button:focus {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Markdown 内容样式 */
+.version-markdown-content {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+.version-markdown-content h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+  color: #1890ff;
+}
+
+.version-markdown-content h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 24px 0 12px 0;
+  color: #262626;
+}
+
+.version-markdown-content h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 16px 0 8px 0;
+  color: #52c41a;
+}
+
+.version-markdown-content p {
+  margin: 8px 0;
+  color: #595959;
+}
+
+.version-markdown-content ul {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.version-markdown-content li {
+  margin: 4px 0;
+  color: #595959;
+}
+
+.version-markdown-content strong {
+  font-weight: 600;
+  color: #262626;
+}
+
+.version-markdown-content code {
+  background-color: #f5f5f5;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 87%;
+}
+
+.version-markdown-content pre {
+  background-color: #f6f8fa;
+  padding: 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.version-markdown-content pre code {
+  background-color: transparent;
+  padding: 0;
+} 

@@ -42,7 +42,7 @@ const jsonToMockTemplate = (obj, depth = 0) => {
   return obj;
 };
 
-const RealResponseRecorder = ({ urlPattern, onApply }) => {
+const RealResponseRecorder = ({ urlPattern, onApply, method = 'GET' }) => {
   const [fetchUrl, setFetchUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState(null);
@@ -58,7 +58,7 @@ const RealResponseRecorder = ({ urlPattern, onApply }) => {
     try {
       const res = await axios.post('/cgi-bin/proxy-fetch', {
         url: targetUrl,
-        method: 'GET',
+        method,
       });
       if (res.data.code === 0) {
         setResponse(res.data.data);
@@ -97,12 +97,12 @@ const RealResponseRecorder = ({ urlPattern, onApply }) => {
   return (
     <div style={{ padding: '16px 0' }}>
       <Space direction="vertical" style={{ width: '100%' }}>
-        <Space style={{ width: '100%' }}>
+        <Space wrap style={{ width: '100%' }}>
           <Input
             placeholder={urlPattern || '输入真实接口 URL'}
             value={fetchUrl}
             onChange={(e) => setFetchUrl(e.target.value)}
-            style={{ width: 400 }}
+            style={{ width: '100%', minWidth: 200 }}
             onPressEnter={handleFetch}
           />
           <Button

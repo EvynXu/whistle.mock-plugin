@@ -1,0 +1,26 @@
+.mm-app-network { height:100vh; height:100dvh; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+.mm-app-network .mm-app-header { flex-shrink:0; }
+.mm-app-main-network { flex:1; min-height:0; width:100%; max-width:none; margin:0; overflow:hidden; display:flex; flex-direction:column; }
+.mm-network-page { display:flex; flex-direction:column; flex:1; min-height:0; gap:14px; }
+.mm-network-page .mm-page-header { margin:0; flex-shrink:0; }
+.mm-network-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; flex-shrink:0; }
+.mm-network-controls>.ant-input-search { width:360px; max-width:100%; flex:1; min-width:150px; }
+.mm-network-controls>.ant-select { width:120px; }
+.mm-network-state,.mm-network-note { color:var(--mm-muted); font-size:12px; }
+.mm-network-note { flex-shrink:0; }
+.mm-network-table { flex:1; min-height:0; overflow:auto; }
+.mm-network-url { border:0; background:none; color:var(--mm-primary); text-align:left; font:inherit; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; display:block; }
+.mm-network-detail-url { display:flex; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+.mm-network-detail-url .ant-typography { overflow-wrap:anywhere; }
+.mm-capture-body { white-space:pre-wrap; overflow-wrap:anywhere; max-height:60vh; overflow:auto; background:var(--mm-bg); border:1px solid var(--mm-border); color:var(--mm-text); padding:14px; border-radius:6px; font:12px/1.8 'SFMono-Regular',Consolas,monospace; }
+.mm-network-overview { overflow-wrap:anywhere; color:var(--mm-text); }
+@media(max-width:480px) { .mm-network-page { gap:10px; }.mm-network-controls>.ant-input-search { flex-basis:100%; }.mm-network-state { flex-basis:100%; }.mm-network-controls>.ant-select { flex:1; } }
+
+.mm-capture-body-tools { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px; }.mm-capture-body-tools>.ant-typography { font-size:12px; }
+
+.mm-network-page .mm-page-header { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.mm-network-page .mm-page-header h1 { margin:0 0 5px; color:var(--mm-text); font-size:23px; }
+.mm-network-page .mm-page-header p { margin:0; color:var(--mm-muted); font-size:13px; }
+.mm-network-page .mm-page-kicker { margin-bottom:6px; color:var(--mm-muted); font-size:11px; letter-spacing:1.5px; }
+.mm-network-page .page-actions,.mm-save-footer { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.mm-save-footer { justify-content:space-between; }

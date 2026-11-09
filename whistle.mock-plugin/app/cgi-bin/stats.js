@@ -14,18 +14,30 @@ module.exports = (req, res) => {
     const type = req.query.type || 'overview';
 
     if (!fs.existsSync(LOGS_FILE)) {
-      return res.json({ code: 0, data: { logs: [], stats: {} } });
+      return res.json({ code: 0, data: { logs: [], timeline: {}, topInterfaces: [], topFeatures: [] } });
     }
 
     const logsData = fs.readJsonSync(LOGS_FILE);
     const logs = logsData.logs || [];
 
-    // 只取最近 7 天的日志做统计（避免数据量过大）
     const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const dayKey = value => {
+      const date = new Date(value);
+      return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    };
+    const parseDay = value => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+      const date = new Date(`${value}T00:00:00`);
+      return Number.isFinite(date.getTime()) && dayKey(date) === value ? date : null;
+    };
+    const start = req.query.startDate ? parseDay(req.query.startDate) : new Date(now.getFullYear(),now.getMonth(),now.getDate()-6);
+    const end = req.query.endDate ? parseDay(req.query.endDate) : new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    if (!start || !end || start > end || end-start > 366*86400000) return res.status(400).json({code:400,message:'请选择有效的日期范围（最多 366 天）'});
+    const endExclusive = new Date(end); endExclusive.setDate(endExclusive.getDate()+1);
+    const filterUrl = String(req.query.url || '').toLowerCase();
     const recentLogs = logs.filter(log => {
       const t = new Date(log.timestamp);
-      return t >= sevenDaysAgo;
+      return t >= start && t < endExclusive && (!filterUrl || String(log.url || '').toLowerCase().includes(filterUrl));
     });
 
     // 分离命中和未命中
@@ -69,7 +81,7 @@ module.exports = (req, res) => {
           const id = log.interfaceId || log.interfaceName || 'unknown';
           const name = log.interfaceName || id;
           if (!interfaceHitMap[id]) {
-            interfaceHitMap[id] = { id, name, count: 0 };
+            interfaceHitMap[id] = { id, name, featureId: log.featureId, count: 0 };
           }
           interfaceHitMap[id].count++;
         });
@@ -80,7 +92,7 @@ module.exports = (req, res) => {
         // Top 10 命中功能模块
         const featureHitMap = {};
         hitLogs.forEach(log => {
-          const id = log.featureName || log.featureId || 'unknown';
+          const id = log.featureId || log.featureName || 'unknown';
           const name = log.featureName || '未分类';
           if (!featureHitMap[id]) {
             featureHitMap[id] = { id, name, count: 0 };
@@ -98,13 +110,11 @@ module.exports = (req, res) => {
       case 'timeline': {
         // 最近 7 天每天的命中数
         const timeline = {};
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-          const key = d.toISOString().slice(0, 10);
-          timeline[key] = 0;
+        for (let date = new Date(start); date <= end; date.setDate(date.getDate()+1)) {
+          timeline[dayKey(date)] = 0;
         }
         hitLogs.forEach(log => {
-          const key = new Date(log.timestamp).toISOString().slice(0, 10);
+          const key = dayKey(log.timestamp);
           if (timeline[key] !== undefined) {
             timeline[key]++;
           }
@@ -120,7 +130,7 @@ module.exports = (req, res) => {
         
         if (filterDate) {
           filteredLogs = filteredLogs.filter(log => {
-            const logDate = new Date(log.timestamp).toISOString().slice(0, 10);
+            const logDate = dayKey(log.timestamp);
             return logDate === filterDate;
           });
         }
