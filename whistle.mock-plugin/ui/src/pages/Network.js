@@ -1,25 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, App, Button, Drawer, Empty, Input, Radio, Select, Space, Spin, Table, Tabs, Tag, Typography } from 'antd';
+import { Alert, App, Button, Drawer, Empty, Input, Select, Space, Spin, Table, Tag, Typography } from 'antd';
 import { ClearOutlined, PauseCircleOutlined, PlayCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import SaveMockDrawer from '../components/SaveMockDrawer';
-import ReplayDrawer from '../components/ReplayDrawer';
+import CapturedRequestDetails from '../components/CapturedRequestDetails';
+import { useHistory } from 'react-router-dom';
 import { fetchNetwork, fetchSession } from '../utils/network/client';
-import { MAX_ROWS, mergeRows, sessionDetail } from '../utils/network/model';
-import { formatJSONForDisplay } from '../utils/network/format';
+import { MAX_ROWS, mergeRows, sessionDetail, header } from '../utils/network/model';
 import '../styles/network.css';
 const size = value => value == null ? '—' : value < 1024 ? `${value} B` : value < 1048576 ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1048576).toFixed(1)} MB`;
 const time = value => value ? new Date(value).toLocaleTimeString() : '—';
-function Body({ body, onCopy }) {
-  const [mode, setMode] = useState('pretty');
-  const formatted = useMemo(() => body.available ? formatJSONForDisplay(body.text) : null, [body.available, body.text]);
-  if (!body.available) return <Alert type="warning" showIcon message={body.reason} />;
-  return <div><div className="mm-capture-body-tools"><Radio.Group size="small" aria-label="正文展示方式" optionType="button" buttonStyle="solid" value={formatted.available ? mode : 'raw'} onChange={event => setMode(event.target.value)} options={[{ value: 'pretty', label: '格式化', disabled: !formatted.available }, { value: 'raw', label: '原文' }]} />
-    <Button size="small" onClick={onCopy}>复制原文</Button><Typography.Text type="secondary">{formatted.available ? '仅调整展示，复制与保存使用原文' : formatted.reason}</Typography.Text>
-  </div><pre className="mm-capture-body">{(formatted.available && mode === 'pretty' ? formatted.text : body.text) || '（空内容）'}</pre></div>;
-}
 export default function Network() {
+  const history = useHistory();
   const {
     message
   } = App.useApp();
@@ -44,8 +37,6 @@ export default function Network() {
     [detailLoading, setDetailLoading] = useState(false),
     [detailRetry, setDetailRetry] = useState(0);
   const [saveCapture, setSaveCapture] = useState(null);
-  const [replayOpen, setReplayOpen] = useState(false);
-  const devices = useMemo(() => [...new Set(rows.map(row => row.clientIp).filter(Boolean))].sort(), [rows]);
   useEffect(() => {
     const host = tableHost.current;
     if (!host) return;
@@ -199,17 +190,18 @@ export default function Network() {
     ellipsis: true,
     render: value => value || '—'
   }];
-  const side = part => <Tabs items={[{
-    key: 'body',
-    label: '内容',
-    children: <Body key={`${detail.session.id}-${part}`} body={detail[part === 'req' ? 'request' : 'response']} onCopy={() => copy(detail[part === 'req' ? 'request' : 'response'].text)} />
-  }, {
-    key: 'headers',
-    label: 'Headers',
-    children: <pre className="mm-capture-body">{JSON.stringify(detail.session[part]?.headers || {}, null, 2)}</pre>
-  }]} />;
+  const session = detail?.session;
+  const overview = session && [
+    ['状态', session.res?.statusCode || '进行中'],
+    ['耗时', session.endTime ? `${Math.max(0, session.endTime - session.startTime)} ms` : '进行中'],
+    ['开始时间', session.startTime ? new Date(session.startTime).toLocaleString() : '—'],
+    ['设备 IP', session.req?.ip || '—'], ['来源', 'Whistle 抓取'],
+    ['请求正文', size(session.req?.unzipSize ?? session.req?.size)],
+    ['响应正文', size(session.res?.unzipSize ?? session.res?.size)],
+    ['请求 ID', session.id], ['响应类型', header(session.res?.headers, 'content-type') || '—']
+  ];
   return <div className="mm-network-page"><PageHeader kicker="WHISTLE NETWORK" title="抓包列表" description="查看 Whistle 已捕获的请求，直接将响应转为 Mock，无需重新发送。" actions={<>
-    <Button onClick={() => setReplayOpen(true)}>故障复现</Button>
+    <Button onClick={() => history.push('/replay')}>故障复现</Button>
     <Button icon={running ? <PauseCircleOutlined /> : <PlayCircleOutlined />} onClick={() => setRunning(value => !value)}>{running ? '暂停同步' : '继续同步'}</Button>
     <Button aria-label="重新载入最近请求" icon={<ReloadOutlined />} onClick={() => clear(true)} /><Button icon={<ClearOutlined />} onClick={() => clear(false)}>清空本页</Button>
   </>} />
@@ -236,24 +228,14 @@ export default function Network() {
       }} pagination={false} locale={{
         emptyText: <Empty description={error ? '连接 Whistle 后查看抓包数据' : '暂无匹配请求，请确认请求已经过 Whistle 代理'} />
       }} /></div>
-    <ReplayDrawer open={replayOpen} onClose={() => setReplayOpen(false)} devices={devices} />
     <Drawer title="抓包详情" open={!!selected} onClose={() => setSelected(null)} width="min(900px, 100vw)" extra={<Button aria-label="刷新抓包详情" icon={<ReloadOutlined />} onClick={() => setDetailRetry(v => v + 1)} />} footer={<Space wrap><Button disabled={!detail?.canSave} type="primary" onClick={capture}>保存为 Mock</Button><Button disabled={!detail?.response.available} onClick={() => copy(detail.response.text)}>复制响应体</Button></Space>}>
       <Spin spinning={detailLoading}>{detailError && <Alert type="error" message={detailError} action={<Button onClick={() => setDetailRetry(v => v + 1)}>重试</Button>} />}
-        {detail && <><div className="mm-network-detail-url"><Tag>{detail.session.req?.method}</Tag><Tag>{detail.session.res?.statusCode || '进行中'}</Tag><Typography.Text copyable>{detail.session.url}</Typography.Text></div>
+        {detail && <>
           {!detail.canSave && detail.reason !== detail.response.reason && <Alert className="mm-error" type="warning" showIcon message={detail.reason} />}
-          <Tabs items={[{
-            key: 'response',
-            label: '响应',
-            children: side('res')
-          }, {
-            key: 'request',
-            label: '请求',
-            children: side('req')
-          }, {
-            key: 'overview',
-            label: '概览',
-            children: <div className="mm-network-overview"><p>请求 ID：{detail.session.id}</p><p>开始时间：{new Date(detail.session.startTime).toLocaleString()}</p><p>耗时：{detail.session.endTime ? `${detail.session.endTime - detail.session.startTime} ms` : '进行中'}</p><p>响应大小：{size(detail.session.res?.size)}</p><p>说明：数据来自 Whistle 内存缓存；未做重放，WebSocket 帧请在 Whistle 中查看。</p></div>
-          }]} />
+          <CapturedRequestDetails key={session.id} url={session.url} method={session.req?.method} status={session.res?.statusCode || '进行中'} overview={overview}
+            requestHeaders={session.req?.headers} responseHeaders={session.res?.headers}
+            requestBody={detail.request} responseBody={detail.response}
+            note="数据来自 Whistle 内存缓存。WebSocket 帧可在 Whistle 中查看。" />
         </>}
       </Spin>
     </Drawer>

@@ -65,6 +65,7 @@
     "lib/",
     "app/cgi-bin/",
     "app/public/",
+    "rules.txt",
     "scripts/replay-session.js",
     "VERSION.md",
     "README.md"

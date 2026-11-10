@@ -19,6 +19,8 @@ import Settings from './pages/Settings';
 import Stats from './pages/Stats';
 import Sniffer from './pages/Sniffer';
 import Network from './pages/Network';
+import AppLayout from './components/AppLayout';
+import ReplayWorkspace from '../components/ReplayWorkspace';
 
 const App = () => {
   return (
@@ -32,8 +34,10 @@ const App = () => {
           <Route path="/network" component={Network} />
           <Route path="/sniffer" component={Sniffer} />
           <Route path="/settings" component={Settings} />
+          <Route exact path="/replay" render={() => null} />
           <Redirect to="/" />
         </Switch>
+        <Route exact path="/replay" children={({ match }) => <ReplayWorkspace open={!!match} layout={AppLayout} />} />
       </div>
     </Router>
   );

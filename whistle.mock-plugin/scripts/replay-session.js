@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
-const { MAX_FILE_BYTES, createScriptFallback, requestKey, parseSession, assertReplayEntry, replayHeaders } = require('../lib/replay-session');
-const { createReplayMatcher } = require('../lib/replay-match');
-const { attachReplayPreview } = require('../lib/replay-preview');
+const { MAX_FILE_BYTES, createScriptFallback, requestKey, parseSession, assertReplayEntry, replayHeaders, restoreCachedReplay, replayResourceType } = require('../lib/replay-session');
+const { createReplayMatcher, replayMatchScope, PARAMETER_MISMATCH, MISSING_REQUEST } = require('../lib/replay-match');
+const { fetchReplayResource } = require('../lib/replay-assets');
 
 function isTopNavigation(request) {
   if (!request.isNavigationRequest()) return false;
@@ -33,16 +33,28 @@ function refuseRequest(route, session) {
   });
 }
 
-async function installReplay(context, session, report = console.log, onDiagnostic = () => {}) {
-  let match = createReplayMatcher(session.records);
-  const findScript = createScriptFallback(session.records);
+async function installReplay(context, session, report = console.log, onDiagnostic = () => {}, overrides = new Map(), directTypes = []) {
+  const records = restoreCachedReplay(session.records.filter(row => row.source !== 'direct'));
+  let liveTypes = new Set(directTypes);
+  let downloads = new AbortController();
+  context.once('close', () => downloads.abort());
+  const supplemented = new Map();
+  function addAssets(rows) {
+    for (const row of rows) supplemented.set(requestKey(row.method, row.url, row.requestBody), row);
+  }
+  addAssets(session.records.filter(row => row.source === 'direct'));
+  let match = createReplayMatcher(records, overrides);
+  const findScript = createScriptFallback(records);
   const reported = new Set();
-  function blocked(request, url, reason) {
-    const item = { method: request.method(), url: url.origin + url.pathname, type: request.resourceType(), reason };
-    const key = JSON.stringify(item);
+  function blocked(request, url, reason, detail, candidateIds) {
+    const item = { method: request.method(), url: url.origin + url.pathname, type: request.resourceType(), reason, detail };
+    const asset = item.method === 'GET' && ['script', 'stylesheet'].includes(item.type) && reason === MISSING_REQUEST
+      ? { url: url.href, type: item.type, origin: request.headers().origin } : undefined;
+    const key = reason === PARAMETER_MISMATCH ? replayMatchScope(item.method, item.url, item.type) :
+      JSON.stringify([item, asset?.url]);
     if (!reported.has(key) && reported.size < 60) {
       reported.add(key);
-      onDiagnostic({ blocked: item });
+      onDiagnostic({ blocked: { ...item, candidateIds }, asset });
     }
   }
   await context.routeWebSocket(/.*/, socket => socket.close());
@@ -51,21 +63,41 @@ async function installReplay(context, session, report = console.log, onDiagnosti
     const url = new URL(request.url());
     const label = request.method() + ' ' + url.origin + url.pathname;
     const body = request.postDataBuffer()?.toString('base64') || '';
-    let entry, reason;
+    let entry, reason, detail, candidateIds, liveResource, downloadSignal;
     if (/^https?:$/.test(url.protocol)) {
       if (isEntryNavigation(request, session)) {
-        match = createReplayMatcher(session.records);
+        match = createReplayMatcher(records, overrides);
+        downloads.abort();
+        downloads = new AbortController();
+        liveTypes = new Set(directTypes);
         reported.clear();
-        onDiagnostic({ reset: true });
+        onDiagnostic({ reset: true, directTypes: [...liveTypes], entryUrl: session.entryUrl });
       }
-      ({ entry, reason } = match(request.method(), url, body, request.resourceType()));
+      ({ entry, reason, detail, candidateIds } = match(request.method(), url, body, request.resourceType()));
+      if (!entry && ['script', 'stylesheet'].includes(request.resourceType())) {
+        entry = supplemented.get(requestKey(request.method(), url.href, body));
+      }
       if (!entry && request.resourceType() === 'script' && request.method() === 'GET' && !body) {
         entry = findScript(url.href);
+      }
+      if (liveTypes.size && !entry && reason === MISSING_REQUEST && request.method() === 'GET') {
+        const resource = replayResourceType(request.resourceType(), url);
+        if (liveTypes.has(resource)) {
+          downloadSignal = downloads.signal;
+          try {
+            entry = await fetchReplayResource({ url: url.href, type: request.resourceType(), origin: request.headers().origin }, downloadSignal);
+            liveResource = resource;
+          } catch (error) {
+            reason = '静态资源直连失败';
+            detail = error.message;
+          }
+          if (downloadSignal.aborted) return;
+        }
       }
     }
     if (!entry || (entry.outcome !== 'response' && entry.outcome !== 'network-error')) {
       report('缺少可回放记录 ' + label);
-      blocked(request, url, entry ? '响应未完整录到' : reason || '会话里没有录到这条请求');
+      blocked(request, url, entry ? '响应未完整录到' : reason || MISSING_REQUEST, detail, candidateIds);
       await refuseRequest(route, session);
       return;
     }
@@ -76,8 +108,8 @@ async function installReplay(context, session, report = console.log, onDiagnosti
       return;
     }
     const response = entry.response;
-    if (!response) {
-      blocked(request, url, '响应未完整录到');
+    if (!response || entry.status === 304) {
+      blocked(request, url, entry.status === 304 ? '304 响应没有正文，也没有同版本的 200 记录' : '响应未完整录到');
       await refuseRequest(route, session);
       return;
     }
@@ -87,10 +119,39 @@ async function installReplay(context, session, report = console.log, onDiagnosti
       headers: replayHeaders(response.headers),
       body: Buffer.from(response.body, 'base64')
     });
+    if (liveResource && !downloadSignal.aborted) onDiagnostic({ liveResource });
   });
+  return addAssets;
 }
 
-async function runReplay(session, onReady = () => {}, report = console.log, onDiagnostic = () => {}, cookies = [], embedded = false) {
+function attachReplayControls(page, session, addAssets, overrides, directTypes) {
+  let restart = Promise.resolve();
+  const handle = ({ action, supplement, overrideChanges, override }) => {
+    if (action?.type === 'stop') {
+      page.close().catch(() => {});
+      return;
+    }
+    const changes = overrideChanges || (override ? [override] : []);
+    if (action?.type !== 'restart' && !supplement && !changes.length) return;
+    restart = restart.then(async () => {
+      if (page.isClosed()) return;
+      if (supplement) addAssets(supplement);
+      for (const change of changes) {
+        if (change.recordId !== undefined) overrides.set(change.scope, change.recordId);
+        else overrides.delete(change.scope);
+      }
+      // Force a new document and reset scrolling even when only the hash changes.
+      await page.goto('about:blank', { waitUntil: 'commit', timeout: 15000 });
+      if (action?.directTypes) directTypes.splice(0, directTypes.length, ...action.directTypes);
+      if (action?.entryUrl) session.entryUrl = action.entryUrl;
+      await page.goto(session.entryUrl, { waitUntil: 'commit', timeout: 15000 });
+    }).catch(() => {});
+  };
+  process.on('message', handle);
+  page.once('close', () => process.removeListener('message', handle));
+}
+
+async function runReplay(session, onReady = () => {}, report = console.log, onDiagnostic = () => {}, cookies = [], directTypes = []) {
   assertReplayEntry(session);
   let playwright;
   try {
@@ -101,7 +162,7 @@ async function runReplay(session, onReady = () => {}, report = console.log, onDi
   }
   const browser = await playwright.chromium.launch({
     channel: 'chrome',
-    headless: embedded,
+    headless: false,
     proxy: { server: 'http://127.0.0.1:1', bypass: '<-loopback>' },
     args: ['--disable-quic', '--force-webrtc-ip-handling-policy=disable_non_proxied_udp']
   });
@@ -110,7 +171,6 @@ async function runReplay(session, onReady = () => {}, report = console.log, onDi
   try {
     const context = await browser.newContext({
       ...playwright.devices['Pixel 7'],
-      ...(embedded ? { deviceScaleFactor: 2 } : {}),
       offline: true,
       serviceWorkers: 'block'
     });
@@ -121,9 +181,10 @@ async function runReplay(session, onReady = () => {}, report = console.log, onDi
         throw new Error('Chrome 无法加载复现 Cookie，请检查 Cookie 格式和入口地址。');
       }
     }
-    await installReplay(context, session, report, onDiagnostic);
+    const overrides = new Map();
+    const addAssets = await installReplay(context, session, report, onDiagnostic, overrides, directTypes);
     const page = await context.newPage();
-    if (embedded) attachReplayPreview(page, session.entryUrl);
+    if (process.send) attachReplayControls(page, session, addAssets, overrides, directTypes);
     const closed = page.waitForEvent('close', { timeout: 0 });
     onReady();
     await page.goto(session.entryUrl, { waitUntil: 'domcontentloaded', timeout: 125000 }).catch(error => {
@@ -148,14 +209,14 @@ async function main() {
 }
 
 if (require.main === module && process.send) {
-  process.once('message', async ({ session, cookies, embedded }) => {
+  process.once('message', async ({ session, cookies, directTypes }) => {
     try {
       await runReplay(session, () => {
         if (!process.connected) throw new Error('Whistle 已断开');
         process.send({ ready: true });
       }, () => {}, event => {
         if (process.connected) process.send(event);
-      }, cookies, embedded);
+      }, cookies, directTypes);
     } catch (error) {
       if (process.connected) process.send({ error: error.message.split('\n')[0] });
     } finally {

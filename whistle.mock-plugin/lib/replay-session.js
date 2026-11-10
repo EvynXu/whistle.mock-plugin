@@ -1,6 +1,27 @@
 const MAX_RECORDS = 250;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const BODY_BUDGET = 18 * 1024 * 1024;
+const REPLAY_RESOURCE_TYPES = {
+  png: 'PNG', jpg: 'JPG / JPEG', gif: 'GIF', webp: 'WebP', svg: 'SVG',
+  js: 'JS', css: 'CSS', font: '字体'
+};
+
+function parseDirectReplayTypes(value = []) {
+  const supported = Object.keys(REPLAY_RESOURCE_TYPES);
+  if (!Array.isArray(value) || value.length > supported.length || value.some(type => !supported.includes(type))) {
+    throw new Error('无法识别直连的资源类型');
+  }
+  return [...new Set(value)];
+}
+
+function replayResourceType(type, url) {
+  if (type === 'script') return 'js';
+  if (type === 'stylesheet') return 'css';
+  if (type === 'font') return 'font';
+  if (type !== 'image') return;
+  const extension = /\.(png|jpe?g|gif|webp|svg)$/i.exec(url.pathname)?.[1].toLowerCase();
+  return extension === 'jpeg' ? 'jpg' : extension;
+}
 
 function httpUrl(value) {
   const url = new URL(value);
@@ -74,9 +95,36 @@ function replayCookies(header, address) {
   return [...cookies.values()];
 }
 
+function strongCacheTag(value) {
+  return typeof value === 'string' && value.length <= 512 && /^"[\x21\x23-\x7e\x80-\xff]*"$/.test(value.trim()) ? value.trim() : '';
+}
+
+function restoreCachedReplay(records, sources = records) {
+  const key = row => JSON.stringify([requestKey(row.method, row.url, row.requestBody), strongCacheTag(row.cacheTag)]);
+  const bodies = new Map();
+  for (const row of sources) {
+    if (row.method !== 'GET' || row.status !== 200 || row.outcome !== 'response' ||
+        row.requestBody !== '' || !row.response?.body || !strongCacheTag(row.cacheTag)) continue;
+    const id = key(row);
+    if (!bodies.has(id)) bodies.set(id, row.response);
+    else if (bodies.get(id)?.body !== row.response.body) bodies.set(id, null);
+  }
+  return records.map(row => {
+    if (row.method !== 'GET' || row.status !== 304 || row.requestBody !== '' ||
+        row.outcome !== 'response' || !strongCacheTag(row.cacheTag)) return row;
+    const cached = bodies.get(key(row));
+    return cached ? { ...row, status: 200, restored304: true, response: {
+      ...cached, headers: { ...cached.headers, ...row.response?.headers }
+    } } : row;
+  });
+}
+
 function assertReplayEntry(session) {
-  const entry = createReplayQueue(session.records)('GET', session.entryUrl, '');
-  if (!entry?.response || entry.outcome !== 'response' || entry.status === 304) {
+  const entry = createReplayQueue(restoreCachedReplay(session.records))('GET', session.entryUrl, '');
+  if (entry?.status === 304) {
+    throw new Error('入口返回 304，抓包中没有可确认同版本的 HTML 正文。请重新开始抓取，再让客户清除该站点缓存后打开页面。');
+  }
+  if (!entry?.response || entry.outcome !== 'response') {
     throw new Error('入口 HTML 未完整录到，请重新抓取页面后再复现。');
   }
 }
@@ -130,4 +178,4 @@ function createReplayQueue(records) {
   return (method, url, body) => queues.get(requestKey(method, url, body))?.shift();
 }
 
-module.exports = { MAX_RECORDS, MAX_FILE_BYTES, BODY_BUDGET, httpUrl, requestKey, replayHeaders, parseSession, assertReplayEntry, createReplayQueue, createScriptFallback, replayCookies };
+module.exports = { MAX_RECORDS, MAX_FILE_BYTES, BODY_BUDGET, REPLAY_RESOURCE_TYPES, parseDirectReplayTypes, replayResourceType, httpUrl, requestKey, replayHeaders, parseSession, assertReplayEntry, createReplayQueue, createScriptFallback, replayCookies, strongCacheTag, restoreCachedReplay };

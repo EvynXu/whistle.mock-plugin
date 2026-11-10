@@ -38,6 +38,12 @@ module.exports = {
       template: './ui/src/index.html',
       filename: 'index.html'
     }),
+    new HtmlWebpackPlugin({
+      template: './ui/src/whistle-certificate.html',
+      filename: 'whistle-certificate.html',
+      inject: false,
+      minify: false
+    }),
     new webpack.DefinePlugin({
       __APP_VERSION__: JSON.stringify(packageJson.version)
     })
@@ -52,4 +58,4 @@ module.exports = {
       '/api': 'http://localhost:8899'
     }
   }
-}; 
+};

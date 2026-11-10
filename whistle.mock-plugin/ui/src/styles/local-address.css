@@ -4,4 +4,10 @@
 .mm-ip-panel-heading,.mm-ip-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .mm-ip-row { padding:5px 0; }.mm-ip-row .ant-typography { min-width:0; overflow-wrap:anywhere; }.mm-ip-row>.ant-btn { flex-shrink:0; }
 .mm-ip-hint { font-size:12px; margin:4px 0 8px!important; }
+.mm-certificate-panel { width:min(290px,calc(100vw - 48px)); }
+.mm-certificate-address { width:100%; }
+.mm-certificate-panel .mm-certificate-qr { margin:10px auto; padding:16px; }
+.mm-certificate-qr > svg { width:100%; height:100%; }
+.mm-certificate-url { display:block; overflow-wrap:anywhere; margin-bottom:6px; }
+.mm-certificate-settings { display:grid; gap:6px; margin-top:10px; padding-top:10px; border-top:1px solid var(--mm-border,#ddd); }
 @media(max-width:480px) { .mm-local-address { max-width:148px; padding-inline:4px; } }

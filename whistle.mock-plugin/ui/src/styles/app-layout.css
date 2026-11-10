@@ -9,6 +9,7 @@
 .mm-navigation a:hover, .mm-navigation a.is-active { background: var(--mm-subtle); color: var(--mm-primary); }
 .mm-header-actions { display: flex; align-items: center; flex-shrink: 0; }
 .mm-app-main { padding: 28px; max-width: 1680px; margin: auto; }
+.mm-app-main-replay { max-width: none; }
 .mm-app-main-workbench { max-width: none; padding: 0; }
 .mm-app .page-container { padding: 0; background: transparent; box-shadow: none; border-radius: 0; }
 .mm-app .page-title-bar { border: 0; padding: 0; margin-bottom: 24px; gap: 16px; }

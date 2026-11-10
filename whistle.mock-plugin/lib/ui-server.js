@@ -28,14 +28,20 @@ app.use(function(req, res, next) {
 });
 
 // Starting a desktop browser is only available from the local, same-origin UI.
-const { isLocalReplayRequest, launchReplay, replayStatus, replayFrame, replayControl } = require('./replay-launch');
+const { isLocalReplayRequest, launchReplay, replayStatus, replaySupplement, replayControl } = require('./replay-launch');
+const { replayCache, serveReplayCacheRules } = require('./replay-cache');
 const { MAX_FILE_BYTES } = require('./replay-session');
+app.get('/cgi-bin/replay-session/cache-rules', serveReplayCacheRules);
+app.post('/cgi-bin/replay-session/cache', (req, res, next) => {
+  if (!isLocalReplayRequest(req)) return res.sendStatus(403);
+  next();
+}, express.json({ limit: '8kb' }), replayCache);
 app.post('/cgi-bin/replay-session/status', replayStatus);
-app.post('/cgi-bin/replay-session/frame', replayFrame);
+app.post('/cgi-bin/replay-session/supplement', replaySupplement);
 app.post('/cgi-bin/replay-session/control', (req, res, next) => {
   if (!isLocalReplayRequest(req)) return res.sendStatus(403);
   next();
-}, express.json({ limit: '24kb' }), replayControl);
+}, express.json({ limit: '512kb' }), replayControl);
 app.all('/cgi-bin/replay-session', (req, res, next) => {
   if (req.method !== 'POST') return res.sendStatus(405);
   if (!isLocalReplayRequest(req)) {
@@ -122,5 +128,6 @@ app.get('*', (req, res) => {
 
 // 导出启动UI服务器的函数
 module.exports = function startUIServer(server, options) {
+  app.set('replayCacheUpdateRules', options?.updateRules);
   server.on('request', app);
-}; 
+};

@@ -12,6 +12,7 @@ const normalizeServerAddress = result => {
   const v6 = (Array.isArray(server.ipv6) ? server.ipv6 : []).map(address).filter(usable6);
   const addresses = [...new Set([...v4, ...v6])];
   if (addresses.includes(server.bip)) addresses.splice(0, addresses.length, server.bip, ...addresses.filter(ip => ip !== server.bip));
-  return { addresses };
+  const port = /^\d+$/.test(server.port) ? Number(server.port) : 0;
+  return { addresses, port: port > 0 && port <= 65535 ? port : null };
 };
 module.exports = { normalizeServerAddress };

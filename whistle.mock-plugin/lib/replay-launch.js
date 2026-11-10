@@ -2,8 +2,9 @@ const { fork } = require('child_process');
 const { randomUUID } = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { validPreviewAction } = require('./replay-preview');
-const { assertReplayEntry, parseSession, replayCookies } = require('./replay-session');
+const { replayMatchScope } = require('./replay-match');
+const { assertReplayEntry, httpUrl, parseSession, parseDirectReplayTypes, replayCookies, BODY_BUDGET, MAX_RECORDS } = require('./replay-session');
+const { replayAssetType, downloadReplayAsset } = require('./replay-assets');
 
 let activeWorker;
 let lastReplay;
@@ -24,11 +25,11 @@ function isLocalReplayRequest(req) {
 }
 
 function launchReplay(req, res) {
-  let session, cookies, embedded;
+  let session, cookies, directTypes;
   try {
     const payload = JSON.parse(req.body);
     session = parseSession(payload?.session ?? payload);
-    embedded = payload?.embedded === true;
+    directTypes = parseDirectReplayTypes(payload?.session ? payload.directTypes : undefined);
     assertReplayEntry(session);
     cookies = replayCookies(payload?.session ? payload.cookieHeader : undefined, session.entryUrl);
   } catch (error) {
@@ -49,16 +50,19 @@ function launchReplay(req, res) {
     stdio: ['ignore', 'ignore', 'ignore', 'ipc']
   });
   activeWorker = child;
-  const replay = lastReplay = { id: randomUUID(), running: true, blocked: [], embedded, frameId: 0 };
-  if (embedded) {
-    replay.expiry = setTimeout(() => child.kill(), 45000);
-  }
+  const replay = lastReplay = {
+    id: randomUUID(), running: true, directTypes, blocked: [], liveResources: {}, overrides: new Map(), missingAssets: new Map(), additions: [],
+    entryUrl: session.entryUrl, records: session.records,
+    recordCount: session.records.length,
+    directCount: session.records.filter(row => row.source === 'direct').length,
+    bodySize: session.records.reduce((size, row) => size + (row.requestBody?.length || 0) + (row.response?.body.length || 0), 0)
+  };
   let replied = false;
   const reply = (status, message) => {
     if (replied) return;
     replied = true;
     clearTimeout(timer);
-    res.status(status).json({ ok: status === 200, message, id: replay.id });
+    res.status(status).json({ ok: status === 200, message, id: replay.id, supportsBatchOverrides: true });
   };
   const fail = message => {
     reply(503, message);
@@ -66,32 +70,39 @@ function launchReplay(req, res) {
   };
   const timer = setTimeout(() => fail('打开 Chrome 超时，请重试。'), 20000);
   child.on('message', result => {
-    if (result.ready) reply(200, embedded ? '浮层复现已启动' : '复现窗口已打开');
+    if (result.ready) reply(200, '独立 Chrome 窗口已打开');
     else if (result.error) reply(503, result.error);
-    else if (embedded && typeof result.frame === 'string' && result.frame.length <= 2000000) {
-      replay.frame = Buffer.from(result.frame, 'base64');
-      replay.frameId++;
-      replay.sendFrame?.();
-    } else if (result.reset) replay.blocked = [];
-    else if (result.blocked && replay.blocked.length < 60) replay.blocked.push(result.blocked);
+    else if (result.reset) {
+      replay.blocked = [];
+      replay.liveResources = {};
+      replay.missingAssets.clear();
+      if (result.directTypes) replay.directTypes = result.directTypes;
+      if (result.entryUrl) replay.entryUrl = result.entryUrl;
+    } else if (result.liveResource && replay.directTypes.includes(result.liveResource)) {
+      replay.liveResources[result.liveResource] = (replay.liveResources[result.liveResource] || 0) + 1;
+    } else if (result.blocked && replay.blocked.length < 60) {
+      const asset = result.asset;
+      if (asset && replayAssetType(new URL(asset.url), asset.type)) replay.missingAssets.set(asset.url, asset);
+      const item = result.blocked;
+      if (item.candidateIds?.length) item.scope = replayMatchScope(item.method, item.url, item.type);
+      if (!replay.blocked.some(previous => JSON.stringify(previous) === JSON.stringify(item))) {
+        replay.blocked.push(item);
+      }
+    }
   });
   child.once('error', () => {
-    clearTimeout(replay.expiry);
     replay.running = false;
-    delete replay.frame;
-    replay.sendFrame?.();
+    replay.records = null;
     if (activeWorker === child) activeWorker = null;
     reply(503, '无法启动本地复现进程，请检查 Node.js 路径。');
   });
   child.once('exit', () => {
-    clearTimeout(replay.expiry);
     replay.running = false;
-    delete replay.frame;
-    replay.sendFrame?.();
+    replay.records = null;
     if (activeWorker === child) activeWorker = null;
     reply(503, 'Chrome 未能启动，请检查 Chrome 和回放组件是否已安装。');
   });
-  child.send({ session, cookies, embedded }, error => {
+  child.send({ session, cookies, directTypes }, error => {
     if (error) fail('无法将会话交给本地复现进程。');
   });
 }
@@ -99,52 +110,127 @@ function launchReplay(req, res) {
 function replayStatus(req, res) {
   if (!isLocalReplayRequest(req)) return res.sendStatus(403);
   if (!lastReplay || req.query.id !== lastReplay.id) return res.sendStatus(404);
-  const { id, running, blocked, embedded } = lastReplay;
-  if (embedded && running) lastReplay.expiry.refresh();
-  res.set('Cache-Control', 'no-store').json({ id, running, blocked, embedded });
+  const { id, running, entryUrl, directTypes, blocked, liveResources, overrides } = lastReplay;
+  res.set('Cache-Control', 'no-store').json({ id, running, entryUrl, directTypes, blocked, liveResources, overrides: [...overrides.values()],
+    missingAssets: lastReplay.missingAssets.size, directCount: lastReplay.directCount, supportsBatchOverrides: true });
 }
 
-function replayFrame(req, res) {
+async function replaySupplement(req, res) {
   if (!isLocalReplayRequest(req)) return res.sendStatus(403);
   const replay = lastReplay;
-  if (!replay?.embedded || req.query.id !== replay.id) return res.sendStatus(404);
-  const after = Number(req.query.after ?? 0);
-  if (!Number.isSafeInteger(after) || after < 0) return res.sendStatus(400);
+  const worker = activeWorker;
+  if (!replay?.running || req.query.id !== replay.id || !worker?.connected) return res.sendStatus(404);
+  if (replay.supplementing) return res.status(409).json({ message: '正在补录静态资源，请稍候。' });
   res.set('Cache-Control', 'no-store');
-  if (!replay.running || !activeWorker?.connected) return res.sendStatus(410);
-  replay.expiry.refresh();
-  activeWorker.send({ preview: true }, () => {});
-  const hasNewFrame = () => replay.frame && replay.frameId > after;
-  function writeFrame() {
-    res.set('X-Replay-Frame', String(replay.frameId)).type('jpeg').send(replay.frame);
+  const limit = Math.min(12, MAX_RECORDS - replay.recordCount);
+  if (limit <= 0 || replay.bodySize >= BODY_BUDGET) {
+    if (replay.additions.length) return res.json({ records: replay.additions, added: 0, failures: [], notice: '会话已达到容量上限。' });
+    return res.status(400).json({ message: '会话已达到容量上限。' });
   }
-  if (hasNewFrame()) return writeFrame();
-
-  // One waiting response per replay. A reconnect replaces the previous wait.
-  replay.sendFrame?.();
-  function cleanup() {
+  const assets = [...replay.missingAssets.values()].slice(0, limit);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  replay.supplementing = true;
+  try {
+    const results = await Promise.allSettled(assets.map(asset => downloadReplayAsset(asset, controller.signal)));
+    const records = [];
+    const failures = [];
+    let size = replay.bodySize;
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && size + result.value.response.body.length <= BODY_BUDGET) {
+        size += result.value.response.body.length;
+        records.push(result.value);
+      } else {
+        const url = new URL(assets[index].url);
+        failures.push({ url: url.origin + url.pathname,
+          reason: result.status === 'rejected' ? result.reason.message : '会话正文已达到容量上限' });
+      }
+    });
+    if (records.length) {
+      if (lastReplay !== replay || !worker.connected) return res.status(409).json({ message: '复现已结束，请重新开始后补录。' });
+      await new Promise((resolve, reject) => worker.send({ supplement: records }, error => error ? reject(error) : resolve()));
+      replay.bodySize = size;
+      replay.recordCount += records.length;
+      replay.directCount += records.length;
+      replay.additions.push(...records);
+      for (const row of records) replay.missingAssets.delete(row.url);
+    }
+    res.json({ records: replay.additions, added: records.length, failures });
+  } catch {
+    res.status(503).json({ message: '无法把补录数据交给复现窗口，请重试。' });
+  } finally {
     clearTimeout(timer);
-    res.removeListener('close', cleanup);
-    if (replay.sendFrame === respond) delete replay.sendFrame;
+    replay.supplementing = false;
   }
-  function respond() {
-    cleanup();
-    if (res.destroyed) return;
-    if (hasNewFrame()) writeFrame();
-    else res.sendStatus(204);
-  }
-  const timer = setTimeout(respond, 4000);
-  replay.sendFrame = respond;
-  res.once('close', cleanup);
 }
 
 function replayControl(req, res) {
   if (!isLocalReplayRequest(req)) return res.sendStatus(403);
-  if (!lastReplay?.embedded || req.query.id !== lastReplay.id || !activeWorker?.connected) {
-    return res.sendStatus(404);
+  const replay = lastReplay;
+  const worker = activeWorker;
+  if (!replay?.running || req.query.id !== replay.id || !worker?.connected) return res.sendStatus(404);
+
+  const { type, scope, recordId } = req.body || {};
+  if (type === 'restart' || type === 'stop') {
+    const action = { type };
+    if (type === 'restart') {
+      try {
+        if (req.body.directTypes !== undefined) action.directTypes = parseDirectReplayTypes(req.body.directTypes);
+        if (req.body.entryUrl !== undefined) {
+          if (typeof req.body.entryUrl !== 'string') throw new Error('请输入有效的复现地址');
+          const entry = httpUrl(req.body.entryUrl);
+          if (entry.origin !== httpUrl(replay.entryUrl).origin) {
+            throw new Error('跨站点修改请先结束复现，再用新地址启动 Chrome。');
+          }
+          assertReplayEntry({ entryUrl: entry.href, records: replay.records });
+          action.entryUrl = entry.href;
+        }
+      } catch (error) {
+        return res.status(400).json({ message: error.message });
+      }
+    }
+    return worker.send({ action }, error => res.sendStatus(error ? 503 : 204));
   }
-  if (!validPreviewAction(req.body)) return res.sendStatus(400);
-  activeWorker.send({ action: req.body }, error => res.sendStatus(error ? 503 : 204));
+  if (replay.changingOverrides) return res.status(409).json({ message: '正在应用参数例外，请稍候。' });
+  let changes;
+  if (type === 'override' || type === 'apply-overrides') {
+    const selections = type === 'override' ? [{ scope, recordId }] : req.body.selections;
+    if (!Array.isArray(selections) || !selections.length || selections.length > 60 ||
+      selections.some(item => typeof item?.scope !== 'string' || typeof item.recordId !== 'string') ||
+      new Set(selections.map(item => item.scope)).size !== selections.length) {
+      return res.status(400).json({ message: '参数例外的选择有误，请重新选择后再应用。' });
+    }
+
+    const diagnostics = new Map(replay.blocked.filter(item => item.scope).map(item => [item.scope, item]));
+    changes = [];
+    for (const selection of selections) {
+      const item = diagnostics.get(selection.scope);
+      if (!item?.candidateIds.includes(selection.recordId)) {
+        return res.status(409).json({ message: '部分诊断已变化，请检查选择后再应用。' });
+      }
+      changes.push({ scope: item.scope, method: item.method, url: item.url, type: item.type, recordId: selection.recordId });
+    }
+    const additions = changes.filter(item => !replay.overrides.has(item.scope)).length;
+    if (replay.overrides.size + additions > MAX_RECORDS) {
+      return res.status(409).json({ message: '本次复现的例外将超过上限，请先撤销部分例外。' });
+    }
+  } else if (type === 'remove-override' && typeof scope === 'string') {
+    if (!replay.overrides.has(scope)) return res.status(409).json({ message: '这条例外已撤销。' });
+    changes = [{ scope }];
+  } else {
+    return res.sendStatus(400);
+  }
+
+  replay.changingOverrides = true;
+  worker.send({ overrideChanges: changes }, error => {
+    replay.changingOverrides = false;
+    if (error) return res.sendStatus(503);
+    for (const change of changes) {
+      if (change.recordId !== undefined) replay.overrides.set(change.scope, change);
+      else replay.overrides.delete(change.scope);
+    }
+    res.sendStatus(204);
+  });
 }
 
-module.exports = { isLocalReplayRequest, launchReplay, replayStatus, replayFrame, replayControl };
+module.exports = { isLocalReplayRequest, launchReplay, replayStatus, replaySupplement, replayControl };

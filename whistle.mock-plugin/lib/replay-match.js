@@ -3,6 +3,16 @@ const { requestKey } = require('./replay-session');
 const TRACE_ID = /^T\d{15,17}$/;
 const CALLBACK = /^[a-z_$][\w$]*$/i;
 const utf8 = new TextDecoder('utf-8', { fatal: true });
+const PARAMETER_MISMATCH = '已录到同一接口，但请求参数不同';
+const MISSING_REQUEST = '会话里没有录到这条请求';
+
+function endpointKey(method, url) {
+  return method + ' ' + url.origin + url.pathname;
+}
+
+function replayMatchScope(method, address, type) {
+  return JSON.stringify([endpointKey(method, new URL(address)), type]);
+}
 
 // Keep the exact JSON tokens for business fields, including large numbers.
 function bodyWithoutTrace(body) {
@@ -69,10 +79,51 @@ function readJsonp(row, url) {
   }
 }
 
-function createReplayMatcher(records) {
+function describeFields(label, names) {
+  const visible = names.filter(name => /^[\w.-]{1,64}$/.test(name)).slice(0, 6);
+  return visible.length ? `${label}字段 ${visible.join('、')}${visible.length < names.length ? ' 等' : ''} 不同` : `${label}内容不同`;
+}
+
+function describeMismatch(record, url, body) {
+  const details = [];
+  const recorded = new URL(record.url);
+  if (recorded.search !== url.search) {
+    const names = [...new Set([...recorded.searchParams.keys(), ...url.searchParams.keys()])];
+    details.push(describeFields('查询参数', names.filter(name =>
+      JSON.stringify(recorded.searchParams.getAll(name)) !== JSON.stringify(url.searchParams.getAll(name)))));
+  }
+  if (record.requestBody !== body) {
+    let names = [];
+    if (record.requestBody.length <= 350000 && body.length <= 350000) {
+      try {
+        const previous = JSON.parse(utf8.decode(Buffer.from(record.requestBody, 'base64')));
+        const current = JSON.parse(utf8.decode(Buffer.from(body, 'base64')));
+        if (previous && current && typeof previous === 'object' && typeof current === 'object' &&
+            !Array.isArray(previous) && !Array.isArray(current)) {
+          names = [...new Set([...Object.keys(previous), ...Object.keys(current)])].filter(name =>
+            JSON.stringify(previous[name]) !== JSON.stringify(current[name]));
+        }
+      } catch {
+        // Other body formats are reported without exposing their contents.
+      }
+    }
+    details.push(describeFields('请求体', names));
+  }
+  return details.join('，');
+}
+
+function withJsonpCallback({ row, jsonp }, newCallback) {
+  if (!newCallback || !jsonp || newCallback === jsonp.callback) return row;
+  const { source, callback, offset } = jsonp;
+  const text = source.slice(0, offset) + newCallback + source.slice(offset + callback.length);
+  return { ...row, response: { ...row.response, body: Buffer.from(text).toString('base64') } };
+}
+
+function createReplayMatcher(records, overrides = new Map()) {
   const exact = new Map();
   const normalized = new Map();
-  const paths = new Set();
+  const paths = new Map();
+  const usableResponses = new Map();
   const ordered = [...records].sort((a, b) => a.startTime - b.startTime ||
     a.id.localeCompare(b.id, undefined, { numeric: true }));
   function add(map, key, item) {
@@ -81,10 +132,12 @@ function createReplayMatcher(records) {
   }
   for (const row of ordered) {
     const url = new URL(row.url);
-    paths.add(row.method + ' ' + url.origin + url.pathname);
-    if (row.requestBody === null) continue;
+    const path = endpointKey(row.method, url);
+    if (paths.get(path)?.requestBody == null) paths.set(path, row);
     const jsonp = readJsonp(row, url);
     const item = { row, jsonp, used: false };
+    if (row.outcome === 'response' && row.response && row.status !== 304) add(usableResponses, path, item);
+    if (row.requestBody === null) continue;
     add(exact, requestKey(row.method, row.url, row.requestBody), item);
     const key = normalize(row.method, url, row.requestBody, !!jsonp);
     if (key) add(normalized, key.key, item);
@@ -107,15 +160,23 @@ function createReplayMatcher(records) {
       const match = candidates?.find(candidate => !candidate.used);
       if (!match) continue;
       match.used = true;
-      if (!key.callback || !match.jsonp) return { entry: match.row };
-      const { source, callback, offset } = match.jsonp;
-      const text = source.slice(0, offset) + key.callback + source.slice(offset + callback.length);
-      return { entry: { ...match.row, response: { ...match.row.response, body: Buffer.from(text).toString('base64') } } };
+      return { entry: withJsonpCallback(match, key.callback) };
     }
-    const reason = exhausted ? '录制的响应已用完' : paths.has(method + ' ' + url.origin + url.pathname)
-      ? '已录到同一接口，但请求参数不同' : '会话里没有录到这条请求';
-    return { reason };
+    if (exhausted) return { reason: '录制的响应已用完' };
+    const path = endpointKey(method, url);
+    const recorded = paths.get(path);
+    if (!recorded) return { reason: MISSING_REQUEST };
+    if (recorded.requestBody === null) return { reason: '已录到同一接口，但请求体未完整录到' };
+    const candidates = usableResponses.get(path) || [];
+    const selection = overrides.get(replayMatchScope(method, url, type));
+    const approved = candidates.find(candidate => candidate.row.id === selection);
+    if (approved) {
+      const callback = type === 'script' ? normalize(method, url, body, true)?.callback : null;
+      return { entry: withJsonpCallback(approved, callback) };
+    }
+    return { reason: PARAMETER_MISMATCH, detail: describeMismatch(recorded, url, body),
+      candidateIds: candidates.map(candidate => candidate.row.id) };
   };
 }
 
-module.exports = { createReplayMatcher };
+module.exports = { createReplayMatcher, replayMatchScope, PARAMETER_MISMATCH, MISSING_REQUEST };

@@ -10,7 +10,8 @@ import {
   ExperimentOutlined,
   BarChartOutlined,
   ThunderboltOutlined,
-  GlobalOutlined
+  GlobalOutlined,
+  DesktopOutlined
 } from '@ant-design/icons';
 import { Link, useLocation } from 'react-router-dom';
 import VersionModal from './VersionModal';
@@ -27,15 +28,17 @@ const AppLayout = ({ children }) => {
   const location = useLocation();
   const currentPath = location.pathname;
   const isNetwork = currentPath === '/network';
-  const [collapsed, setCollapsed] = useState(() => isNetwork && window.innerWidth <= 768);
+  const isReplay = currentPath === '/replay';
+  const collapseOnMobile = isNetwork || isReplay;
+  const [collapsed, setCollapsed] = useState(() => collapseOnMobile && window.innerWidth <= 768);
   useEffect(() => {
-    if (!isNetwork) return;
+    if (!collapseOnMobile) return;
     const media = window.matchMedia('(max-width: 768px)');
     const collapseOnSmallScreen = event => { if (event.matches) setCollapsed(true); };
     collapseOnSmallScreen(media);
     media.addEventListener('change', collapseOnSmallScreen);
     return () => media.removeEventListener('change', collapseOnSmallScreen);
-  }, [isNetwork]);
+  }, [collapseOnMobile]);
   const [versionModalVisible, setVersionModalVisible] = useState(false);
   const [shortcutsHelpVisible, setShortcutsHelpVisible] = useState(false);
   
@@ -218,7 +221,8 @@ const AppLayout = ({ children }) => {
     if (currentPath === '/' || currentPath === '#/') return ['1'];
     if (currentPath.startsWith('/interface') || currentPath.includes('/interface')) return ['2'];
     if (currentPath === '/stats' || currentPath.includes('/stats')) return ['4'];
-    if (currentPath === '/network') return ['6'];
+    if (isNetwork) return ['6'];
+    if (isReplay) return ['7'];
     if (currentPath === '/sniffer' || currentPath.includes('/sniffer')) return ['5'];
     if (currentPath === '/settings' || currentPath.includes('/settings')) return ['3'];
     return [];
@@ -282,6 +286,11 @@ const AppLayout = ({ children }) => {
       key: '6',
       icon: <GlobalOutlined />,
       label: <Link to="/network">抓包列表</Link>,
+    },
+    {
+      key: '7',
+      icon: <DesktopOutlined />,
+      label: <Link to="/replay">故障复现</Link>,
     },
     {
       key: '5',
@@ -369,7 +378,7 @@ const AppLayout = ({ children }) => {
           {/* 主内容区 */}
           <Layout className="app-content-wrapper" style={{ padding: 0, background: t.wrapperBg }}>
             {/* 面包屑和标题 */}
-            {!isNetwork && <div style={{ padding: '16px 24px 0' }}>
+            {!isNetwork && !isReplay && <div style={{ padding: '16px 24px 0' }}>
               <Breadcrumb className="app-breadcrumb" style={{ marginBottom: 16 }}>
                 {breadcrumbs.map((crumb, index) => (
                   <Breadcrumb.Item key={index}>
@@ -396,7 +405,7 @@ const AppLayout = ({ children }) => {
             {/* 内容区 */}
             <Content
               className="app-content"
-              style={isNetwork ? { background: t.contentBg, padding: 16, margin: 0, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } : {
+              style={isNetwork ? { background: t.contentBg, padding: 16, margin: 0, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } : isReplay ? { padding: 16, margin: 0, minWidth: 0 } : {
                 background: t.contentBg,
                 padding: 24,
                 borderRadius: 6,

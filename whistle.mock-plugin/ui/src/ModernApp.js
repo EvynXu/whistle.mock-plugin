@@ -15,6 +15,7 @@ import Settings from './pages/Settings';
 import Stats from './pages/Stats';
 import Sniffer from './pages/Sniffer';
 import Network from './pages/Network';
+import ReplayWorkspace from './components/ReplayWorkspace';
 
 import './styles/ui3.css';
 
@@ -30,8 +31,11 @@ const App = () => {
           <Route path="/network" component={Network} />
           <Route path="/sniffer" component={Sniffer} />
           <Route path="/settings" component={Settings} />
+          <Route exact path="/replay" render={() => null} />
           <Redirect to="/" />
-        </Switch></AppLayout></ThemeProvider>
+        </Switch>
+          <Route exact path="/replay" children={({ match }) => <ReplayWorkspace open={!!match} />} />
+        </AppLayout></ThemeProvider>
       </div>
     </Router>
   );
