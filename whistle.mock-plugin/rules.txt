@@ -1,2 +1,2 @@
-@./rules-development.txt
+* whistle.mock-plugins://
 @whistle.mock-plugins/cgi-bin/replay-session/cache-rules

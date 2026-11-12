@@ -100,7 +100,7 @@
 3. 启动 Whistle：`w2 start`
 4. 访问插件页面：`http://local.whistlejs.com/plugin.mock-plugin/`
 5. 创建功能模块和接口配置
-6. 在 Whistle 中添加规则：`pattern whistle.mock-plugins://`
+6. 在 Whistle 的 Plugins 中启用 MockMaster。插件自带全量代理规则，匹配已启用的 Mock 接口，其余请求继续访问原服务。
 
 ## 贡献指南
 
