@@ -22,3 +22,7 @@ alwaysApply: true
 - 代码构建：`npm run build`
 - 挂载代码：`npm link`
 - 重启服务：`w2 restart`
+
+## npm 打包发布
+
+每次发布稳定版或 beta 版时，执行 [Whistle 插件发布规则](mdc:AGENTS.md) 中的安装包、代理命中和注册表检查。
