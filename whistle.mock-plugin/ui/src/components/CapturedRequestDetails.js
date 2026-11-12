@@ -49,7 +49,7 @@ export default function CapturedRequestDetails({
     {actions}
     {note && <Typography.Text type="secondary" className="mm-captured-detail-note">{note}</Typography.Text>}
     <Tabs size="small" items={[
-      { key: 'overview', label: '概览', children: <Descriptions size="small" column={1} items={overview.map(([label, children]) =>
+      { key: 'overview', label: '概览', children: <Descriptions bordered size="small" column={1} items={overview.map(([label, children]) =>
         ({ key: label, label, children }))} /> },
       { key: 'query', label: '查询参数', children: <Pairs entries={query} empty="没有查询参数" /> },
       { key: 'request-headers', label: '请求头', children: <HeadersView headers={requestHeaders} maskSensitive={maskSensitive} /> },

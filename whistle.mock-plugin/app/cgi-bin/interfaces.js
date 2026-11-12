@@ -28,7 +28,15 @@ module.exports = function(req, res) {
     
     // 处理GET请求 - 获取接口列表
     if (req.method === 'GET') {
-      const { featureId } = req.query;
+      const { featureId, id } = req.query;
+
+      if (!featureId && typeof id === 'string' && id) {
+        const item = fs.readJsonSync(interfacesFile).interfaces.find(item => item.id === id);
+        if (!item) return res.status(404).json({ code: 404, message: '接口不存在', data: null });
+        const features = fs.existsSync(featuresFile) ? fs.readJsonSync(featuresFile, { throws: false }) : null;
+        const feature = features?.features?.find(feature => feature.id === item.featureId);
+        return res.json({ code: 0, data: { interfaceName: item.name, featureName: feature?.name } });
+      }
       
       if (!featureId) {
         return res.status(400).json({
@@ -512,4 +520,4 @@ module.exports = function(req, res) {
       data: null
     });
   }
-}; 
+};

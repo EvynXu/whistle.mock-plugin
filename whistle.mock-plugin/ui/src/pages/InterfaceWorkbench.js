@@ -92,6 +92,7 @@ export default function InterfaceWorkbench() {
     confirmOpen = useRef(false),
     saveRef = useRef(null);
   const dirty = draft !== null && (JSON.stringify(draft) !== baseline || headerInvalid);
+  const canSave = dirty || !!(draft && !draft.id && draft.name.trim() && draft.urlPattern.trim());
   const activeFeature = features.find(f => f.id === moduleId);
   const filtered = useMemo(() => filterInterfaces(items, search, group), [items, search, group]);
   const groups = [...new Set(items.map(i => i.group).filter(Boolean))].sort();
@@ -261,7 +262,7 @@ export default function InterfaceWorkbench() {
     loadDraft({});
   });
   const save = async () => {
-    if (!draft || saving || busy) return;
+    if (!canSave || saving || busy) return;
     const validation = validateDraft(draft);
     if (validation || headerInvalid) {
       message.error(validation || '请修正 Headers 格式');
@@ -638,7 +639,7 @@ export default function InterfaceWorkbench() {
                 activeResponseId
               })} /></section> : <Alert className="mm-error" type="info" message={draft.proxyType === 'file' ? '此接口返回本地文件，请在接口与匹配规则中配置文件路径。' : '此接口转发到目标地址，请在接口与匹配规则中配置目标 URL。'} />}
       <div className="mm-sniffer-hint"><Typography.Text type="secondary">需要从真实接口获取响应？</Typography.Text><Button type="link" size="small" onClick={() => history.push('/sniffer')}>打开接口嗅探</Button></div></div>
-      <footer className="mm-save-bar"><span aria-live="polite">{saving ? '保存中…' : dirty ? '● 有未保存修改' : '修改后保存生效'}</span><Space><Button disabled={!dirty || saving || busy} onClick={() => guard(() => loadDraft(JSON.parse(baseline)))}>还原</Button><Button type="primary" loading={saving} disabled={busy} onClick={save}>保存接口</Button></Space></footer></> : <div className="mm-panel-empty"><Empty description="选择接口，开始编辑规则和响应" /><Button type="primary" disabled={!moduleId} onClick={add}>新建接口</Button></div>}</section>}
+      <footer className="mm-save-bar"><span aria-live="polite">{saving ? '保存中…' : canSave ? '● 有未保存修改' : '修改后保存生效'}</span><Space><Button disabled={!dirty || saving || busy} onClick={() => guard(() => loadDraft(JSON.parse(baseline)))}>还原</Button><Button type="primary" loading={saving} disabled={!canSave || saving || busy} onClick={save}>保存接口</Button></Space></footer></> : <div className="mm-panel-empty"><Empty description="选择接口，开始编辑规则和响应" /><Button type="primary" disabled={!moduleId} onClick={add}>新建接口</Button></div>}</section>}
     </div>
   </div>;
 }

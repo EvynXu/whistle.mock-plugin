@@ -2,6 +2,20 @@
 const MAX_ROWS = 500;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const header = (headers = {}, name) => Object.entries(headers || {}).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] || '';
+const mockName = value => {
+  if (typeof value !== 'string' || value === 'unknown') return '';
+  if (!value.startsWith("UTF-8''")) return value;
+  try { return decodeURIComponent(value.slice(7)); } catch { return ''; }
+};
+const mockHitDetails = headers => {
+  if (header(headers, 'x-whistle-mock') !== 'true') return null;
+  const id = header(headers, 'x-whistle-mock-interface');
+  return {
+    interfaceId: typeof id === 'string' && id !== 'unknown' ? id : '',
+    interfaceName: mockName(header(headers, 'x-whistle-mock-rule')),
+    featureName: mockName(header(headers, 'x-whistle-mock-feature'))
+  };
+};
 const summarize = item => {
   const row = { id: item.id };
   for (const key of ['url', 'startTime', 'endTime', 'requestTime', 'responseTime', 'reqError', 'resError']) {
@@ -13,6 +27,7 @@ const summarize = item => {
   if (item.res?.size !== undefined) row.size = item.res.size;
   const type = header(item.res?.headers, 'content-type');
   if (type) row.contentType = type;
+  if (header(item.res?.headers, 'x-whistle-mock') === 'true') row.mockHit = true;
   return row;
 };
 const mergeRows = (oldRows, incoming, limit = MAX_ROWS) => {
@@ -67,4 +82,4 @@ const sessionDetail = session => {
     reason: !http || code === 101 ? '当前仅支持 HTTP/HTTPS 文本响应转为 Mock。' : !completed ? '请求尚未结束或发生传输错误，请等待或刷新详情。' : !validStatus ? '没有可用的 HTTP 响应状态，无法转为 Mock。' : response.reason };
 
 };
-module.exports = { MAX_ROWS, MAX_BODY_BYTES, header, summarize, mergeRows, decodeBody, sessionDetail };
+module.exports = { MAX_ROWS, MAX_BODY_BYTES, header, mockHitDetails, summarize, mergeRows, decodeBody, sessionDetail };

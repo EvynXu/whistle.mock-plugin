@@ -7,7 +7,7 @@ import SaveMockDrawer from '../components/SaveMockDrawer';
 import CapturedRequestDetails from '../components/CapturedRequestDetails';
 import { useHistory } from 'react-router-dom';
 import { fetchNetwork, fetchSession } from '../utils/network/client';
-import { MAX_ROWS, mergeRows, sessionDetail, header } from '../utils/network/model';
+import { MAX_ROWS, mergeRows, sessionDetail, header, mockHitDetails } from '../utils/network/model';
 import '../styles/network.css';
 const size = value => value == null ? '—' : value < 1024 ? `${value} B` : value < 1048576 ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1048576).toFixed(1)} MB`;
 const time = value => value ? new Date(value).toLocaleTimeString() : '—';
@@ -104,8 +104,25 @@ export default function Network() {
     setDetail(null);
     setDetailError('');
     setDetailLoading(true);
-    fetchSession(selected, controller.signal).then(session => {
-      if (live) setDetail(sessionDetail(session));
+    fetchSession(selected, controller.signal).then(async session => {
+      if (!live) return;
+      const detail = sessionDetail(session);
+      const hit = mockHitDetails(session.res?.headers);
+      setDetail({ ...detail, hit });
+      if (hit?.interfaceId && (!hit.interfaceName || !hit.featureName)) {
+        try {
+          const { data } = await axios.get('/cgi-bin/interfaces', {
+            params: { id: hit.interfaceId }, signal: controller.signal, timeout: 4000
+          });
+          if (live && data?.code === 0 && data.data) {
+            setDetail({ ...detail, hit: {
+              ...hit,
+              interfaceName: hit.interfaceName || data.data.interfaceName,
+              featureName: hit.featureName || data.data.featureName
+            } });
+          }
+        } catch { /* The capture can still show its interface ID if the lookup fails. */ }
+      }
     }).catch(e => {
       if (live && !axios.isCancel(e)) setDetailError(e.message);
     }).finally(() => {
@@ -173,7 +190,7 @@ export default function Network() {
     title: 'URL',
     dataIndex: 'url',
     ellipsis: true,
-    render: (url, row) => <button className="mm-network-url" title={url} onClick={() => setSelected(row.id)}>{url || row.id}</button>
+    render: (url, row) => <button className="mm-network-url" title={url} aria-label={row.mockHit ? `已命中 Mock，${url || row.id}` : undefined} onClick={() => setSelected(row.id)}>{url || row.id}</button>
   }, {
     title: '耗时',
     width: 90,
@@ -191,8 +208,14 @@ export default function Network() {
     render: value => value || '—'
   }];
   const session = detail?.session;
+  const hit = detail?.hit;
   const overview = session && [
     ['状态', session.res?.statusCode || '进行中'],
+    ...(hit ? [
+      ['命中规则', <Tag color="blue">已命中 Mock</Tag>],
+      ['功能模块', hit.featureName || '—'],
+      ['接口', hit.interfaceName || hit.interfaceId || '—']
+    ] : []),
     ['耗时', session.endTime ? `${Math.max(0, session.endTime - session.startTime)} ms` : '进行中'],
     ['开始时间', session.startTime ? new Date(session.startTime).toLocaleString() : '—'],
     ['设备 IP', session.req?.ip || '—'], ['来源', 'Whistle 抓取'],
@@ -222,7 +245,7 @@ export default function Network() {
       <span className="mm-network-state">{filtered.length} / {rows.length} 条 · {running && !error ? '同步中' : '已暂停'}{updated ? ` · ${time(updated)}` : ''}</span>
     </div>
     <Typography.Text type="secondary" className="mm-network-note">仅保留本页最近 {MAX_ROWS} 条，单页滚动；首次载入最近 50 条，后续增量同步。清空本页不影响 Whistle 的 Network 记录。</Typography.Text>
-    <div className="mm-network-table" ref={tableHost}><Table rowKey="id" size="small" loading={loading} dataSource={filtered} columns={columns} scroll={{
+    <div className="mm-network-table" ref={tableHost}><Table rowKey="id" rowClassName={row => row.mockHit ? 'mm-network-row-hit' : ''} size="small" loading={loading} dataSource={filtered} columns={columns} scroll={{
         x: 1000,
         y: tableHeight
       }} pagination={false} locale={{

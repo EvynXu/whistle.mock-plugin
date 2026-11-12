@@ -88,5 +88,23 @@
 .mm-section-label strong { color:var(--mm-text); font-size:13px; font-weight:550; }
 .mm-section-label>span { color:var(--mm-muted); font-size:12px; overflow-wrap:anywhere; }
 .mm-response-main>h3 { margin:20px 0 0; color:var(--mm-text); font-size:14px; }
+.mm-response-switcher { margin-bottom:6px; }
+.mm-response-switch-note { font-size:12px; }
+.mm-response-option { position:relative; display:flex; align-items:center; gap:8px; }
+.mm-response-option>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mm-response-option-description { flex:0 1 45%; color:var(--mm-muted); font-size:12px; }
+.mm-response-option>.mm-response-drag-handle { display:grid; place-items:center; flex:none; width:22px; height:22px; color:var(--mm-muted); cursor:grab; touch-action:none; user-select:none; }
+.mm-response-drag-handle:active,.mm-response-option[data-dragging] .mm-response-drag-handle { cursor:grabbing; }
+.mm-response-option[data-dragging] { opacity:.42; }
+.mm-response-option[data-drop]::after { content:''; position:absolute; z-index:1; inset-inline:0; height:3px; border-radius:2px; background:var(--mm-primary); pointer-events:none; }
+.mm-response-option[data-drop="before"]::after { top:-3px; }
+.mm-response-option[data-drop="after"]::after { bottom:-3px; }
+.mm-response-sort-note { margin-top:4px; padding:6px 8px 2px; border-top:1px solid var(--mm-border); color:var(--mm-muted); font-size:12px; }
+.mm-response-drag-preview { position:fixed; z-index:2000; inset:0 auto auto 0; width:min(280px,calc(100vw - 24px)); box-sizing:border-box; display:flex; gap:8px; align-items:center; padding:8px 12px; border:1px solid var(--mm-primary); border-radius:8px; background:var(--mm-surface); color:var(--mm-text); box-shadow:0 5px 18px #0003; pointer-events:none; font-size:14px; }
+.mm-response-drag-preview>span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mm-response-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:12px; }
+.mm-response-fields>label { display:grid; gap:6px; min-width:0; color:var(--mm-text); }
 .mm-response-settings .mm-editor-section { margin-top:14px; }
+.mm-response-delete-confirm p { margin:0; overflow-wrap:anywhere; }
+.mm-response-delete-confirm p+p { margin-top:8px; }
 .mm-sniffer-hint { display:flex; flex-wrap:wrap; align-items:center; margin:18px 0 0; font-size:12px; }

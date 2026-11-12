@@ -7,6 +7,11 @@ const storage = require('./storage');
 
 const SETTINGS_FILE = path.join(storage.DATA_DIR, 'settings.json');
 
+// Whistle and Node may reject non-ASCII values in diagnostic headers.
+const encodeMockName = name => /[^\x20-\x7e]/.test(name) || name.startsWith("UTF-8''")
+  ? "UTF-8''" + encodeURIComponent(Buffer.from(name).toString('utf8'))
+  : name;
+
 const getSettings = () => {
   try {
     if (!fse.existsSync(SETTINGS_FILE)) return { interfaceParamMatcherEnabled: true, responseParamMatcherEnabled: true };
@@ -443,7 +448,7 @@ const ruleManager = {
     if (enableMockHeaders) {
       res.setHeader('X-Whistle-Mock', 'true');
       res.setHeader('X-Whistle-Mock-Mode', this.normalizeProxyType(proxyType));
-      res.setHeader('X-Whistle-Mock-Rule', interfaceObj.name || 'unknown');
+      res.setHeader('X-Whistle-Mock-Rule', encodeMockName(interfaceObj.name || 'unknown'));
       res.setHeader('X-Whistle-Mock-Interface', interfaceObj.id || 'unknown');
       
       // 添加功能模块信息
@@ -452,7 +457,7 @@ const ruleManager = {
           const features = await this.dataManager.getFeatures();
           const feature = features.find(f => f.id === interfaceObj.featureId);
           if (feature && feature.name) {
-            res.setHeader('X-Whistle-Mock-Feature', feature.name);
+            res.setHeader('X-Whistle-Mock-Feature', encodeMockName(feature.name));
           }
         } catch (err) {
           this.log(`[规则处理器] 获取功能模块信息失败: ${err.message}`);
@@ -1132,4 +1137,4 @@ const ruleManager = {
   }
 };
 
-module.exports = ruleManager; 
+module.exports = ruleManager;
